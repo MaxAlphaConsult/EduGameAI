@@ -210,7 +210,13 @@ export async function POST(request: NextRequest) {
         let message = 'Analyse fehlgeschlagen'
         if (err instanceof PipelineValidationError) message = `Validierungsfehler: ${err.message}`
         else if (err instanceof PipelineJsonError) message = `KI hat kein JSON zurückgegeben: ${err.schritt}`
-        else if (err instanceof PipelineApiError) message = `KI-API nicht erreichbar: ${err.schritt}`
+        else if (err instanceof PipelineApiError) {
+          const cause = err.cause
+          const status = (cause as { status?: number })?.status
+          const causeMsg = cause instanceof Error ? cause.message : JSON.stringify(cause)
+          message = `KI-API Fehler bei "${err.schritt}" (HTTP ${status ?? '?'}): ${causeMsg}`
+          console.error('[analyze] PipelineApiError:', err.schritt, cause)
+        }
         else {
           const detail = err instanceof Error ? err.message : JSON.stringify(err)
           message = `Analyse fehlgeschlagen: ${detail}`
