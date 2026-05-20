@@ -53,6 +53,12 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       const send = (data: Record<string, unknown>) => controller.enqueue(sseEvent(data))
 
+      // Heartbeat: SSE-Kommentar alle 10s, damit Proxies/Browser die Verbindung
+      // nicht wegen Inaktivität kappen, während die Pipeline lange läuft.
+      const heartbeat = setInterval(() => {
+        try { controller.enqueue(enc.encode(`: ping\n\n`)) } catch { /* closed */ }
+      }, 10_000)
+
       try {
         const kontext = {
           fach: material.fach,
@@ -123,6 +129,26 @@ export async function POST(request: NextRequest) {
         // Alle Spiele parallel generieren + jeweils direkt validieren — jedes Spiel
         // bekommt einen Lehrkraft-Check, nicht nur das erste. Dank Prompt Caching
         // sind die Folge-Calls (Gen + Validation) deutlich günstiger.
+        //
+        // Wichtig: jedes Task feuert eigene Progress-Events, damit der Client
+        // sieht, dass etwas passiert (sonst Stille für 60-120s).
+        // Progress-Verteilung: 55% (Start) → 80% (alle Spiele generiert) → 92% (alle validiert).
+        let generated = 0
+        let validated = 0
+        const sendGameProgress = () => {
+          const genShare = generated / anzahlSpiele         // 0..1
+          const valShare = validated / anzahlSpiele         // 0..1
+          const percent = Math.round(55 + genShare * 25 + valShare * 12)  // 55 → 92
+          send({
+            type: 'progress',
+            label: validated < anzahlSpiele
+              ? `Spiel ${generated}/${anzahlSpiele} generiert · Lehrkraft-Check ${validated}/${anzahlSpiele}`
+              : `Lehrkraft-Check ${validated}/${anzahlSpiele} fertig`,
+            percent,
+            schrittIndex: validated < anzahlSpiele ? 13 : 20,
+          })
+        }
+
         const spielErgebnisse = await Promise.all(
           Array.from({ length: anzahlSpiele }, async (_, i) => {
             const vorschlag = vorschlaege[i % vorschlaege.length]
@@ -138,6 +164,8 @@ export async function POST(request: NextRequest) {
               kontext,
               erlaubteFormate: erlaubteFormateArray,
             })
+            generated++
+            sendGameProgress()
 
             const spielTitel = (i === 0 && spielname?.trim()) ? spielname.trim() : undefined
 
@@ -164,6 +192,8 @@ export async function POST(request: NextRequest) {
             } catch (err) {
               console.error(`[analyze] Validierung Spiel ${i + 1} fehlgeschlagen:`, err)
             }
+            validated++
+            sendGameProgress()
 
             return { spiel, spielRow }
           })
@@ -222,6 +252,8 @@ export async function POST(request: NextRequest) {
           console.error('[analyze]', err)
         }
         send({ type: 'error', message })
+      } finally {
+        clearInterval(heartbeat)
       }
 
       controller.close()
