@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { GameEngine } from '@/components/game/GameEngine'
 
-type Phase = 'entry' | 'loading' | 'playing' | 'error'
+type Phase = 'entry' | 'niveau' | 'loading' | 'playing' | 'error'
 type Differenzierungsniveau = 'leichter' | 'mittel' | 'schwer' | 'sehr_schwer'
 
 interface SessionData {
@@ -24,15 +24,23 @@ const SKIN_LABEL: Record<string, string> = {
   oberstufe: 'Analyse-Modus',
 }
 
+const NIVEAU_OPTIONEN: { wert: Differenzierungsniveau; emoji: string; titel: string; beschreibung: string }[] = [
+  { wert: 'leichter', emoji: '🌱', titel: 'Locker', beschreibung: 'Einstieg mit mehr Hilfen' },
+  { wert: 'mittel', emoji: '⚡', titel: 'Normal', beschreibung: 'Standard-Schwierigkeit' },
+  { wert: 'schwer', emoji: '🔥', titel: 'Knifflig', beschreibung: 'Etwas mehr Herausforderung' },
+  { wert: 'sehr_schwer', emoji: '💎', titel: 'Hardcore', beschreibung: 'Maximale Tiefe' },
+]
+
 function PlayInner({ gameId }: { gameId: string }) {
   const [phase, setPhase] = useState<Phase>('entry')
   const [sessionData, setSessionData] = useState<SessionData | null>(null)
-  const [niveau] = useState<Differenzierungsniveau>('mittel')
+  const [niveau, setNiveau] = useState<Differenzierungsniveau>('mittel')
+  const [pendingCode, setPendingCode] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const searchParams = useSearchParams()
 
-  function startSession(code: string) {
+  function startSession(code: string, gewaehltesNiveau: Differenzierungsniveau) {
     startTransition(async () => {
       setPhase('loading')
       setError(null)
@@ -40,7 +48,7 @@ function PlayInner({ gameId }: { gameId: string }) {
         const res = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ spielId: gameId, code, differenzierungsniveau: niveau }),
+          body: JSON.stringify({ spielId: gameId, code, differenzierungsniveau: gewaehltesNiveau }),
         })
         if (!res.ok) {
           const body = await res.json()
@@ -60,11 +68,12 @@ function PlayInner({ gameId }: { gameId: string }) {
     })
   }
 
-  // Auto-start wenn Code per URL übergeben (von /spielen)
+  // Auto-Niveau-Auswahl wenn Code per URL übergeben (von /spielen)
   useEffect(() => {
     const codeParam = searchParams.get('code')
     if (codeParam && phase === 'entry') {
-      startSession(codeParam)
+      setPendingCode(codeParam.trim().toUpperCase())
+      setPhase('niveau')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -72,7 +81,14 @@ function PlayInner({ gameId }: { gameId: string }) {
   function onSubmitCode(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const code = (e.currentTarget.elements.namedItem('code') as HTMLInputElement).value.trim().toUpperCase()
-    startSession(code)
+    setPendingCode(code)
+    setPhase('niveau')
+  }
+
+  function onConfirmNiveau() {
+    if (!pendingCode) return
+    setNiveau(niveau)
+    startSession(pendingCode, niveau)
   }
 
   if (phase === 'playing' && sessionData) {
@@ -98,6 +114,49 @@ function PlayInner({ gameId }: { gameId: string }) {
           <div className="text-center">
             <div className="text-4xl mb-4 animate-pulse">{SKIN_EMOJI[skin]}</div>
             <p className="text-muted-foreground text-sm">Spiel wird geladen…</p>
+          </div>
+        )}
+
+        {phase === 'niveau' && (
+          <div className="bg-background border rounded-2xl shadow-sm p-8">
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-2">{SKIN_EMOJI[skin]}</div>
+              <h1 className="text-xl font-bold">Wie magst du es?</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Wähle deine Schwierigkeit — du kannst sie später nicht ändern.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 mb-4">
+              {NIVEAU_OPTIONEN.map((opt) => (
+                <button
+                  key={opt.wert}
+                  type="button"
+                  onClick={() => setNiveau(opt.wert)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
+                    niveau === opt.wert
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-2xl flex-shrink-0">{opt.emoji}</span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-semibold">{opt.titel}</span>
+                    <span className="block text-xs text-muted-foreground">{opt.beschreibung}</span>
+                  </span>
+                  {niveau === opt.wert && <span className="text-primary text-lg">✓</span>}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={onConfirmNiveau}
+              disabled={isPending}
+              className="w-full bg-primary text-primary-foreground rounded-xl px-4 py-3 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {isPending ? 'Laden…' : 'Starten →'}
+            </button>
           </div>
         )}
 
@@ -131,7 +190,7 @@ function PlayInner({ gameId }: { gameId: string }) {
                 disabled={isPending}
                 className="w-full bg-primary text-primary-foreground rounded-xl px-4 py-3 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                {isPending ? 'Laden…' : 'Los geht\'s →'}
+                {isPending ? 'Laden…' : 'Weiter →'}
               </button>
             </form>
           </div>

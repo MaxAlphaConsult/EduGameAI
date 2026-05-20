@@ -134,28 +134,82 @@ export function GameEngine({ sessionId, aufgaben, gameSkin, gameId }: Props) {
   if (abgeschlossen) {
     const korrektAnzahl = ergebnisse.filter((e) => e.korrekt).length
     const prozent = Math.round((korrektAnzahl / aufgaben.length) * 100)
+
+    const teilkompetenzMap = new Map(aufgaben.map((a) => [a.aufgabe_id, a.teilkompetenz]))
+    const kannGut = new Set<string>()
+    const nochUeben = new Set<string>()
+    for (const e of ergebnisse) {
+      const tk = teilkompetenzMap.get(e.aufgabeId)
+      if (!tk) continue
+      if (e.korrekt) kannGut.add(tk)
+      else nochUeben.add(tk)
+    }
+    // Teilkompetenzen die mal richtig und mal falsch waren → eher "noch üben"
+    for (const tk of nochUeben) kannGut.delete(tk)
+
+    const lernstandSatz = prozent >= 80
+      ? 'Stark — du beherrschst dieses Thema schon sehr sicher.'
+      : prozent >= 50
+        ? 'Solider Stand — ein paar gezielte Wiederholungen, und du hast es.'
+        : 'Das war noch knifflig. Mit etwas Übung schaffst du das beim nächsten Mal.'
+
+    const naechsterSchritt = prozent >= 80
+      ? 'Probiere ein schwierigeres Niveau oder hilf einer Mitschülerin.'
+      : nochUeben.size > 0
+        ? 'Schau dir den Lernzettel zu den markierten Themen an und versuche das Spiel nochmal.'
+        : 'Lade den Lernzettel herunter und gehe das Material in Ruhe durch.'
+
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 p-8 text-center">
         <div className="text-5xl">{prozent >= 80 ? '🌟' : prozent >= 50 ? '💪' : '📚'}</div>
         <div>
           <h2 className="text-2xl font-bold mb-1">{korrektAnzahl} von {aufgaben.length} richtig</h2>
-          <p className="text-muted-foreground text-sm">
-            {prozent >= 80 ? 'Ausgezeichnet — du beherrschst dieses Thema sehr gut!'
-              : prozent >= 50 ? 'Gut — mit etwas Übung kannst du noch mehr erreichen.'
-              : 'Nicht aufgeben — wiederhole das Material und versuche es nochmal.'}
-          </p>
+          <p className="text-muted-foreground text-sm">{lernstandSatz}</p>
         </div>
-        <div className="w-full max-w-md text-left flex flex-col gap-2">
-          {ergebnisse.map((e, i) => (
-            <div key={i} className={`flex items-start gap-3 px-4 py-3 rounded-xl text-sm border
-              ${e.korrekt ? 'border-green-200 bg-green-50' : 'border-red-100 bg-red-50'}`}>
-              <span className="flex-shrink-0">{e.korrekt ? '✓' : '✗'}</span>
-              <span className={e.korrekt ? 'text-green-800' : 'text-red-800'}>
-                Aufgabe {i + 1}: {e.korrekt ? 'Richtig' : 'Falsch'}
-              </span>
+
+        {(kannGut.size > 0 || nochUeben.size > 0) && (
+          <div className="w-full max-w-md text-left flex flex-col gap-3">
+            {kannGut.size > 0 && (
+              <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-800 mb-2">Das kannst du schon gut</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {[...kannGut].map((tk) => (
+                    <li key={tk} className="text-xs bg-white border border-green-200 rounded-full px-2.5 py-1 text-green-800">{tk}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {nochUeben.size > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 mb-2">Das solltest du noch üben</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {[...nochUeben].map((tk) => (
+                    <li key={tk} className="text-xs bg-white border border-amber-200 rounded-full px-2.5 py-1 text-amber-800">{tk}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-800 mb-1">Dein nächster Schritt</p>
+              <p className="text-sm text-violet-900">{naechsterSchritt}</p>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+
+        <details className="w-full max-w-md text-left">
+          <summary className="text-xs text-muted-foreground cursor-pointer">Aufgaben im Detail</summary>
+          <div className="mt-2 flex flex-col gap-2">
+            {ergebnisse.map((e, i) => (
+              <div key={i} className={`flex items-start gap-3 px-4 py-3 rounded-xl text-sm border
+                ${e.korrekt ? 'border-green-200 bg-green-50' : 'border-red-100 bg-red-50'}`}>
+                <span className="flex-shrink-0">{e.korrekt ? '✓' : '✗'}</span>
+                <span className={e.korrekt ? 'text-green-800' : 'text-red-800'}>
+                  Aufgabe {i + 1}: {e.korrekt ? 'Richtig' : 'Falsch'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </details>
 
         <button
           onClick={downloadLernzettel}

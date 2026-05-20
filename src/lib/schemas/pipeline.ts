@@ -308,7 +308,7 @@ export type SpielOutput = z.infer<typeof SpielOutputSchema>
 
 // --- Schema: Spielverbesserung (Prompt 07) ---------------------------
 
-const VerbesserteAufgabeSchema = z.object({
+export const EinzelAufgabeSchema = z.object({
   aufgabe_id: z.string().min(1),
   text: z.string().min(1),
   antwortformat: AntwortformatSchema,
@@ -319,6 +319,10 @@ const VerbesserteAufgabeSchema = z.object({
   teilkompetenz: z.string().min(1),
   komplexitaetsstufe: KomplexitaetsstufeSchema,
 })
+
+export type EinzelAufgabe = z.infer<typeof EinzelAufgabeSchema>
+
+const VerbesserteAufgabeSchema = EinzelAufgabeSchema
 
 export const ImproveOutputSchema = z.object({
   verbesserungen: z.array(z.object({
