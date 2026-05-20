@@ -24,7 +24,6 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
 - 🔧 `Differenzierungsniveau` auf 4 Stufen korrigieren (`leichter | mittel | schwer | sehr_schwer`)
 - ⬜ `GameEngine` Enum anlegen (welche Spielmechanik)
 - ⬜ `GameSkin` Enum anlegen (welcher visuelle Stil je Altersgruppe)
-- ⬜ `KLP`-Datenmodell anlegen (`bundesland | schulform | jahrgangsstufe | fach | kompetenzbereiche[]`)
 - ⬜ `DiagnoseDetail`-Typ anlegen (Detailmodus der Auswertung)
 
 ### Pipeline & Laufzeit-Validierung
@@ -106,7 +105,7 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
 ---
 
 ## Phase 2 — MVP+: Qualität & Tiefe
-**Was diese Phase macht:** Den MVP für echte Lehrkräfte benutzbar machen. Mehr Spieltypen, KLP-Abgleich, Sourcemapping im UI, bessere Auswertung, Oberstufen-Formate.
+**Was diese Phase macht:** Den MVP für echte Lehrkräfte benutzbar machen. Mehr Spieltypen, Sourcemapping im UI, bessere Auswertung, Oberstufen-Formate.
 
 ### Spieltypen erweitern
 - 🟡 ⬜ `Lückentext mit Wortbank`
@@ -117,13 +116,6 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
 - 🟢 ⬜ `Pro-Contra-Sortierung`
 - 🟢 ⬜ `Ursache-Folge-Kette`
 - 🟢 ⬜ Button "Distraktoren neu generieren"
-
-### KLP-Integration (Basispaket)
-- 🟡 ⬜ Bundesland / Schulform / Jahrgangsstufe / Fach auswählen
-- 🟡 ⬜ Analyse prüft Material gegen KLP-Kompetenzbereiche
-- 🟡 ⬜ KLP-Abdeckung in % im Lehrkraft-Check anzeigen
-- 🟡 ⬜ Kompetenzbezogenes Feedback für Schüler
-- 🟢 ⬜ NRW als Pilot-Bundesland vollständig modellieren
 
 ### Sourcemapping UI
 - 🟡 ⬜ Klick auf Aufgabe → zeigt Originalstelle im Material
@@ -168,7 +160,6 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
   - Mathe: EIS-Schema (Enaktiv – Ikonisch – Symbolisch)
   - Deutsch: Textanalyse-Schema
 - 🟢 ⬜ Schulinternen Lernplan hochladen und als Datengrundlage verwenden
-- 🟢 ⬜ Abgleich Material ↔ KLP ↔ schulinterner Lernplan
 
 ---
 
@@ -205,7 +196,6 @@ Diese Punkte müssen bewusst entschieden werden, bevor die Umsetzung sinnvoll is
 
 | Frage | Status |
 |-------|--------|
-| Welche KLP-Datenquellen? (öffentliche API, manuelle Daten, NRW als Pilot) | ⬜ offen |
 | Welches Modell für die Pipeline? (Claude Sonnet 4.6 vs. Haiku für Kostenkontrolle) | ⬜ offen |
 | Wie regelbasierte Auswertung technisch? (JSON-Matching, Vektor-Ähnlichkeit) | ⬜ offen |
 | DSGVO-Schüler-Sessions: Token-Lebensdauer, Speicherort, Löschlogik | ⬜ offen |

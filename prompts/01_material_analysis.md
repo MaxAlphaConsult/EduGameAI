@@ -25,8 +25,7 @@ Fachliche Korrektheit und didaktische Genauigkeit haben Vorrang vor Schnelligkei
   "kontext": {
     "fach": "<z.B. Biologie>",
     "jahrgangsstufe": "<z.B. 8>",
-    "schulform": "<z.B. Gymnasium>",
-    "bundesland": "<z.B. NRW>"
+    "schulform": "<z.B. Gymnasium>"
   }
 }
 ```

@@ -17,7 +17,6 @@ create table materials (
   fach text not null,
   jahrgangsstufe text not null,
   schulform text not null,
-  bundesland text not null,
   erstellt_am timestamptz default now()
 );
 

@@ -115,7 +115,7 @@ async function callClaude<T>(
 export async function analyzeMaterial(input: {
   materialText: string
   abschnitte: { id: string; text: string }[]
-  kontext: { fach: string; jahrgangsstufe: string; schulform: string; bundesland: string }
+  kontext: { fach: string; jahrgangsstufe: string; schulform: string }
 }): Promise<AnalyseOutput> {
   return callClaude(
     'Materialanalyse (Schritte 1–6)',
@@ -167,7 +167,7 @@ function lernpfadKurzfassung(lp: LernpfadOutput) {
 export async function determineLernpfad(input: {
   analyse: AnalyseOutput
   lernziel: LernzielOutput
-  kontext: { fach: string; jahrgangsstufe: string; schulform: string; bundesland: string; zeitrahmenMinuten?: number }
+  kontext: { fach: string; jahrgangsstufe: string; schulform: string; zeitrahmenMinuten?: number }
 }): Promise<LernpfadOutput> {
   return callClaude(
     'Lernpfad (Schritte 12–13)',
@@ -179,7 +179,6 @@ export async function determineLernpfad(input: {
         fach: input.kontext.fach,
         jahrgangsstufe: input.kontext.jahrgangsstufe,
         schulform: input.kontext.schulform,
-        bundesland: input.kontext.bundesland,
         zeitrahmen_minuten: input.kontext.zeitrahmenMinuten ?? null,
       },
     }),
@@ -193,7 +192,7 @@ export async function runSpielMapping(input: {
   analyse: AnalyseOutput
   lernziel: LernzielOutput
   lernpfad: LernpfadOutput
-  kontext: { fach: string; jahrgangsstufe: string; schulform: string; bundesland: string; zeitrahmenMinuten: number }
+  kontext: { fach: string; jahrgangsstufe: string; schulform: string; zeitrahmenMinuten: number }
   erlaubteFormate?: string[]
 }): Promise<SpielmappingOutput> {
   return callClaude(
@@ -207,7 +206,6 @@ export async function runSpielMapping(input: {
         fach: input.kontext.fach,
         jahrgangsstufe: input.kontext.jahrgangsstufe,
         schulform: input.kontext.schulform,
-        bundesland: input.kontext.bundesland,
         zeitrahmen_minuten: input.kontext.zeitrahmenMinuten,
       },
       erlaubte_formate: input.erlaubteFormate ?? null,

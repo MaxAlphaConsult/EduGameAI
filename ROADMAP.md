@@ -147,18 +147,9 @@ _Stand: 2026-05-03 | Basis: Original-Roadmap + didaktische Produktlogik-Prüfung
 
 ### KI-Assistent im Modul-Editor
 - [ ] Chat-basierter Assistent im Editor
-- [ ] Beispiel-Prompts: „Erkläre einfacher", „Kürze auf 30 Min", „Was fehlt laut NRW KLP?"
+- [ ] Beispiel-Prompts: „Erkläre einfacher", „Kürze auf 30 Min"
 - [ ] Lehrer kann einzelne Aufgaben neu generieren lassen
 - [ ] Lehrer kann Distraktoren neu generieren lassen
-
-### KLP-Integration
-- [ ] Bundesland auswählbar (Start: NRW als Pilotbundesland)
-- [ ] Schulform auswählbar
-- [ ] Jahrgangsstufe auswählbar
-- [ ] Fach auswählbar (Start: 3–4 Kernfächer)
-- [ ] KLP-orientierte Analyse: passt Material zum Kompetenzbereich?
-- [ ] Hinweis, wenn Lernziel nur teilweise KLP-konform abgedeckt wird
-- [ ] Kompetenzbezogenes Feedback für Schüler
 
 ### Lehrkraft-Check ausbauen (auf volle Tiefe)
 - [ ] Fachliche Korrektheit, Lernzielpassung, Spielbarkeit, MVP-Tauglichkeit
@@ -221,8 +212,6 @@ _Stand: 2026-05-03 | Basis: Original-Roadmap + didaktische Produktlogik-Prüfung
 - [ ] Lernstil-Analyse pro Schüler (nach 3–4 Modulen: welches Aufgabenformat nachhaltig am besten?)
 - [ ] Kompetenzprofil pro Schüler (welche Wissensformen / Denkhandlungen erreicht?)
 - [ ] Empfehlungen für Wiederholung, Vertiefung oder Transfer
-- [ ] Kompetenzbezogenes Feedback (KLP-bezogen)
-- [ ] KLP-Integration auf weitere Bundesländer ausweiten
 
 ### Interpretationsfragen mit KI-Bewertung (erst hier)
 - [ ] Freitext-Antworten für Oberstufe (Philosophie, Deutsch, Geschichte, Politik)
@@ -236,8 +225,8 @@ _Stand: 2026-05-03 | Basis: Original-Roadmap + didaktische Produktlogik-Prüfung
 
 **Ziel: Erste zahlende Kunden**
 
-- [ ] Free-Plan mit Limits (1 Klasse, 2 Module/Monat, 5 Spieltypen, Wasserzeichen, kein KLP)
-- [ ] Starter: 20€/Monat (3 Klassen, 10 Module, alle Spieltypen, KLP)
+- [ ] Free-Plan mit Limits (1 Klasse, 2 Module/Monat, 5 Spieltypen, Wasserzeichen)
+- [ ] Starter: 20€/Monat (3 Klassen, 10 Module, alle Spieltypen)
 - [ ] Pro: 35€/Monat (unbegrenzt, + Lernstil-Analyse)
 - [ ] Schule: 299€/Monat (Kollegium, Priorität-Support)
 - [ ] Stripe-Integration + Upgrade-Flows
@@ -254,7 +243,6 @@ _Stand: 2026-05-03 | Basis: Original-Roadmap + didaktische Produktlogik-Prüfung
 - [ ] NotebookLM Podcast-Integration
 - [ ] Schul-Lizenzen + Admin-Dashboard
 - [ ] API für Bildungsträger
-- [ ] Abgleich Material ↔ KLP ↔ schulinterner Lernplan (vollständig)
 - [ ] Stufe 2: Komplette Unterrichtsstunde als generierbare Pipeline (Aktivierung → Sicherung)
 - [ ] Fachspezifische Lernschemata (POE für Biologie, EIS für Mathe, Textanalyse für Deutsch)
 

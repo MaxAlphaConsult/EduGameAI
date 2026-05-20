@@ -21,7 +21,6 @@ export async function POST(request: NextRequest) {
     const fach = formData.get('fach') as string
     const jahrgangsstufe = formData.get('jahrgangsstufe') as string
     const schulform = formData.get('schulform') as string
-    const bundesland = formData.get('bundesland') as string
 
     if (!file) {
       return NextResponse.json({ error: 'Keine Datei ausgewählt' }, { status: 400 })
@@ -80,7 +79,6 @@ export async function POST(request: NextRequest) {
         fach,
         jahrgangsstufe,
         schulform,
-        bundesland,
       })
       .select()
       .single()

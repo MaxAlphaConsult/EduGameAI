@@ -20,7 +20,6 @@ _Erstellt: 2026-05-03 | Basis: Vollständige Bestandsaufnahme gegen fachliche un
 | Interaktive Zell-Diagramme (SVG) | ✅ vorhanden | `demo-spiel.html` |
 | Hints / Hilfe-Toggle | ✅ vorhanden | `demo-spiel.html` |
 | Adaptive Schwierigkeit (Konzept) | ✅ Konzept | `index.html` (nur erwähnt) |
-| KLP-Konformität (Konzept) | ✅ Konzept | `index.html` (nur erwähnt) |
 | Vercel-Deployment | ✅ aktiv | `.vercel/project.json` |
 | Datei-Upload (Implementierung) | ❌ fehlt | – |
 | KI-Analyse des Unterrichtsmaterials | ❌ fehlt | – |
@@ -39,7 +38,6 @@ _Erstellt: 2026-05-03 | Basis: Vollständige Bestandsaufnahme gegen fachliche un
 | Didaktische Spieltypen-Klassifikation | ❌ fehlt | – |
 | Sourcemapping | ❌ fehlt | – |
 | Lehrkraft-Check mit Ampellogik | ❌ fehlt | – |
-| KLP-Integration (Bundesland/Fach/Klasse) | ❌ fehlt | – |
 | Schulinterner Lernplan-Upload | ❌ fehlt | – |
 | Fachliche Reduktion (explizite Prüfung) | ❌ fehlt | – |
 | Schülerprofil-Analyse | ❌ fehlt | – |
@@ -462,28 +460,6 @@ Wichtige Systemregeln für Feedback:
 
 ---
 
-## Abschnitt 17 – KLP-Integration
-
-> **Konzept vorhanden** in Landing Page, aber keinerlei Implementierung.
-
-- [ ] **P0** – Bundesland auswählbar (Dropdown)
-- [ ] **P0** – Schulform auswählbar (Grundschule, Realschule, Gymnasium, Gesamtschule, etc.)
-- [ ] **P0** – Jahrgangsstufe auswählbar
-- [ ] **P0** – Fach auswählbar
-- [ ] **P1** – Kompetenzbezug: Analyse-Prompt prüft Material gegen KLP-Kompetenzbereiche
-- [ ] **P1** – KLP-orientierte Analyse der Aufgaben
-- [ ] **P1** – Prüfung, ob Material zum gewählten Kompetenzbereich passt
-- [ ] **P1** – Prüfung, ob generiertes Spiel Kompetenzbereich sinnvoll abbildet
-- [ ] **P1** – Hinweis, wenn Lernziel nur teilweise KLP-konform abgedeckt wird
-- [ ] **P1** – Kompetenzbezogenes Feedback für Schüler
-- [ ] **P2** – KLP-orientierte Analyse der Schülerantworten
-- [ ] **P2** – Upload eines schulinternen Lernplans als Datengrundlage
-- [ ] **P2** – Abgleich zwischen Material, KLP und schulinternem Lernplan
-
-> **Technische Folgeaufgabe:** KLP-Konfigurationsmodell als Datenstruktur anlegen: `{ bundesland, schulform, jahrgangsstufe, fach, kompetenzbereiche[] }`. Bundesland-spezifische KLP-Daten müssen beschafft oder modelliert werden (Anfang mit NRW als Pilotbundesland sinnvoll).
-
----
-
 ## Abschnitt 18 – Fachliche Reduktion
 
 > **Fehlt als explizite Prüflogik.**
@@ -534,7 +510,6 @@ Wichtige Systemregeln für Feedback:
   - 2 Module/Monat
   - 5 Spieltypen
   - Wasserzeichen auf generierten Spielen
-  - Keine KLP-Tiefenanalyse
   - Eingeschränkte Auswertung
   - Keine Schülerprofilanalyse
 - [ ] **P0** – Upgrade-Flow auf Basic / Pro / School / Schulträger
@@ -561,7 +536,6 @@ Wichtige Systemregeln für Feedback:
 - [ ] **P0** – Authentifizierung: Lehrkraft-Login (E-Mail + Passwort, Social Login)
 - [ ] **P0** – Schüler-Session ohne Login (Tier-Name + Code-System, wie in Landing Page beschrieben)
 - [ ] **P1** – Sourcemapping-Datenbankstruktur
-- [ ] **P1** – KLP-Konfigurationstabelle
 - [ ] **P1** – Antwortmuster-Speicherung für Auswertung
 
 ---
@@ -570,13 +544,12 @@ Wichtige Systemregeln für Feedback:
 
 > **Fehlt vollständig.**
 
-- [ ] **P0** – `Material` { id, datei_url, extrahierter_text, abschnitte[], fach, klasse, bundesland, upload_datum }
+- [ ] **P0** – `Material` { id, datei_url, extrahierter_text, abschnitte[], fach, klasse, upload_datum }
 - [ ] **P0** – `Analyse` { material_id, wissensformen[], lernformen[], wissensstrukturen[], komplexitätsstufe, lernziel_original, lernziel_mvp_variante, spielbarkeitsstatus }
 - [ ] **P0** – `Spiel` { id, analyse_id, spieltyp, game_engine, game_skin, aufgaben[], differenzierungen[], zeitregelung }
 - [ ] **P0** – `Aufgabe` { id, spiel_id, text, antwortformat, lösungen[], distraktoren[], fehlvorstellungen[], sourcemapping_ref, komplexitätsstufe, feedbackbausteine[] }
 - [ ] **P0** – `LehrkraftCheck` { spiel_id, ampelfarbe, lernziel_original, lernziel_mvp, abgedeckte_anteile[], teilabgedeckte_anteile[], nicht_abgedeckte_anteile[], fachliche_korrektheit, quellenrückverfolgung }
 - [ ] **P0** – `Schüler-Session` { id, tier_name, code, spiel_id, antworten[], ergebnis }
-- [ ] **P1** – `KLP-Konfiguration` { bundesland, schulform, jahrgangsstufe, fach, kompetenzbereiche[] }
 - [ ] **P1** – `SchulinternerLernplan` { schule_id, upload_url, zugeordnete_kompetenzen[] }
 
 ---
@@ -593,7 +566,6 @@ Wichtige Systemregeln für Feedback:
 - [ ] **P0** – Spiel-Vorschau und Release-Button
 - [ ] **P0** – Ergebnis-Dashboard für Lehrkraft (Klassen-Auswertung)
 - [ ] **P1** – Sourcemapping-Viewer (Klick auf Aufgabe → Materialstelle)
-- [ ] **P1** – KLP-Konfigurations-Interface (Bundesland / Schulform / Klasse / Fach wählen)
 - [ ] **P1** – Differenzierungs-Editor (Schwierigkeitsstufen einstellen)
 
 ---
@@ -602,7 +574,6 @@ Wichtige Systemregeln für Feedback:
 
 Diese Punkte müssen strategisch entschieden werden, bevor sie umgesetzt werden können:
 
-- [ ] **Offen** – Welche KLP-Datenquellen werden verwendet? (Öffentliche APIs, manuelle Daten, NRW als Pilot?)
 - [ ] **Offen** – Welches AI-Modell wird für die Analyse-Pipeline verwendet? (Claude Sonnet 4.6 vs. Haiku für Kostengründe)
 - [ ] **Offen** – Wie wird die regelbasierte Auswertung technisch umgesetzt? (JSON-Matching, Vektor-Ähnlichkeit für Satzbausteine?)
 - [ ] **Offen** – Wie werden Schüler-Sessions ohne Login sicher und DSGVO-konform implementiert?
@@ -627,12 +598,11 @@ Die folgenden Punkte sind absolut notwendig, bevor ein echter MVP lauffähig ist
 8. **Backend + Datenmodell** (Abschnitte 22–23) – ohne das bleibt alles Demo
 
 **Was bewusst später kommt (nicht im MVP):**
-- KLP-Tiefenanalyse (Abschnitt 17) – Konzept festhalten, Implementierung P1
 - Schülerprofil-Analyse (Abschnitt 19) – nur einfache Antwortmuster im MVP
 - Komplette Unterrichtsstunde / Stufe 2 (Abschnitt 2) – erst wenn MVP stabil
 - Alle 20 Spieltypen (nur 2–3 für MVP)
 - Oberstufen-spezifische Formate (Abschnitt 20) – P1 nach erstem Feedback
-- Schulinterner Lernplan (Abschnitt 17) – P2
+- Schulinterner Lernplan – P2
 
 ---
 
