@@ -34,13 +34,21 @@ export async function DELETE(
     .eq('lehrer_id', user.id)
   if (gamesErr) return NextResponse.json({ error: `Module löschen fehlgeschlagen: ${gamesErr.message}` }, { status: 500 })
 
-  // 2. Den Flow selbst löschen (flow_releases + sessions + answers cascaden)
-  const { error: flowDelErr } = await supabase
+  // 2. Den Flow selbst löschen — .select() zwingt Postgres die gelöschten Zeilen
+  // zurückzuliefern. Bei fehlender DELETE-Policy ist `deleted` leer ohne Error
+  // (RLS blockiert still), also explizit auf rowcount prüfen.
+  const { data: deleted, error: flowDelErr } = await supabase
     .from('game_flows')
     .delete()
     .eq('id', flowId)
     .eq('lehrer_id', user.id)
+    .select('id')
   if (flowDelErr) return NextResponse.json({ error: `Lernspiel löschen fehlgeschlagen: ${flowDelErr.message}` }, { status: 500 })
+  if (!deleted || deleted.length === 0) {
+    return NextResponse.json({
+      error: 'Löschen wurde von der Datenbank blockiert. Wahrscheinlich fehlt die DELETE-Policy auf game_flows — bitte Migration 012_game_flows_delete_policy.sql in Supabase ausführen.',
+    }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }
