@@ -63,6 +63,10 @@ interface ImproveResult {
 
 interface Props {
   spielId: string
+  // Aktueller Status aus der DB. Wird benötigt, damit der Freigabe-Button
+  // verschwindet, sobald das Modul bereits freigegeben ist (sonst zeigt das
+  // Panel bei jedem Reload wieder „Spiel freigeben" — auch wenn längst frei).
+  initialStatus?: 'entwurf' | 'geprueft' | 'freigegeben' | string
 }
 
 const AMPEL_FARBE: Record<Ampel, string> = {
@@ -112,10 +116,10 @@ function hatProbleme(check: LehrkraftCheckData) {
   return check.gesamtampel !== 'gruen' || check.hinweise_fuer_lehrkraft.length > 0
 }
 
-export function LehrkraftCheckPanel({ spielId }: Props) {
+export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [freigegeben, setFreigegeben] = useState(false)
+  const [freigegeben, setFreigegeben] = useState(initialStatus === 'freigegeben')
   const [check, setCheck] = useState<LehrkraftCheckData | null>(null)
   const [polling, setPolling] = useState(true)
 

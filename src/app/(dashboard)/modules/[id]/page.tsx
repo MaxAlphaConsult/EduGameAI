@@ -132,7 +132,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
         />
 
         {/* Lehrkraft-Check */}
-        <LehrkraftCheckPanel spielId={id} />
+        <LehrkraftCheckPanel spielId={id} initialStatus={spiel.status ?? 'entwurf'} />
       </div>
     </div>
   )
