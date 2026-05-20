@@ -11,6 +11,7 @@ import {
   PipelineApiError,
 } from '@/lib/claude/pipeline'
 import { createClient } from '@/lib/supabase/server'
+import { sortiereModule } from '@/lib/flow/ordering'
 import type { AnalyseOutput, LernzielOutput, LernpfadOutput, SpielmappingOutput, SpielOutput, ValidationOutput } from '@/lib/schemas/pipeline'
 
 // Vercel: bis zu 5 Minuten für die Multi-Game-Pipeline erlauben
@@ -82,21 +83,21 @@ export async function POST(request: NextRequest) {
           .single()
         if (analyseError) throw analyseError
 
-        // Einheit anlegen
-        const einheitTitel = spielname?.trim() || `Einheit – ${new Date().toLocaleDateString('de-DE')}`
-        const { data: einheit, error: einheitError } = await supabase
-          .from('einheiten')
+        // GameFlow anlegen (war: einheit)
+        const flowTitel = spielname?.trim() || `Lernreise – ${new Date().toLocaleDateString('de-DE')}`
+        const { data: gameFlow, error: gameFlowError } = await supabase
+          .from('game_flows')
           .insert({
             lehrer_id: user.id,
             material_id: materialId,
             analyse_id: analyseRow.id,
-            titel: einheitTitel,
+            titel: flowTitel,
             zeitrahmen_minuten: zeitrahmenMinuten,
             anzahl_spiele: anzahlSpiele,
           })
           .select()
           .single()
-        if (einheitError) throw einheitError
+        if (gameFlowError) throw gameFlowError
 
         // ── Phase 2: Spielmapping einmal — N× generateGame ──────────────
         const erlaubteFormateArray: string[] | undefined = Array.isArray(erlaubteFormate) ? erlaubteFormate : undefined
@@ -144,8 +145,8 @@ export async function POST(request: NextRequest) {
               .from('games')
               .insert({
                 ...buildSpielRow(analyseRow.id, user.id, spiel, spielmappingFuerDiesesSpiel, spielTitel),
-                einheit_id: einheit.id,
-                reihenfolge: i + 1,
+                game_flow_id: gameFlow.id,
+                // Reihenfolge wird gleich nach Sortierung gesetzt
               })
               .select()
               .single()
@@ -168,10 +169,38 @@ export async function POST(request: NextRequest) {
           })
         )
 
-        const spielIds: string[] = spielErgebnisse.map(r => r.spielRow.id)
+        // Didaktische Reihenfolge berechnen und persistieren — leicht → schwer.
+        // Komplexität pro Spiel = Mittel der Aufgaben-Komplexität (fällt sonst
+        // zwischen den Spielen identisch aus, da gleiche Analyse).
+        const sortierbar = spielErgebnisse.map(({ spielRow, spiel }) => {
+          const stufenAufgaben: number[] = spiel.schritt_14_aufgaben
+            .map((a) => a.komplexitaetsstufe as number | undefined)
+            .filter((s): s is number => typeof s === 'number')
+          const avgStufe = stufenAufgaben.length > 0
+            ? stufenAufgaben.reduce((s, v) => s + v, 0) / stufenAufgaben.length
+            : analyse.schritt_6_komplexitaet.stufe
+          return {
+            game_id: spielRow.id as string,
+            komplexitaetsstufe: avgStufe,
+            denkhandlungen: analyse.schritt_5_wissensstruktur.denkhandlungen,
+            game_engine: spielRow.game_engine as string | null,
+          }
+        })
+        const sortiert = sortiereModule(sortierbar)
+        await Promise.all(
+          sortiert.map((m, idx) =>
+            supabase.from('games').update({ reihenfolge: idx + 1 }).eq('id', m.game_id)
+          )
+        )
+        await supabase
+          .from('game_flows')
+          .update({ sortiert_am: new Date().toISOString() })
+          .eq('id', gameFlow.id)
+
+        const spielIds: string[] = sortiert.map((m) => m.game_id)
 
         send({ type: 'progress', label: 'Ergebnisse werden gespeichert …', percent: 95, schrittIndex: 20 })
-        send({ type: 'done', einheitId: einheit.id, spielIds, analyseId: analyseRow.id })
+        send({ type: 'done', gameFlowId: gameFlow.id, spielIds, analyseId: analyseRow.id })
 
       } catch (err) {
         let message = 'Analyse fehlgeschlagen'

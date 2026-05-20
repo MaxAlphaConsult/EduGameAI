@@ -1,42 +1,45 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Step = 'enter' | 'found' | 'error'
+type Step = 'flow' | 'student' | 'error'
 
-interface SpielInfo {
-  id: string
-  titel: string
-  spieltyp_didaktisch?: string
-}
-
-interface LookupResult {
-  studentId: string
-  code: string
+interface FlowLookup {
+  flowReleaseId: string
+  flow: { id: string; titel: string }
   klasse: { id: string; name: string; fach: string; jahrgangsstufe: string }
-  spiele: SpielInfo[]
+  modul_anzahl: number
 }
 
 export default function SpielerPage() {
   const router = useRouter()
-  const [step, setStep] = useState<Step>('enter')
+  const [step, setStep] = useState<Step>('flow')
+  const [previousStep, setPreviousStep] = useState<Step>('flow')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
-  const [result, setResult] = useState<LookupResult | null>(null)
-  const [codeInput, setCodeInput] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [flowLookup, setFlowLookup] = useState<FlowLookup | null>(null)
+  const [flowCodeInput, setFlowCodeInput] = useState('')
+  const [studentCodeInput, setStudentCodeInput] = useState('')
+  const flowInputRef = useRef<HTMLInputElement>(null)
+  const studentInputRef = useRef<HTMLInputElement>(null)
 
-  async function onSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    if (step === 'student') setTimeout(() => studentInputRef.current?.focus(), 50)
+    else setTimeout(() => flowInputRef.current?.focus(), 50)
+  }, [step])
+
+  async function onSubmitFlow(e: React.FormEvent) {
     e.preventDefault()
-    if (!codeInput.trim()) return
+    if (!flowCodeInput.trim()) return
     setLoading(true)
     setErrorMsg('')
+    setPreviousStep('flow')
 
     const res = await fetch('/api/student/lookup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: codeInput.trim() }),
+      body: JSON.stringify({ flowCode: flowCodeInput.trim() }),
     })
     const data = await res.json()
     setLoading(false)
@@ -47,16 +50,48 @@ export default function SpielerPage() {
       return
     }
 
-    setResult(data)
-    setStep('found')
+    setFlowLookup(data)
+    setStep('student')
   }
 
-  function onReset() {
-    setStep('enter')
-    setCodeInput('')
-    setResult(null)
+  async function onSubmitStudent(e: React.FormEvent) {
+    e.preventDefault()
+    if (!studentCodeInput.trim() || !flowLookup) return
+    setLoading(true)
     setErrorMsg('')
-    setTimeout(() => inputRef.current?.focus(), 50)
+    setPreviousStep('student')
+
+    const res = await fetch('/api/student/start-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        flowReleaseId: flowLookup.flowReleaseId,
+        studentCode: studentCodeInput.trim(),
+      }),
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      setLoading(false)
+      setErrorMsg(data.error ?? 'Unbekannter Fehler')
+      setStep('error')
+      return
+    }
+
+    router.push(`/play/${data.studentSessionId}`)
+  }
+
+  function onResetAll() {
+    setStep('flow')
+    setFlowLookup(null)
+    setFlowCodeInput('')
+    setStudentCodeInput('')
+    setErrorMsg('')
+  }
+
+  function onBackFromError() {
+    setErrorMsg('')
+    setStep(previousStep)
   }
 
   return (
@@ -74,66 +109,54 @@ export default function SpielerPage() {
         </div>
       </div>
 
-      {/* Card */}
       <div className="w-full max-w-md rounded-3xl p-8"
         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(196,181,253,0.2)', backdropFilter: 'blur(20px)' }}>
 
-        {/* ── Step: Code eingeben ── */}
-        {(step === 'enter' || step === 'error') && (
+        {/* ── Step 1: Flow-Code ── */}
+        {step === 'flow' && (
           <>
             <div className="text-center mb-8">
               <div className="text-5xl mb-4">🎮</div>
               <h1 className="text-2xl font-black text-white mb-2">Bereit zum Spielen?</h1>
               <p style={{ color: '#C4B5FD', fontSize: 15 }}>
-                Gib den Code von deinem Zettel ein
+                Schritt 1 von 2 — Gib den Spielcode deiner Lehrkraft ein
               </p>
             </div>
 
-            <form onSubmit={onSubmit} className="flex flex-col gap-4">
-              <div>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={codeInput}
-                  onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-                  placeholder="z.B. FUCHS-1234"
-                  autoFocus
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  className="w-full text-center font-mono text-xl font-bold tracking-widest rounded-2xl px-5 py-4 outline-none transition-all"
-                  style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    border: step === 'error' ? '2px solid rgba(248,113,113,0.6)' : '2px solid rgba(196,181,253,0.3)',
-                    color: '#FFFFFF',
-                    letterSpacing: '0.12em',
-                  }}
-                  onFocus={(e) => e.target.style.border = '2px solid rgba(168,85,247,0.8)'}
-                  onBlur={(e) => e.target.style.border = step === 'error' ? '2px solid rgba(248,113,113,0.6)' : '2px solid rgba(196,181,253,0.3)'}
-                />
-              </div>
-
-              {step === 'error' && (
-                <div className="rounded-2xl px-4 py-3 text-sm text-center"
-                  style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.3)', color: '#FCA5A5' }}>
-                  {errorMsg}
-                </div>
-              )}
+            <form onSubmit={onSubmitFlow} className="flex flex-col gap-4">
+              <input
+                ref={flowInputRef}
+                type="text"
+                value={flowCodeInput}
+                onChange={(e) => setFlowCodeInput(e.target.value.toUpperCase())}
+                placeholder="z.B. ZELLE-9A-K42"
+                autoFocus
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                className="w-full text-center font-mono text-xl font-bold tracking-widest rounded-2xl px-5 py-4 outline-none transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '2px solid rgba(196,181,253,0.3)',
+                  color: '#FFFFFF',
+                  letterSpacing: '0.12em',
+                }}
+              />
 
               <button
                 type="submit"
-                disabled={loading || !codeInput.trim()}
+                disabled={loading || !flowCodeInput.trim()}
                 className="w-full rounded-2xl py-4 font-black text-lg transition-all"
                 style={{
-                  background: loading || !codeInput.trim()
+                  background: loading || !flowCodeInput.trim()
                     ? 'rgba(124,58,237,0.3)'
                     : 'linear-gradient(135deg, #7C3AED, #A855F7)',
                   color: 'white',
-                  boxShadow: loading || !codeInput.trim() ? 'none' : '0 0 32px rgba(168,85,247,0.4)',
-                  cursor: loading || !codeInput.trim() ? 'not-allowed' : 'pointer',
+                  boxShadow: loading || !flowCodeInput.trim() ? 'none' : '0 0 32px rgba(168,85,247,0.4)',
+                  cursor: loading || !flowCodeInput.trim() ? 'not-allowed' : 'pointer',
                   border: 'none',
                 }}>
-                {loading ? '⟳ Suche...' : 'Los geht\'s →'}
+                {loading ? '⟳ Suche...' : 'Weiter →'}
               </button>
             </form>
 
@@ -143,68 +166,103 @@ export default function SpielerPage() {
           </>
         )}
 
-        {/* ── Step: Spiel gefunden ── */}
-        {step === 'found' && result && (
+        {/* ── Step 2: Schülercode ── */}
+        {step === 'student' && flowLookup && (
           <>
             <div className="text-center mb-6">
-              <div className="text-5xl mb-4">🎯</div>
-              <h1 className="text-xl font-black text-white mb-1">Dein Code wurde gefunden!</h1>
-              <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mt-2"
+              <div className="text-5xl mb-3">🎯</div>
+              <h1 className="text-xl font-black text-white mb-2">Spielcode gefunden!</h1>
+              <p className="font-bold text-white text-base mb-1">{flowLookup.flow.titel}</p>
+              <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mt-1"
                 style={{ background: 'rgba(196,181,253,0.15)', border: '1px solid rgba(196,181,253,0.3)' }}>
-                <span className="font-mono font-bold text-sm" style={{ color: '#C4B5FD' }}>{result.code}</span>
+                <span className="text-sm" style={{ color: '#C4B5FD' }}>
+                  Klasse {flowLookup.klasse.jahrgangsstufe}{flowLookup.klasse.name} · {flowLookup.klasse.fach}
+                </span>
                 <span style={{ color: 'rgba(196,181,253,0.5)' }}>·</span>
                 <span className="text-sm" style={{ color: '#C4B5FD' }}>
-                  Klasse {result.klasse.jahrgangsstufe}{result.klasse.name} · {result.klasse.fach}
+                  {flowLookup.modul_anzahl} {flowLookup.modul_anzahl === 1 ? 'Spiel' : 'Spiele'}
                 </span>
               </div>
             </div>
 
-            {/* Spiel(e) */}
-            <div className="flex flex-col gap-3 mb-6">
-              {result.spiele.map((spiel) => (
-                <div key={spiel.id}
-                  className="rounded-2xl p-5"
-                  style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(168,85,247,0.4)' }}>
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                      style={{ background: 'rgba(168,85,247,0.3)' }}>
-                      🎮
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-base leading-tight">{spiel.titel}</p>
-                      {spiel.spieltyp_didaktisch && (
-                        <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>{spiel.spieltyp_didaktisch}</p>
-                      )}
-                    </div>
-                  </div>
+            <p className="text-center text-sm mb-4" style={{ color: '#C4B5FD' }}>
+              Schritt 2 von 2 — Gib jetzt deinen persönlichen Code ein
+            </p>
 
-                  {/* Start-Button — Platzhalter bis Game-Engine fertig */}
-                  <button
-                    className="w-full mt-4 rounded-xl py-3 font-black text-base transition-all"
-                    style={{
-                      background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-                      color: 'white',
-                      border: 'none',
-                      boxShadow: '0 0 24px rgba(168,85,247,0.5)',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => router.push(`/play/${spiel.id}?code=${encodeURIComponent(result.code)}`)}>
-                    ▶ Spiel starten
-                  </button>
-                </div>
-              ))}
+            <form onSubmit={onSubmitStudent} className="flex flex-col gap-4">
+              <input
+                ref={studentInputRef}
+                type="text"
+                value={studentCodeInput}
+                onChange={(e) => setStudentCodeInput(e.target.value.toUpperCase())}
+                placeholder="z.B. FUCHS-1234"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                className="w-full text-center font-mono text-xl font-bold tracking-widest rounded-2xl px-5 py-4 outline-none transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '2px solid rgba(196,181,253,0.3)',
+                  color: '#FFFFFF',
+                  letterSpacing: '0.12em',
+                }}
+              />
+
+              <button
+                type="submit"
+                disabled={loading || !studentCodeInput.trim()}
+                className="w-full rounded-2xl py-4 font-black text-lg transition-all"
+                style={{
+                  background: loading || !studentCodeInput.trim()
+                    ? 'rgba(124,58,237,0.3)'
+                    : 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                  color: 'white',
+                  boxShadow: loading || !studentCodeInput.trim() ? 'none' : '0 0 32px rgba(168,85,247,0.4)',
+                  cursor: loading || !studentCodeInput.trim() ? 'not-allowed' : 'pointer',
+                  border: 'none',
+                }}>
+                {loading ? '⟳ Starte...' : 'Los geht\'s →'}
+              </button>
+            </form>
+
+            <button onClick={onResetAll}
+              className="w-full mt-4 text-sm py-2 rounded-xl transition-all"
+              style={{ color: 'rgba(196,181,253,0.6)', background: 'none', border: 'none', cursor: 'pointer' }}>
+              ← Anderen Spielcode eingeben
+            </button>
+          </>
+        )}
+
+        {/* ── Fehler ── */}
+        {step === 'error' && (
+          <>
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-3">😕</div>
+              <h1 className="text-xl font-black text-white mb-2">Das hat nicht geklappt</h1>
+              <p style={{ color: '#FCA5A5', fontSize: 14 }}>{errorMsg}</p>
             </div>
 
-            <button onClick={onReset}
-              className="w-full text-sm py-2 rounded-xl transition-all"
+            <button onClick={onBackFromError}
+              className="w-full rounded-2xl py-4 font-black text-lg transition-all"
+              style={{
+                background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                color: 'white',
+                boxShadow: '0 0 32px rgba(168,85,247,0.4)',
+                border: 'none',
+                cursor: 'pointer',
+              }}>
+              Nochmal versuchen
+            </button>
+
+            <button onClick={onResetAll}
+              className="w-full mt-3 text-sm py-2 rounded-xl transition-all"
               style={{ color: 'rgba(196,181,253,0.6)', background: 'none', border: 'none', cursor: 'pointer' }}>
-              ← Anderen Code eingeben
+              ← Zurück zum Anfang
             </button>
           </>
         )}
       </div>
 
-      {/* Footer */}
       <p className="mt-8 text-xs" style={{ color: 'rgba(196,181,253,0.3)' }}>
         EduGame AI · Kein Account nötig · DSGVO-konform
       </p>

@@ -1,48 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+// POST /api/student/lookup  body { flowCode }
+// Stufe 1 des Schüler-Logins: validiert den Flow-Code und gibt Flow-Titel +
+// Klasseninfo zurück. Erstellt noch KEINE Session.
 export async function POST(request: NextRequest) {
   try {
-    const { code } = await request.json()
-    if (!code || typeof code !== 'string') {
-      return NextResponse.json({ error: 'Kein Code angegeben' }, { status: 400 })
+    const { flowCode } = await request.json()
+    if (!flowCode || typeof flowCode !== 'string') {
+      return NextResponse.json({ error: 'Kein Flow-Code angegeben' }, { status: 400 })
     }
 
     const supabase = await createClient()
-    const normalizedCode = code.trim().toUpperCase()
+    const code = flowCode.trim().toUpperCase()
 
-    // 1. Code in students-Tabelle nachschlagen → Klasse ermitteln
-    const { data: student, error: studentError } = await supabase
-      .from('students')
-      .select('id, class_id, classes(id, name, fach, jahrgangsstufe)')
-      .eq('code', normalizedCode)
-      .single()
+    const { data: release } = await supabase
+      .from('flow_releases')
+      .select(`
+        id, status, access_code,
+        game_flows(id, titel),
+        classes(id, name, jahrgangsstufe, fach)
+      `)
+      .eq('access_code', code)
+      .eq('status', 'aktiv')
+      .maybeSingle()
 
-    if (studentError || !student) {
-      return NextResponse.json({ error: 'Code nicht gefunden. Bitte überprüfe deinen Zettel.' }, { status: 404 })
+    if (!release) {
+      return NextResponse.json({ error: 'Flow-Code nicht gefunden oder nicht mehr aktiv.' }, { status: 404 })
     }
 
-    // 2. Zugewiesene Spiele der Klasse laden
-    const { data: classGames } = await supabase
-      .from('class_games')
-      .select('game_id, games(id, titel, spieltyp_didaktisch, game_engine)')
-      .eq('class_id', student.class_id)
+    const flow = Array.isArray(release.game_flows) ? release.game_flows[0] : release.game_flows
+    const klasse = Array.isArray(release.classes) ? release.classes[0] : release.classes
 
-    const games = (classGames ?? [])
-      .map((cg) => (Array.isArray(cg.games) ? cg.games[0] : cg.games))
-      .filter(Boolean)
-
-    if (games.length === 0) {
-      return NextResponse.json({
-        error: 'Deiner Klasse wurde noch kein Spiel zugewiesen. Frag deine Lehrkraft.'
-      }, { status: 404 })
+    if (!flow || !klasse) {
+      return NextResponse.json({ error: 'Flow-Daten unvollständig' }, { status: 500 })
     }
+
+    // Anzahl Module für UX-Hinweis
+    const { count } = await supabase
+      .from('games')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_flow_id', flow.id)
+      .eq('status', 'freigegeben')
 
     return NextResponse.json({
-      studentId: student.id,
-      code: normalizedCode,
-      klasse: student.classes,
-      spiele: games,
+      flowReleaseId: release.id,
+      flow: { id: flow.id, titel: flow.titel },
+      klasse,
+      modul_anzahl: count ?? 0,
     })
   } catch (err) {
     console.error('[student/lookup]', err)

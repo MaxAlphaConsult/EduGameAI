@@ -23,7 +23,7 @@ const STUFEN = Array.from({ length: 9 }, (_, i) => `${i + 5}`)
 const SCHULFORMEN = ['Gymnasium', 'Realschule', 'Sekundarschule', 'Gesamtschule', 'Berufsschule', 'Grundschule']
 
 interface AnalyseResult {
-  einheitId: string
+  gameFlowId: string
   spielIds: string[]
   analyseId: string
 }
@@ -166,7 +166,7 @@ export default function GameErstellenPage() {
             } else if (event.type === 'done') {
               setProgressPercent(100)
               setProgressSchrittIndex(ANALYSE_SCHRITTE.length)
-              setAnalyseResult({ einheitId: event.einheitId, spielIds: event.spielIds, analyseId: event.analyseId })
+              setAnalyseResult({ gameFlowId: event.gameFlowId, spielIds: event.spielIds, analyseId: event.analyseId })
               setStep('result')
             } else if (event.type === 'error') {
               throw new Error(event.message)
@@ -423,12 +423,10 @@ export default function GameErstellenPage() {
             <span className="text-2xl">🎉</span>
             <div>
               <p className="text-sm font-bold" style={{ color: '#065F46' }}>
-                {analyseResult.spielIds.length === 1
-                  ? 'Spiel erfolgreich erstellt!'
-                  : `${analyseResult.spielIds.length} Spiele erfolgreich erstellt!`}
+                GameFlow mit {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Modul' : 'Modulen'} erstellt!
               </p>
               <p className="text-xs mt-0.5" style={{ color: '#059669' }}>
-                Spiele einzeln freigeben, dann können Schüler spielen.
+                Die Module sind didaktisch sortiert. Gib den Flow unter „Klassen" für eine Klasse frei.
               </p>
             </div>
           </div>
@@ -436,7 +434,7 @@ export default function GameErstellenPage() {
           {/* Spiele-Liste */}
           <div style={{ ...cardStyle, padding: '16px 20px' }}>
             <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A6A94' }}>
-              Erstellte Spiele
+              Module in didaktischer Reihenfolge (leicht → schwer)
             </p>
             <div className="flex flex-col gap-2">
               {analyseResult.spielIds.map((id, i) => (
@@ -451,12 +449,16 @@ export default function GameErstellenPage() {
                     {i + 1}
                   </span>
                   <span className="text-sm font-medium flex-1" style={{ color: '#1F1235' }}>
-                    Spiel {i + 1}
+                    Modul {i + 1}
                   </span>
-                  <span className="text-xs" style={{ color: '#7C3AED' }}>→ Freigeben</span>
+                  <span className="text-xs" style={{ color: '#7C3AED' }}>→ Vorschau</span>
                 </a>
               ))}
             </div>
+            <a href="/classes" className="mt-4 inline-flex items-center gap-2 text-sm font-bold rounded-xl px-4 py-2.5"
+              style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', textDecoration: 'none' }}>
+              → Flow für Klasse freigeben
+            </a>
           </div>
 
           <LehrkraftCheckPanel spielId={analyseResult.spielIds[0]} />

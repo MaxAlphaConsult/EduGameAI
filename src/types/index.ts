@@ -216,6 +216,8 @@ export interface Spiel {
   id: string
   analyse_id: string
   lehrer_id: string
+  game_flow_id: string | null
+  reihenfolge: number | null
   titel: string
   spieltyp_didaktisch: string
   game_engine: GameEngine
@@ -259,19 +261,57 @@ export interface LehrkraftCheck {
   erstellt_am: string
 }
 
-export interface SchuelerSession {
+// --- GameFlow-Modell (Migration 010) ------------------------
+
+export interface GameFlow {
   id: string
-  spiel_id: string
-  code: string              // Tiername + Zufallscode, kein Klarname
-  differenzierungsniveau: Differenzierungsniveau
+  lehrer_id: string
+  material_id: string
+  analyse_id: string | null
+  titel: string
+  zeitrahmen_minuten: number
+  anzahl_spiele: number
+  status: 'entwurf' | 'sortiert' | 'freigegeben'
+  sortiert_am: string | null
+  created_at: string
+}
+
+export interface FlowRelease {
+  id: string
+  game_flow_id: string
+  class_id: string
+  access_code: string
+  status: 'aktiv' | 'archiviert'
+  released_at: string
+  archived_at: string | null
+}
+
+export interface StudentSession {
+  id: string
+  flow_release_id: string
+  student_id: string | null
+  code: string
+  aktuelles_modul_index: number
+  modul_anzahl: number
+  lernpfad_abgeschlossen: boolean
   gestartet_am: string
   abgeschlossen_am: string | null
-  lernpfad_abgeschlossen: boolean
+}
+
+export interface ModuleSession {
+  id: string
+  student_session_id: string
+  game_id: string
+  position: number
+  niveau: Differenzierungsniveau
+  status: 'laufend' | 'abgeschlossen'
+  gestartet_am: string
+  abgeschlossen_am: string | null
 }
 
 export interface Antwort {
   id: string
-  session_id: string
+  module_session_id: string
   aufgabe_id: string
   antwort_wert: string
   status: 'korrekt' | 'teilweise_korrekt' | 'falsch' | 'nicht_bearbeitet'
