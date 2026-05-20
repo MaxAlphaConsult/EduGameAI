@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// Schülerantwort speichern + regelbasiert auswerten
+// POST /api/answers  body { moduleSessionId, aufgabeId, antwortWert, ... }
+// Schülerantwort speichern + regelbasiert auswerten.
+// Antworten hängen seit Migration 010 an module_session_id (statt session_id).
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const body = await request.json()
     const {
-      sessionId,
+      moduleSessionId,
       aufgabeId,
       antwortWert,
       versuche = 1,
@@ -16,31 +18,26 @@ export async function POST(request: NextRequest) {
       abgebrochen = false,
     } = body
 
-    if (!sessionId || !aufgabeId || antwortWert === undefined) {
-      return NextResponse.json({ error: 'sessionId, aufgabeId und antwortWert erforderlich' }, { status: 400 })
+    if (!moduleSessionId || !aufgabeId || antwortWert === undefined) {
+      return NextResponse.json({ error: 'moduleSessionId, aufgabeId und antwortWert erforderlich' }, { status: 400 })
     }
 
-    // Session + Spiel laden um Lösungen zu prüfen
-    const { data: session } = await supabase
-      .from('student_sessions')
-      .select('id, spiel_id, differenzierungsniveau')
-      .eq('id', sessionId)
-      .single()
+    // Modul-Session + Spiel laden um Lösungen zu prüfen
+    const { data: ms } = await supabase
+      .from('module_sessions')
+      .select('id, game_id, niveau, games(aufgaben, status)')
+      .eq('id', moduleSessionId)
+      .maybeSingle()
 
-    if (!session) return NextResponse.json({ error: 'Session nicht gefunden' }, { status: 404 })
+    if (!ms) return NextResponse.json({ error: 'Modul-Session nicht gefunden' }, { status: 404 })
 
-    const { data: spiel } = await supabase
-      .from('games')
-      .select('aufgaben, status')
-      .eq('id', session.spiel_id)
-      .single()
-
+    const spiel = Array.isArray(ms.games) ? ms.games[0] : ms.games
     if (!spiel || spiel.status !== 'freigegeben') {
       return NextResponse.json({ error: 'Spiel nicht verfügbar' }, { status: 403 })
     }
 
     // Aufgabe aus dem Spiel suchen
-    const aufgaben = (spiel?.aufgaben ?? []) as Array<{
+    const aufgaben = (spiel.aufgaben ?? []) as Array<{
       aufgabe_id: string
       antwortformat?: string
       loesungen: string[]
@@ -94,7 +91,7 @@ export async function POST(request: NextRequest) {
     const { data: antwort, error } = await supabase
       .from('answers')
       .insert({
-        session_id: sessionId,
+        module_session_id: moduleSessionId,
         aufgabe_id: aufgabeId,
         antwort_wert: JSON.stringify(antwortWert),
         status,

@@ -20,20 +20,22 @@ function makeCodes(anzahl: number): string[] {
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Klasse { id: string; name: string; jahrgangsstufe: string; fach: string }
 interface Student { id: string; code: string }
-interface GameInfo { id: string; titel: string; status: string }
-interface ClassGame {
-  id: string
-  game_id: string
-  zugewiesen_am: string
-  games: GameInfo | GameInfo[] | null
-}
-function gameTitle(cg: ClassGame): string {
-  if (!cg.games) return 'Unbenanntes Spiel'
-  return Array.isArray(cg.games) ? (cg.games[0]?.titel ?? 'Unbenanntes Spiel') : cg.games.titel
-}
-interface AvailableGame { id: string; titel: string; status: string }
 
-type Tab = 'codes' | 'spiele' | 'auswertung'
+interface FlowModule { id: string; titel: string; status: string; reihenfolge: number | null; spieltyp_didaktisch: string; game_engine: string }
+interface FlowReleaseInfo { id: string; access_code: string; status: 'aktiv' | 'archiviert' }
+interface FlowItem {
+  id: string
+  titel: string
+  status: string
+  created_at: string
+  anzahl_spiele: number
+  modul_anzahl: number
+  alle_module_freigegeben: boolean
+  module: FlowModule[]
+  release: FlowReleaseInfo | null
+}
+
+type Tab = 'codes' | 'flows' | 'auswertung'
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const cardStyle = {
@@ -80,18 +82,17 @@ export default function ClassesPage() {
   const [generateAnzahl, setGenerateAnzahl] = useState(25)
   const [generatingCodes, setGeneratingCodes] = useState(false)
 
-  // Tab: Spiele
-  const [classGames, setClassGames] = useState<ClassGame[]>([])
-  const [gamesLoading, setGamesLoading] = useState(false)
-  const [availableGames, setAvailableGames] = useState<AvailableGame[]>([])
-  const [showAssign, setShowAssign] = useState(false)
-  const [assigning, setAssigning] = useState(false)
+  // Tab: Flows
+  const [flows, setFlows] = useState<FlowItem[]>([])
+  const [flowsLoading, setFlowsLoading] = useState(false)
+  const [releasing, setReleasing] = useState<string | null>(null)
+  const [releaseError, setReleaseError] = useState<string | null>(null)
 
   // Tab: Auswertung
   const [diagnose, setDiagnose] = useState<Record<string, unknown> | null>(null)
   const [diagnoseLoading, setDiagnoseLoading] = useState(false)
   const [diagnoseError, setDiagnoseError] = useState<string | null>(null)
-  const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
+  const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null)
 
   const selected = klassen.find((k) => k.id === selectedId) ?? null
 
@@ -119,34 +120,20 @@ export default function ClassesPage() {
     setCodesLoading(false)
   }, [])
 
-  // ── Spiele laden ─────────────────────────────────────────────────────────
-  const loadClassGames = useCallback(async (classId: string) => {
-    setGamesLoading(true)
-    const { data } = await createClient()
-      .from('class_games')
-      .select('id, game_id, zugewiesen_am, games(id, titel, status)')
-      .eq('class_id', classId)
-      .order('zugewiesen_am', { ascending: false })
-    setClassGames((data ?? []) as unknown as ClassGame[])
-    setGamesLoading(false)
-  }, [])
-
-  // ── Verfügbare Spiele für Zuweisung ──────────────────────────────────────
-  const loadAvailableGames = useCallback(async (classId: string) => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data: all } = await supabase
-      .from('games')
-      .select('id, titel, status')
-      .eq('lehrer_id', user.id)
-      .order('erstellt_am', { ascending: false })
-    const { data: assigned } = await supabase
-      .from('class_games')
-      .select('game_id')
-      .eq('class_id', classId)
-    const assignedIds = new Set((assigned ?? []).map((r) => r.game_id))
-    setAvailableGames((all ?? []).filter((g) => !assignedIds.has(g.id)))
+  // ── Flows laden ──────────────────────────────────────────────────────────
+  const loadFlows = useCallback(async (classId: string) => {
+    setFlowsLoading(true)
+    setReleaseError(null)
+    try {
+      const res = await fetch(`/api/flows?classId=${classId}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error('Flows konnten nicht geladen werden')
+      const data = await res.json()
+      setFlows(data.flows ?? [])
+    } catch (err) {
+      setReleaseError(err instanceof Error ? err.message : 'Unbekannter Fehler')
+    } finally {
+      setFlowsLoading(false)
+    }
   }, [])
 
   // ── Bei Tab- oder Klassen-Wechsel Daten laden ────────────────────────────
@@ -154,10 +141,10 @@ export default function ClassesPage() {
     if (!selectedId) return
     setDiagnose(null)
     setDiagnoseError(null)
-    setSelectedGameId(null)
+    setSelectedReleaseId(null)
     if (activeTab === 'codes') loadStudents(selectedId)
-    if (activeTab === 'spiele') { loadClassGames(selectedId); loadAvailableGames(selectedId) }
-  }, [selectedId, activeTab, loadStudents, loadClassGames, loadAvailableGames])
+    if (activeTab === 'flows' || activeTab === 'auswertung') loadFlows(selectedId)
+  }, [selectedId, activeTab, loadStudents, loadFlows])
 
   // ── Klasse anlegen ────────────────────────────────────────────────────────
   function onCreateKlasse(e: React.FormEvent<HTMLFormElement>) {
@@ -208,47 +195,76 @@ export default function ClassesPage() {
     setGeneratingCodes(false)
   }
 
-  // ── Codes löschen ─────────────────────────────────────────────────────────
   async function onDeleteCodes() {
     if (!selectedId || !confirm('Alle Codes dieser Klasse löschen?')) return
     await createClient().from('students').delete().eq('class_id', selectedId)
     setStudents([])
   }
 
-  // ── Spiel zuweisen ────────────────────────────────────────────────────────
-  async function onAssignGame(gameId: string) {
+  // ── Flow für diese Klasse freigeben ──────────────────────────────────────
+  async function onReleaseFlow(flowId: string) {
     if (!selectedId) return
-    setAssigning(true)
-    await createClient().from('class_games').insert({ class_id: selectedId, game_id: gameId })
-    await loadClassGames(selectedId)
-    await loadAvailableGames(selectedId)
-    setAssigning(false)
-    setShowAssign(false)
+    setReleasing(flowId)
+    setReleaseError(null)
+    try {
+      const res = await fetch(`/api/flows/${flowId}/release`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classId: selectedId }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error ?? 'Freigabe fehlgeschlagen')
+      await loadFlows(selectedId)
+    } catch (err) {
+      setReleaseError(err instanceof Error ? err.message : 'Freigabe fehlgeschlagen')
+    } finally {
+      setReleasing(null)
+    }
   }
 
-  // ── Spiel-Zuweisung entfernen ─────────────────────────────────────────────
-  async function onRemoveGame(classGameId: string) {
-    if (!confirm('Zuweisung entfernen?')) return
-    await createClient().from('class_games').delete().eq('id', classGameId)
-    setClassGames((prev) => prev.filter((cg) => cg.id !== classGameId))
+  async function onArchiveRelease(flowId: string, releaseId: string) {
+    if (!confirm('Freigabe archivieren? Der Spielcode wird ungültig.')) return
+    setReleasing(flowId)
+    try {
+      const res = await fetch(`/api/flows/${flowId}/release`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ releaseId }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Archivieren fehlgeschlagen')
+      }
+      if (selectedId) await loadFlows(selectedId)
+    } catch (err) {
+      setReleaseError(err instanceof Error ? err.message : 'Archivieren fehlgeschlagen')
+    } finally {
+      setReleasing(null)
+    }
   }
 
-  // ── Diagnose laden ────────────────────────────────────────────────────────
-  async function onDiagnose(gameId: string) {
-    setSelectedGameId(gameId)
+  function copyCode(code: string) {
+    navigator.clipboard.writeText(code).catch(() => { /* ignore */ })
+  }
+
+  // ── Diagnose laden (pro FlowRelease) ─────────────────────────────────────
+  async function onDiagnose(releaseId: string) {
+    setSelectedReleaseId(releaseId)
     setDiagnose(null)
     setDiagnoseError(null)
     setDiagnoseLoading(true)
     const res = await fetch('/api/diagnose', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ spielId: gameId, klasseId: selectedId, modus: 'kompakt' }),
+      body: JSON.stringify({ flowReleaseId: releaseId, modus: 'kompakt' }),
     })
     if (!res.ok) { setDiagnoseError('Diagnose fehlgeschlagen'); setDiagnoseLoading(false); return }
     const d = await res.json()
     setDiagnose(d.diagnose)
     setDiagnoseLoading(false)
   }
+
+  const aktiveReleases = flows.filter((f) => f.release && f.release.status === 'aktiv')
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -257,7 +273,7 @@ export default function ClassesPage() {
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Klassen & Schüler</h1>
-          <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Klassen verwalten · Codes generieren · Spiele zuweisen · Auswertung</p>
+          <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Klassen verwalten · Codes generieren · GameFlows freigeben · Auswertung</p>
         </div>
         <button onClick={() => { setShowForm(!showForm); setFormError(null) }} style={btnPrimary}>
           + Klasse anlegen
@@ -367,7 +383,7 @@ export default function ClassesPage() {
             <div className="flex gap-1 mb-5 p-1 rounded-xl" style={{ background: '#F3EEFF' }}>
               {([
                 { key: 'codes', label: '🔑 Schüler-Codes' },
-                { key: 'spiele', label: '🎮 Spiele' },
+                { key: 'flows', label: '🎮 GameFlows' },
                 { key: 'auswertung', label: '📊 Auswertung' },
               ] as { key: Tab; label: string }[]).map((t) => (
                 <button key={t.key} onClick={() => setActiveTab(t.key)}
@@ -389,7 +405,6 @@ export default function ClassesPage() {
                 {codesLoading ? (
                   <div className="text-sm text-center py-8" style={{ color: '#C4B5FD' }}>Lädt…</div>
                 ) : students.length === 0 ? (
-                  /* Noch keine Codes */
                   <div>
                     <div className="text-center py-6 mb-6" style={{ border: '2px dashed #E9D5FF', borderRadius: 14 }}>
                       <span className="text-3xl block mb-2">🔑</span>
@@ -411,7 +426,6 @@ export default function ClassesPage() {
                     </div>
                   </div>
                 ) : (
-                  /* Codes vorhanden */
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -444,74 +458,108 @@ export default function ClassesPage() {
               </div>
             )}
 
-            {/* ── Tab: Spiele ── */}
-            {activeTab === 'spiele' && (
+            {/* ── Tab: GameFlows ── */}
+            {activeTab === 'flows' && (
               <div style={cardStyle} className="p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <p className="font-bold text-sm" style={{ color: '#1F1235' }}>Zugewiesene Spiele</p>
-                    <p className="text-xs" style={{ color: '#7A6A94' }}>Schüler spielen nur Spiele die dieser Klasse zugewiesen sind</p>
-                  </div>
-                  <button onClick={() => setShowAssign(!showAssign)}
-                    style={{ ...btnPrimary, padding: '8px 16px', fontSize: 13 }}>
-                    + Spiel zuweisen
-                  </button>
+                <div className="mb-5">
+                  <p className="font-bold text-sm" style={{ color: '#1F1235' }}>GameFlows für diese Klasse</p>
+                  <p className="text-xs mt-0.5" style={{ color: '#7A6A94' }}>
+                    Gib einen kompletten Spielflow frei. Der Spielcode führt deine Klasse durch alle Module nacheinander.
+                  </p>
                 </div>
 
-                {/* Spiel-Auswahl Dropdown */}
-                {showAssign && (
-                  <div className="mb-5 rounded-xl p-4" style={{ background: '#F6F1FF', border: '1px solid #E9D5FF' }}>
-                    <p className="text-xs font-bold mb-3" style={{ color: '#7C3AED' }}>SPIEL AUSWÄHLEN</p>
-                    {availableGames.length === 0 ? (
-                      <p className="text-sm" style={{ color: '#7A6A94' }}>Alle freigegebenen Spiele sind bereits zugewiesen.</p>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        {availableGames.map((g) => (
-                          <button key={g.id} onClick={() => onAssignGame(g.id)} disabled={assigning}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all w-full"
-                            style={{ background: '#FFFFFF', border: '1px solid #E9D5FF', cursor: 'pointer', opacity: assigning ? 0.6 : 1 }}>
-                            <span className="text-lg">🎮</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold truncate" style={{ color: '#1F1235' }}>{g.titel || 'Unbenanntes Spiel'}</p>
-                              <p className="text-xs" style={{ color: '#7A6A94' }}>{g.status}</p>
-                            </div>
-                            <span className="text-xs font-bold" style={{ color: '#7C3AED' }}>Zuweisen →</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                {releaseError && (
+                  <div className="rounded-xl p-3 text-sm mb-4" style={{ background: '#FEF2F2', color: '#DC2626' }}>
+                    ⚠️ {releaseError}
                   </div>
                 )}
 
-                {/* Zugewiesene Spiele Liste */}
-                {gamesLoading ? (
+                {flowsLoading ? (
                   <div className="text-sm text-center py-8" style={{ color: '#C4B5FD' }}>Lädt…</div>
-                ) : classGames.length === 0 ? (
+                ) : flows.length === 0 ? (
                   <div className="text-center py-10" style={{ border: '2px dashed #E9D5FF', borderRadius: 14 }}>
                     <span className="text-3xl block mb-2">🎮</span>
-                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch keine Spiele zugewiesen</p>
+                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch keine GameFlows erstellt</p>
+                    <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Erstelle einen Flow im Playground (Material hochladen)</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    {classGames.map((cg) => (
-                      <div key={cg.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                        style={{ background: '#FAFAFA', border: '1px solid #F3EEFF' }}>
-                        <span className="text-lg">🎮</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate" style={{ color: '#1F1235' }}>
-                            {gameTitle(cg)}
-                          </p>
-                          <p className="text-xs" style={{ color: '#7A6A94' }}>
-                            Zugewiesen {new Date(cg.zugewiesen_am).toLocaleDateString('de-DE')}
-                          </p>
+                  <div className="flex flex-col gap-3">
+                    {flows.map((flow) => {
+                      const release = flow.release
+                      const istFreigegeben = release?.status === 'aktiv'
+                      const istReleasing = releasing === flow.id
+                      return (
+                        <div key={flow.id} className="rounded-2xl p-5"
+                          style={{
+                            background: istFreigegeben ? '#F6F1FF' : '#FAFAFA',
+                            border: istFreigegeben ? '1.5px solid #7C3AED' : '1px solid #F3EEFF',
+                          }}>
+                          <div className="flex items-start gap-4">
+                            <span className="text-2xl">🎮</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-bold text-sm truncate" style={{ color: '#1F1235' }}>{flow.titel}</p>
+                                {!flow.alle_module_freigegeben && (
+                                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                                    style={{ background: '#FEF3C7', color: '#92400E' }}>Module noch im Entwurf</span>
+                                )}
+                              </div>
+                              <p className="text-xs" style={{ color: '#7A6A94' }}>
+                                {flow.modul_anzahl} {flow.modul_anzahl === 1 ? 'Modul' : 'Module'} · erstellt am {new Date(flow.created_at).toLocaleDateString('de-DE')}
+                              </p>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {flow.module.slice(0, 6).map((m, idx) => (
+                                  <span key={m.id} className="text-xs px-2 py-0.5 rounded-full font-mono"
+                                    style={{ background: '#FFFFFF', color: '#5B21B6', border: '1px solid #E9D5FF' }}>
+                                    {idx + 1}. {m.spieltyp_didaktisch || m.game_engine}
+                                  </span>
+                                ))}
+                                {flow.module.length > 6 && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full"
+                                    style={{ background: '#FFFFFF', color: '#7A6A94' }}>+{flow.module.length - 6}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {istFreigegeben && release ? (
+                            <div className="mt-4 pt-4 border-t flex items-center gap-3" style={{ borderColor: '#E9D5FF' }}>
+                              <div className="flex-1">
+                                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: '#7C3AED' }}>Spielcode</p>
+                                <div className="flex items-center gap-2">
+                                  <code className="font-mono font-bold text-lg tracking-wider px-3 py-1.5 rounded-lg"
+                                    style={{ background: '#FFFFFF', color: '#5B21B6', border: '1.5px solid #C4B5FD' }}>
+                                    {release.access_code}
+                                  </code>
+                                  <button onClick={() => copyCode(release.access_code)}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                                    style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', cursor: 'pointer' }}>
+                                    📋 Kopieren
+                                  </button>
+                                </div>
+                              </div>
+                              <button onClick={() => onArchiveRelease(flow.id, release.id)}
+                                disabled={istReleasing}
+                                className="text-xs font-semibold px-3 py-2 rounded-xl"
+                                style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', cursor: 'pointer', opacity: istReleasing ? 0.6 : 1 }}>
+                                Code deaktivieren
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="mt-4 pt-4 border-t flex items-center justify-between" style={{ borderColor: '#F3EEFF' }}>
+                              <p className="text-xs" style={{ color: '#7A6A94' }}>
+                                Noch nicht freigegeben für diese Klasse.
+                              </p>
+                              <button onClick={() => onReleaseFlow(flow.id)}
+                                disabled={istReleasing || flow.modul_anzahl === 0}
+                                style={{ ...btnPrimary, padding: '8px 16px', fontSize: 13, opacity: (istReleasing || flow.modul_anzahl === 0) ? 0.6 : 1 }}>
+                                {istReleasing ? 'Generiere Code…' : 'Flow freigeben →'}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <button onClick={() => onRemoveGame(cg.id)}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                          style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', cursor: 'pointer' }}>
-                          Entfernen
-                        </button>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -521,33 +569,38 @@ export default function ClassesPage() {
             {activeTab === 'auswertung' && (
               <div style={cardStyle} className="p-6">
                 <p className="font-bold text-sm mb-1" style={{ color: '#1F1235' }}>Lernstand analysieren</p>
-                <p className="text-xs mb-5" style={{ color: '#7A6A94' }}>Wähle ein Spiel um die Diagnose für diese Klasse zu starten</p>
+                <p className="text-xs mb-5" style={{ color: '#7A6A94' }}>
+                  Wähle einen freigegebenen GameFlow, um die Diagnose für diese Klasse zu starten.
+                </p>
 
-                {classGames.length === 0 ? (
+                {flowsLoading ? (
+                  <div className="text-sm text-center py-8" style={{ color: '#C4B5FD' }}>Lädt…</div>
+                ) : aktiveReleases.length === 0 ? (
                   <div className="text-center py-10" style={{ border: '2px dashed #E9D5FF', borderRadius: 14 }}>
                     <span className="text-3xl block mb-2">📊</span>
-                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch keine Spiele zugewiesen</p>
-                    <button onClick={() => setActiveTab('spiele')}
+                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch kein Flow freigegeben</p>
+                    <button onClick={() => setActiveTab('flows')}
                       className="text-xs font-semibold mt-3 px-4 py-2 rounded-xl inline-block"
                       style={{ background: '#F3EEFF', color: '#7C3AED', border: 'none', cursor: 'pointer' }}>
-                      → Spiel zuweisen
+                      → Zur Flow-Freigabe
                     </button>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 mb-6">
-                    {classGames.map((cg) => (
-                      <div key={cg.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                    {aktiveReleases.map((flow) => (
+                      <div key={flow.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
                         style={{
-                          background: selectedGameId === cg.game_id ? '#F6F1FF' : '#FAFAFA',
-                          border: selectedGameId === cg.game_id ? '1.5px solid #7C3AED' : '1px solid #F3EEFF',
+                          background: selectedReleaseId === flow.release!.id ? '#F6F1FF' : '#FAFAFA',
+                          border: selectedReleaseId === flow.release!.id ? '1.5px solid #7C3AED' : '1px solid #F3EEFF',
                         }}>
                         <span className="text-lg">🎮</span>
-                        <p className="text-sm font-semibold flex-1 truncate" style={{ color: '#1F1235' }}>
-                          {gameTitle(cg)}
-                        </p>
-                        <button onClick={() => onDiagnose(cg.game_id)} disabled={diagnoseLoading}
-                          style={{ ...btnPrimary, padding: '7px 14px', fontSize: 12, opacity: diagnoseLoading && selectedGameId === cg.game_id ? 0.6 : 1 }}>
-                          {diagnoseLoading && selectedGameId === cg.game_id ? 'Analysiert…' : 'Diagnose starten'}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate" style={{ color: '#1F1235' }}>{flow.titel}</p>
+                          <p className="text-xs font-mono" style={{ color: '#5B21B6' }}>{flow.release!.access_code}</p>
+                        </div>
+                        <button onClick={() => onDiagnose(flow.release!.id)} disabled={diagnoseLoading}
+                          style={{ ...btnPrimary, padding: '7px 14px', fontSize: 12, opacity: diagnoseLoading && selectedReleaseId === flow.release!.id ? 0.6 : 1 }}>
+                          {diagnoseLoading && selectedReleaseId === flow.release!.id ? 'Analysiert…' : 'Diagnose starten'}
                         </button>
                       </div>
                     ))}
@@ -589,7 +642,6 @@ export default function ClassesPage() {
                         </div>
                       )}
 
-                      {/* Kompetenzen */}
                       {d.kompetenzampel_klasse && d.kompetenzampel_klasse.length > 0 && (
                         <div className="rounded-2xl p-5" style={{ background: '#F6F1FF', border: '1px solid #E9D5FF' }}>
                           <p className="text-xs font-bold mb-3 uppercase tracking-wide" style={{ color: '#7C3AED' }}>Teilkompetenzen</p>
@@ -604,7 +656,6 @@ export default function ClassesPage() {
                         </div>
                       )}
 
-                      {/* Fehlvorstellungen */}
                       {d.haeufige_fehlvorstellungen && d.haeufige_fehlvorstellungen.length > 0 && (
                         <div className="rounded-2xl p-5" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
                           <p className="text-xs font-bold mb-3 uppercase tracking-wide" style={{ color: '#D97706' }}>Häufige Fehlvorstellungen</p>
@@ -621,7 +672,6 @@ export default function ClassesPage() {
                         </div>
                       )}
 
-                      {/* Individuelle Diagnosen */}
                       {d.individuelle_diagnosen && d.individuelle_diagnosen.length > 0 && (
                         <div className="rounded-2xl p-5" style={{ background: '#F6F1FF', border: '1px solid #E9D5FF' }}>
                           <p className="text-xs font-bold mb-3 uppercase tracking-wide" style={{ color: '#7C3AED' }}>

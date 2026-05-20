@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: '⊞' },
   { href: '/playground', label: 'Game erstellen', icon: '✦' },
-  { href: '/spiele', label: 'Spiele & Ordner', icon: '▤' },
+  { href: '/spiele', label: 'GameFlows', icon: '▤' },
   { href: '/classes', label: 'Klassen & Schüler', icon: '⊙' },
 ]
 

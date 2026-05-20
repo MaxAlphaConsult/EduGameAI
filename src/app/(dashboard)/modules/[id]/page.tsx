@@ -78,16 +78,9 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
           </dl>
           {spiel.status === 'freigegeben' && (
             <div className="mt-4 pt-4 border-t">
-              <p className="text-xs text-muted-foreground mb-2">Schüler-Link:</p>
-              <div className="flex items-center gap-2">
-                <code className="text-xs bg-muted px-3 py-1.5 rounded flex-1 truncate">
-                  /play/{id}
-                </code>
-                <Link href={`/play/${id}`} target="_blank"
-                  className="text-xs text-primary hover:underline whitespace-nowrap">
-                  Öffnen →
-                </Link>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Dieses Modul wird über einen GameFlow freigegeben. Erstelle einen Flow und gib ihn unter <Link href="/classes" className="text-primary hover:underline">Klassen</Link> für eine Klasse frei.
+              </p>
             </div>
           )}
         </div>
