@@ -132,7 +132,20 @@ export function LehrkraftCheckPanel({ spielId }: Props) {
     if (!polling) return
     let cancelled = false
     let attempts = 0
-    const MAX_ATTEMPTS = 40 // ~160 Sekunden, dann aufgeben
+    const MAX_ATTEMPTS = 60 // ~240 Sekunden, dann aufgeben (Validierung läuft seit Migration 011 in eigenem Lambda mit 5min Timeout)
+
+    // Beim Mount versuchen, die Validierung anzustoßen. Ist idempotent (siehe
+    // POST /api/games/[id]/check — falls bereits Check existiert: no-op).
+    // So funktioniert das Panel auch, wenn der User direkt auf ein Modul
+    // navigiert ohne durch den Playground-Flow zu gehen.
+    let triggered = false
+    async function triggerOnce() {
+      if (triggered) return
+      triggered = true
+      try {
+        await fetch(`/api/games/${spielId}/check`, { method: 'POST' })
+      } catch { /* polling übernimmt */ }
+    }
 
     async function poll() {
       if (cancelled) return
@@ -158,7 +171,12 @@ export function LehrkraftCheckPanel({ spielId }: Props) {
       try {
         const res = await fetch(`/api/games/${spielId}/check`)
         if (cancelled) return
-        if (res.status === 202) { setTimeout(poll, 4000); return }
+        if (res.status === 202) {
+          // Noch kein Check da → einmal versuchen, ihn anzustoßen
+          if (attempts === 1) triggerOnce()
+          setTimeout(poll, 4000)
+          return
+        }
         const body = await res.json()
         if (!body.pending && body.check) {
           setCheck(body.check)
@@ -175,7 +193,7 @@ export function LehrkraftCheckPanel({ spielId }: Props) {
 
     poll()
     return () => { cancelled = true }
-  }, [spielId, polling])
+  }, [spielId, polling, router])
 
   function signoff() {
     startTransition(async () => {
