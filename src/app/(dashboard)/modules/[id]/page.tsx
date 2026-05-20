@@ -41,17 +41,33 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
   const aufgaben = (spiel.aufgaben ?? []) as AufgabeRow[]
   const analyse = spiel.analyses as AnalyseRow | null
 
-  // Materialabschnitte und Sourcemapping parallel laden
-  const [materialResult, checkResult] = await Promise.all([
+  // Materialabschnitte, Sourcemapping und Geschwister-Module parallel laden
+  const [materialResult, checkResult, geschwisterResult] = await Promise.all([
     analyse?.material_id
       ? supabase.from('materials').select('abschnitte').eq('id', analyse.material_id).single()
       : Promise.resolve({ data: null }),
     supabase.from('lehrkraft_checks').select('sourcemapping, reduktionen').eq('spiel_id', id).maybeSingle(),
+    spiel.game_flow_id
+      ? supabase
+          .from('games')
+          .select('id, titel, spieltyp_didaktisch, game_engine, reihenfolge')
+          .eq('game_flow_id', spiel.game_flow_id)
+          .eq('lehrer_id', user.id)
+      : Promise.resolve({ data: null }),
   ])
 
   const abschnitte = (materialResult.data?.abschnitte ?? []) as MaterialAbschnitt[]
   const sourcemapping = checkResult.data?.sourcemapping ?? null
   const reduktionen = checkResult.data?.reduktionen ?? null
+  const geschwisterModule = ((geschwisterResult.data ?? []) as Array<{
+    id: string
+    titel: string | null
+    spieltyp_didaktisch: string | null
+    game_engine: string | null
+    reihenfolge: number | null
+  }>)
+    .filter((m) => m.id !== id)
+    .sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
 
   return (
     <div className="p-8 max-w-3xl">
@@ -118,6 +134,39 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
               <span className="text-xl flex-shrink-0" style={{ color: '#C4B5FD' }}>↗</span>
             </div>
           </Link>
+        </div>
+      )}
+
+      {/* Andere Module aus diesem Lernspiel — schneller Wechsel */}
+      {geschwisterModule.length > 0 && (
+        <div className="mb-6 rounded-2xl p-4" style={{ background: '#FAFAFA', border: '1px solid #E9D5FF' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A6A94' }}>
+            Andere Module aus diesem Lernspiel
+          </p>
+          <div className="flex flex-col gap-2">
+            {geschwisterModule.map((m) => (
+              <div key={m.id} className="flex items-center gap-2 rounded-xl px-3 py-2"
+                style={{ background: '#FFFFFF', border: '1px solid #F3EEFF' }}>
+                <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                  style={{ background: '#F3EEFF', color: '#7C3AED' }}>
+                  {m.reihenfolge ?? '·'}
+                </span>
+                <span className="text-xs font-medium flex-1 truncate" style={{ color: '#1F1235' }}>
+                  {m.titel || m.spieltyp_didaktisch || m.game_engine || 'Modul'}
+                </span>
+                <Link href={`/modules/${m.id}/preview`} target="_blank"
+                  className="text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0"
+                  style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', textDecoration: 'none' }}>
+                  ▶ Testen
+                </Link>
+                <Link href={`/modules/${m.id}`}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg flex-shrink-0"
+                  style={{ background: '#FFFFFF', color: '#7A6A94', border: '1px solid #E9D5FF', textDecoration: 'none' }}>
+                  Öffnen →
+                </Link>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
