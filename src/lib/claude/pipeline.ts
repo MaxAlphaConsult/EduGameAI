@@ -12,6 +12,7 @@ import {
   DiagnoseOutputSchema,
   ImproveOutputSchema,
   EinzelAufgabeSchema,
+  FlowCheckOutputSchema,
   type AnalyseOutput,
   type LernzielOutput,
   type LernpfadOutput,
@@ -21,6 +22,7 @@ import {
   type DiagnoseOutput,
   type ImproveOutput,
   type EinzelAufgabe,
+  type FlowCheckOutput,
 } from '../schemas/pipeline'
 
 let _client: Anthropic | null = null
@@ -339,6 +341,41 @@ export async function regenerateAufgabe(input: {
       kontext: input.kontext,
     }),
     EinzelAufgabeSchema
+  )
+}
+
+// --- Flow-weiter Lehrkraft-Check (Schritt 22) ----------------
+//
+// Bewertet einen kompletten Flow als didaktische Einheit. Module sehen sich
+// gegenseitig, Wissen aus einem Modul gilt als verfügbar für die anderen.
+export async function flowLehrkraftCheck(input: {
+  lernziel: string
+  fach: string
+  jahrgangsstufe: string
+  schulform: string
+  module: Array<{
+    modul_id: string
+    modul_position: number
+    titel: string
+    spieltyp_didaktisch: string | null
+    game_engine: string | null
+    aufgaben: unknown
+  }>
+}): Promise<FlowCheckOutput> {
+  return callClaude(
+    'Flow-weiter Lehrkraft-Check (Schritt 22)',
+    loadPrompt('09_flow_lehrkraft_check.md'),
+    JSON.stringify({
+      flow_lernziel: input.lernziel,
+      kontext: {
+        fach: input.fach,
+        jahrgangsstufe: input.jahrgangsstufe,
+        schulform: input.schulform,
+      },
+      module: input.module,
+    }),
+    FlowCheckOutputSchema,
+    12288
   )
 }
 

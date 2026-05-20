@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
-import { LehrkraftCheckPanel } from '@/components/playground/LehrkraftCheckPanel'
 import { AufgabenMitQuelle } from '@/components/playground/AufgabenMitQuelle'
 import { ModulInfoEdit } from '@/components/modules/ModulInfoEdit'
 import Link from 'next/link'
@@ -191,8 +190,21 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
           reduktionen={reduktionen}
         />
 
-        {/* Lehrkraft-Check */}
-        <LehrkraftCheckPanel spielId={id} initialStatus={spiel.status ?? 'entwurf'} />
+        {/* Hinweis auf den Flow-Check */}
+        {spiel.game_flow_id && (
+          <div className="rounded-xl px-4 py-3" style={{ background: '#F6F1FF', border: '1px solid #C4B5FD' }}>
+            <p className="text-sm font-semibold mb-1" style={{ color: '#5B21B6' }}>
+              ℹ️ Lehrkraft-Check läuft auf Flow-Ebene
+            </p>
+            <p className="text-xs leading-relaxed" style={{ color: '#5B21B6' }}>
+              Die didaktische Bewertung erfolgt für das ganze Lernspiel — Module
+              werden zusammen gedacht, nicht isoliert.{' '}
+              <Link href={`/spiele/${spiel.game_flow_id}`} className="underline font-semibold" style={{ color: '#5B21B6' }}>
+                Zum Flow-Check →
+              </Link>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -471,6 +471,58 @@ export const DiagnoseOutputSchema = z.object({
 
 export type DiagnoseOutput = z.infer<typeof DiagnoseOutputSchema>
 
+// --- Schema 7: Flow-weiter Lehrkraft-Check (Prompt 09) -------
+//
+// Im Unterschied zum Pro-Modul-Check (Schema ValidationOutputSchema) wird hier
+// der gesamte Flow gegen das eine Flow-Lernziel bewertet. Lücken, Redundanzen
+// und Modulrollen werden aggregiert betrachtet — Wissen, das ein Modul aufbaut
+// und ein anderes nur abruft, gilt im Flow als abgedeckt.
+export const FlowCheckOutputSchema = z.object({
+  gesamtampel: AmpelSchema,
+  lernziel: z.string().min(1),
+  abdeckung_lernziel: z.enum(['vollstaendig', 'teilweise', 'nicht_gesichert']),
+  gesamteinschaetzung: z.string().min(1),
+
+  // Welche Rolle spielt jedes Modul im Flow?
+  modulrollen: z.array(z.object({
+    modul_id: z.string(),
+    modul_position: z.number().int(),
+    titel: z.string(),
+    rolle: z.string().min(1), // z.B. "Begriffe einführen", "Anwendung trainieren", "Sicherung"
+    deckt_ab: z.array(z.string()), // Teilziele/Themen, die dieses Modul abdeckt
+  })),
+
+  // Was deckt der Flow als Ganzes ab? (positiv)
+  abgedeckte_teilziele: z.array(z.string()),
+
+  // Was fehlt im Flow? (echte Lücken — kein Modul deckt das ab)
+  fehlende_teilziele: z.array(z.object({
+    thema: z.string().min(1),
+    begruendung: z.string().min(1),
+    // KI-Vorschlag: in welchem Modul ließe sich das ergänzen, und warum?
+    empfohlenes_modul_id: z.union([z.string(), z.null()]),
+    empfohlenes_modul_begruendung: z.string().min(1),
+  })),
+
+  // Übergreifende Hinweise — Punkte, die mehrere Module oder den Übergang betreffen
+  uebergreifende_hinweise: z.array(z.object({
+    thema: z.string().min(1),
+    problem: z.string().min(1),
+    empfehlung: z.string().min(1),
+    betroffene_module: z.array(z.string()),
+  })),
+
+  // Redundanzen: Mehrere Module decken dieselbe Sache ab (kann gewollt sein,
+  // aber soll markiert werden, damit die Lehrkraft entscheiden kann).
+  redundanzen: z.array(z.object({
+    beschreibung: z.string().min(1),
+    module_ids: z.array(z.string()),
+    bewertung: z.enum(['sinnvoll_wiederholend', 'unnoetig']),
+  })),
+})
+
+export type FlowCheckOutput = z.infer<typeof FlowCheckOutputSchema>
+
 // Vorab exportierte Schemas für externe Nutzung
 export {
   WissensformSchema,

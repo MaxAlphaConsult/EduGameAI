@@ -395,12 +395,18 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
           {/* Hinweise */}
           {check.hinweise_fuer_lehrkraft.length > 0 && (
             <section>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Hinweise</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hinweise</h3>
+                <span className="text-xs" style={{ color: '#7A6A94' }}>nur dieses Modul</span>
+              </div>
               <ul className="flex flex-col gap-1">
                 {check.hinweise_fuer_lehrkraft.map((h, i) => (
                   <li key={i} className="text-sm bg-blue-50 border border-blue-100 rounded-md px-3 py-2 text-blue-900">{h}</li>
                 ))}
               </ul>
+              <p className="text-xs mt-2" style={{ color: '#7A6A94' }}>
+                Der Check schaut nur dieses Modul an. Wissen, das ein anderes Modul des Lernspiels aufbaut, kann hier trotzdem als „fehlend" markiert sein — das ist nicht zwingend ein Problem.
+              </p>
             </section>
           )}
 

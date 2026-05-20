@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import { FlowLehrkraftCheckPanel } from '@/components/modules/FlowLehrkraftCheckPanel'
 
 interface GameRow {
   id: string
@@ -12,27 +13,6 @@ interface GameRow {
   aufgaben: unknown[] | null
 }
 
-interface CheckRow {
-  spiel_id: string
-  gesamtampel: 'gruen' | 'gelb' | 'rot' | string
-  hinweise_fuer_lehrkraft: string[] | null
-}
-
-const AMPEL_BG: Record<string, string> = {
-  gruen: '#D1FAE5',
-  gelb: '#FEF3C7',
-  rot: '#FEE2E2',
-}
-const AMPEL_DOT: Record<string, string> = {
-  gruen: '#059669',
-  gelb: '#D97706',
-  rot: '#DC2626',
-}
-const AMPEL_LABEL: Record<string, string> = {
-  gruen: 'OK',
-  gelb: 'Hinweise',
-  rot: 'Probleme',
-}
 const STATUS_LABEL: Record<string, string> = {
   entwurf: 'Entwurf',
   geprueft: 'Geprüft',
@@ -71,20 +51,6 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
 
   const module = ((gamesRaw ?? []) as GameRow[])
     .sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
-
-  // Checks pro Modul holen (für Ampel-Anzeige in der Liste)
-  const moduleIds = module.map((m) => m.id)
-  const { data: checksRaw } = moduleIds.length > 0
-    ? await supabase.from('lehrkraft_checks').select('spiel_id, gesamtampel, hinweise_fuer_lehrkraft').in('spiel_id', moduleIds)
-    : { data: [] as CheckRow[] }
-
-  const checksByGameId = new Map<string, CheckRow>()
-  for (const c of (checksRaw ?? []) as CheckRow[]) checksByGameId.set(c.spiel_id, c)
-
-  const modulMitProbleme = module.filter((m) => {
-    const c = checksByGameId.get(m.id)
-    return c && (c.gesamtampel !== 'gruen' || (c.hinweise_fuer_lehrkraft?.length ?? 0) > 0)
-  }).length
 
   const totalAufgaben = module.reduce((sum, m) => sum + (m.aufgaben?.length ?? 0), 0)
 
@@ -133,17 +99,10 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
         </Link>
       )}
 
-      {/* Status-Hinweis */}
-      {modulMitProbleme > 0 && (
-        <div className="mb-4 rounded-xl px-4 py-3" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
-          <p className="text-sm font-semibold" style={{ color: '#92400E' }}>
-            ⚠️ {modulMitProbleme} {modulMitProbleme === 1 ? 'Modul hat' : 'Module haben'} Hinweise vom Lehrkraft-Check
-          </p>
-          <p className="text-xs mt-1" style={{ color: '#B45309' }}>
-            Klick unten auf das Modul, sieh dir die Hinweise an und übernimm die KI-Vorschläge.
-          </p>
-        </div>
-      )}
+      {/* Flow-weiter Lehrkraft-Check */}
+      <div className="mb-6">
+        <FlowLehrkraftCheckPanel flowId={flowId} />
+      </div>
 
       {/* Module-Liste */}
       <div className="rounded-2xl p-4" style={{ background: '#FAFAFA', border: '1px solid #E9D5FF' }}>
@@ -152,9 +111,6 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
         </p>
         <div className="flex flex-col gap-2">
           {module.map((m) => {
-            const c = checksByGameId.get(m.id)
-            const ampel = c?.gesamtampel ?? null
-            const hinweiseCount = c?.hinweise_fuer_lehrkraft?.length ?? 0
             const stat = m.status ?? 'entwurf'
             return (
               <div key={m.id} className="rounded-xl p-3"
@@ -176,13 +132,6 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
                     style={{ background: STATUS_BG[stat] ?? '#F3F4F6', color: STATUS_FG[stat] ?? '#6B7280' }}>
                     {STATUS_LABEL[stat] ?? stat}
                   </span>
-                  {ampel && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
-                      style={{ background: AMPEL_BG[ampel] ?? '#F3F4F6', color: AMPEL_DOT[ampel] ?? '#6B7280' }}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: AMPEL_DOT[ampel] ?? '#6B7280' }} />
-                      {AMPEL_LABEL[ampel] ?? ampel}{hinweiseCount > 0 ? ` (${hinweiseCount})` : ''}
-                    </span>
-                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: '#F3EEFF' }}>
                   <Link href={`/modules/${m.id}`}
