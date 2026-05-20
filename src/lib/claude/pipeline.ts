@@ -90,7 +90,10 @@ async function callClaude<T>(
     response = await getClient().messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: maxTokens,
-      system: systemPrompt,
+      // System-Prompt cachen: alle parallelen generateGame-Calls und Folgegenerierungen
+      // innerhalb von 5 min nutzen denselben Prompt — Cache-Hit spart ~85% Input-Tokens
+      // und reduziert TTFT um 1-3s pro Call.
+      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     })
   } catch (err) {
