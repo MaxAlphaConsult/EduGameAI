@@ -37,6 +37,9 @@ interface Props {
   // Der Flow-Player triggert daraufhin den Übergang zum nächsten Modul
   // (oder zur Abschlussübersicht).
   onModulFertig: (ergebnis: ModulErgebnis) => void
+  // Vorschau-Modus für die Lehrkraft: Antworten werden NICHT an /api/answers
+  // gesendet, damit die Diagnostik clean bleibt.
+  preview?: boolean
 }
 
 interface AufgabenErgebnis {
@@ -94,7 +97,7 @@ const SKIN_LABEL: Record<string, string> = {
   'Arena': '🏆 Gauntlet',
 }
 
-export function GameEngine({ moduleSessionId, aufgaben, gameSkin, onModulFertig }: Props) {
+export function GameEngine({ moduleSessionId, aufgaben, gameSkin, onModulFertig, preview = false }: Props) {
   const [current, setCurrent] = useState(0)
   const [bereit, setBereit] = useState(false)
   const ergebnisseRef = useRef<AufgabenErgebnis[]>([])
@@ -106,16 +109,18 @@ export function GameEngine({ moduleSessionId, aufgaben, gameSkin, onModulFertig 
     const eintrag = { aufgabeId: aufgabe.aufgabe_id, antworten, korrekt }
     ergebnisseRef.current = [...ergebnisseRef.current, eintrag]
 
-    try {
-      await fetch('/api/answers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ moduleSessionId, aufgabeId: aufgabe.aufgabe_id, antwortWert: antworten }),
-      })
-    } catch { /* Spiel läuft weiter */ }
+    if (!preview) {
+      try {
+        await fetch('/api/answers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moduleSessionId, aufgabeId: aufgabe.aufgabe_id, antwortWert: antworten }),
+        })
+      } catch { /* Spiel läuft weiter */ }
+    }
 
     setBereit(true)
-  }, [aufgabe, moduleSessionId])
+  }, [aufgabe, moduleSessionId, preview])
 
   function weiter() {
     setBereit(false)

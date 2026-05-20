@@ -61,6 +61,34 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
         <span className="text-sm font-medium">{spiel.titel}</span>
       </div>
 
+      {/* Großer Spielen-Testen-Button */}
+      {aufgaben.length > 0 && (
+        <Link
+          href={`/modules/${id}/preview`}
+          target="_blank"
+          className="block mb-6 rounded-2xl p-5 transition-all hover:scale-[1.005]"
+          style={{
+            background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+            color: 'white',
+            textDecoration: 'none',
+            boxShadow: '0 6px 24px rgba(124,58,237,0.25)',
+          }}>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,0.18)' }}>
+              ▶
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Spielen testen</p>
+              <p className="text-xs" style={{ color: '#E9D5FF' }}>
+                Spiel das Modul wie ein Schüler — in neuem Tab, ohne Diagnostik-Eintrag.
+              </p>
+            </div>
+            <span className="text-xl" style={{ color: '#E9D5FF' }}>↗</span>
+          </div>
+        </Link>
+      )}
+
       <div className="grid grid-cols-1 gap-6">
         {/* Meta-Info */}
         <div className="border rounded-xl p-5">
