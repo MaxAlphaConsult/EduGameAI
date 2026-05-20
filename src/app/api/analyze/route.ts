@@ -183,10 +183,19 @@ export async function POST(request: NextRequest) {
 
       } catch (err) {
         let message = 'Analyse fehlgeschlagen'
-        if (err instanceof PipelineValidationError) message = `Validierungsfehler: ${err.message}`
-        else if (err instanceof PipelineJsonError) message = `KI hat kein JSON zurückgegeben: ${err.schritt}`
-        else if (err instanceof PipelineApiError) message = `KI-API nicht erreichbar: ${err.schritt}`
-        else {
+        if (err instanceof PipelineValidationError) {
+          message = `Validierungsfehler: ${err.message}`
+          console.error('[analyze] PipelineValidationError', { schritt: err.schritt, zod: err.zodError.issues, raw: err.rawOutput })
+        } else if (err instanceof PipelineJsonError) {
+          message = `KI hat kein JSON zurückgegeben: ${err.schritt}`
+          console.error('[analyze] PipelineJsonError', { schritt: err.schritt, rawText: err.rawText?.slice(0, 2000) })
+        } else if (err instanceof PipelineApiError) {
+          const cause = err.cause
+          const causeMessage = cause instanceof Error ? cause.message : (typeof cause === 'string' ? cause : JSON.stringify(cause))
+          const causeStatus = (cause as { status?: number } | undefined)?.status
+          message = `KI-API-Fehler in ${err.schritt}${causeStatus ? ` [${causeStatus}]` : ''}: ${causeMessage ?? 'unbekannt'}`
+          console.error('[analyze] PipelineApiError', { schritt: err.schritt, status: causeStatus, cause })
+        } else {
           const detail = err instanceof Error ? err.message : JSON.stringify(err)
           message = `Analyse fehlgeschlagen: ${detail}`
           console.error('[analyze]', err)
