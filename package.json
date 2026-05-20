@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:pipeline": "npx --yes tsx scripts/test-pipeline.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.93.0",
