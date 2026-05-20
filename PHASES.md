@@ -1,6 +1,6 @@
 # EduGame AI — Phasenplan
 
-_Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsaufnahme_
+_Stand: 2026-05-20 | Basis: aktueller Code-Stand auf `claude/musing-austin-66838d`_
 
 ---
 
@@ -18,99 +18,92 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
 ---
 
 ## Phase 0 — Fundament reparieren
-**Was diese Phase macht:** Das bestehende Scaffold (Next.js + Supabase + Claude) auf ein professionelles Niveau bringen, bevor irgendetwas neues gebaut wird. Fehler jetzt sind später zehnmal teurer.
+**Was diese Phase macht:** Das bestehende Scaffold (Next.js + Supabase + Claude) auf ein professionelles Niveau bringen, bevor irgendetwas neues gebaut wird.
 
 ### Typen & Datenmodell
-- 🔧 `Differenzierungsniveau` auf 4 Stufen korrigieren (`leichter | mittel | schwer | sehr_schwer`)
-- ⬜ `GameEngine` Enum anlegen (welche Spielmechanik)
-- ⬜ `GameSkin` Enum anlegen (welcher visuelle Stil je Altersgruppe)
-- ⬜ `KLP`-Datenmodell anlegen (`bundesland | schulform | jahrgangsstufe | fach | kompetenzbereiche[]`)
-- ⬜ `DiagnoseDetail`-Typ anlegen (Detailmodus der Auswertung)
+- ✅ `Differenzierungsniveau` 4-stufig (`leichter | mittel | schwer | sehr_schwer`)
+- ✅ `GameEngine` Enum
+- ✅ `GameSkin` Enum (`unterstufe | mittelstufe | oberstufe`)
+- ✅ `KLP`-Datenmodell
+- ✅ `DiagnoseDetail`-Typ
 
 ### Pipeline & Laufzeit-Validierung
-- 🔧 Pipeline-Funktionen typisieren — kein `unknown` mehr als Rückgabe
-- ⬜ Zod installieren und Schemas für alle 5 Pipeline-Schritte definieren
-- ⬜ Jeden Pipeline-Output zur Laufzeit gegen Zod-Schema validieren
-- ⬜ Fehler-Handling in der Pipeline (was passiert wenn Schritt 3 von 21 fehlschlägt?)
+- ✅ Pipeline-Funktionen typisiert — kein `unknown` mehr als Rückgabe
+- ✅ Zod v4 installiert
+- ✅ Zod-Schemas für alle Pipeline-Schritte (`src/lib/schemas/pipeline.ts`)
+- ✅ Pipeline-Output zur Laufzeit gegen Zod validiert (`callClaude` mit `safeParse`)
+- ✅ Fehler-Handling: `PipelineValidationError`, `PipelineJsonError`, `PipelineApiError`
 
-### Prompt-Dateien prüfen
-- ⬜ `01_material_analysis.md` — deckt Schritte 1–6 vollständig ab?
-- ⬜ `02_learning_objective.md` — Lernziel + Spielbarkeits-Ampel korrekt?
-- ⬜ `03_game_generation.md` — Engine-Skin-Trennung, Differenzierung, Distraktoren?
-- ⬜ `04_validation_lehrkraft_check.md` — alle 13 Check-Dimensionen vorhanden?
-- ⬜ `05_diagnosis_engine.md` — Kompakt- und Detailmodus, DSGVO-Sprache?
-- ⬜ Alle 5 Prompts gegen Zod-Schemas testen (einmal manuell durchlaufen)
+### Prompt-Dateien
+- ✅ Pipeline auf 7 Prompts erweitert (Material → Lernziel → Lernpfad → Spielmapping → Spielgenerierung → Validierung → Verbesserung → Diagnose)
+- ⬜ End-to-End-Test der Prompts gegen Schemas mit echtem Material (1× manuell durchlaufen lassen)
 
 ### Git & Deployment
-- ✅ GitHub Repo `EduGameAI` angelegt
-- ✅ Remote verbunden (`https://github.com/maxcraftbase/EduGameAI.git`)
-- ⬜ Ersten Push auf `main` durchführen
+- ✅ GitHub Repo `EduGameAI` angelegt, Remote verbunden
+- ✅ Push-Workflow etabliert, Feature-Branches in Verwendung (`claude/*`)
+- ✅ Branch-Strategie im `README.md` dokumentiert
 - ⬜ Vercel mit GitHub Repo verbinden (Auto-Deploy bei jedem Push auf `main`)
-- ⬜ Branch-Strategie festlegen: Features immer in eigenen Branches, nie direkt auf `main`
 
 ---
 
 ## Phase 1 — MVP: Datei zu Spiel
-**Was diese Phase macht:** Das Kernprodukt. Lehrkraft lädt Unterrichtsmaterial hoch → KI analysiert es didaktisch korrekt in 21 Schritten → generiert ein spielbares Modul → Lehrkraft prüft und gibt frei → Schüler spielen → Auswertung erscheint. Kein anderes Feature ist wichtiger als dieser Loop.
+**Was diese Phase macht:** Der Kernloop. Lehrkraft lädt Material hoch → KI analysiert didaktisch in 21 Schritten → generiert spielbares Modul → Lehrkraft prüft + gibt frei → Schüler spielen → Auswertung erscheint.
 
 ### 1.1 Datei-Upload
-- 🔴 ⬜ Upload-Interface bauen (Drag & Drop + Datei-Dialog)
-- 🔴 ⬜ Unterstützte Formate: PDF, DOCX, TXT
-- 🔴 ⬜ PDF-Parsing: Text + Seitenstruktur extrahieren
-- 🔴 ⬜ Materialabschnitte automatisch nummerieren (Grundlage für Sourcemapping)
-- ⬜ Fehlerbehandlung: leere Datei, nicht lesbar, zu groß
+- ✅ Upload-Interface (Drag & Drop)
+- ✅ PDF-Parsing via `unpdf` (`src/lib/pdf/extract.ts`)
+- ✅ Materialabschnitte nummeriert (Grundlage Sourcemapping)
+- 🔧 Unterstützte Formate: nur PDF im MVP, DOCX/TXT noch nicht
+- ⬜ Fehlerbehandlung: leere/unlesbare/zu große Datei sauber abfangen
 
 ### 1.2 KI-Analyse (21 Schritte)
-- 🔴 ⬜ Schritte 1–6: Materialanalyse (Kernaussagen, Wissensform, Lernform, Wissensstruktur, Denkhandlung, Komplexitätsstufe)
-- 🔴 ⬜ Schritte 7–10: Lernziel formulieren + Spielbarkeits-Ampel (Grün / Gelb / Rot)
-- 🔴 ⬜ Bei Gelb/Rot: MVP-Lernzielvariante transparent ausgeben
-- 🔴 ⬜ Schritte 11–13: Game-Engine + Game-Skin + didaktischen Spieltyp auswählen
-- 🔴 ⬜ Schritte 14–16: Aufgaben + Differenzierung + Fehlvorstellungen generieren
-- 🔴 ⬜ Schritte 17–19: Fachliche Reduktion + Korrektheit prüfen
-- 🔴 ⬜ Schritt 20: Sourcemapping erstellen (jede Aufgabe → Materialabschnitt)
-- 🔴 ⬜ Schritt 21: Lehrkraft-Check mit Ampellogik ausgeben
-- ⬜ Reihenfolge erzwingen: System darf Schritt 14 nicht erreichen ohne Schritte 1–13
+- ✅ Schritte 1–6: Materialanalyse (`analyzeMaterial`)
+- ✅ Schritte 7–10: Lernziel + Spielbarkeits-Ampel (`determineLearningObjective`)
+- ✅ Schritte 11–13: Lernpfad + Spielmapping
+- ✅ Schritte 14–16: Spielgenerierung
+- ✅ Schritte 17–21: Validierung & Lehrkraft-Check
+- ✅ Reihenfolge erzwungen durch Pipeline-Komposition
 
 ### 1.3 Spielgenerierung
-- 🔴 ⬜ Mindestens 2 vollständige Spieltypen für MVP:
-  - `Multiple Choice` (Single + Multi)
-  - `Zuordnung / Drag & Drop`
-- ⬜ 3 Schwierigkeitsstufen je Spiel (leichter / mittel / schwer)
-- ⬜ Feedbackbausteine vorbereitet generieren (kein KI-Call pro Schülerantwort)
-- ⬜ Zeitregelung: konfigurierbar, an/aus
+- ✅ Spielkomponenten: MultipleChoice, Zuordnung, Reihenfolge, Hangman, SpaceInvaders, SprintQuiz, BossFight, EscapeRoom
+- ✅ Differenzierungsstufen je Aufgabe
+- ✅ Feedbackbausteine vorab generiert (kein KI-Call pro Antwort)
+- ✅ Lehrkraft wählt Spielformate + Anzahl Spiele beim Erstellen
+- ⬜ Zeitregelung-UI für Lehrkraft (konfigurierbar an/aus)
 - ⬜ Button "Fragen neu generieren" (Einzelaufgabe)
 
 ### 1.4 Lehrkraft-Check UI
-- 🔴 ⬜ Check-Panel mit farblicher Akzentuierung (alle 13 Dimensionen)
-- ⬜ Spielbarkeits-Ampel sichtbar (Grün / Gelb / Rot + Erklärung)
-- ⬜ Ursprüngliches Lernziel + MVP-Variante nebeneinander
-- ⬜ Lernzielanteile: vollständig / teilweise / nicht abgedeckt
-- ⬜ Signoff-Button (Lehrkraft bestätigt Spiel)
+- ✅ Check-Panel mit allen 13 Dimensionen (`LehrkraftCheckPanel`)
+- ✅ Spielbarkeits-Ampel sichtbar
+- ✅ Ursprüngliches Lernziel + MVP-Variante
+- ✅ KI-Verbesserungsvorschläge (`improve`-Endpoint)
+- ✅ Signoff-Button
 
 ### 1.5 Schüler-Session
-- 🔴 ⬜ Schüler-Login ohne Account: Tier-Name + Code (DSGVO-konform)
-- ⬜ Spiel-Interface für Schüler (mindestens 2 Spieltypen spielbar)
-- ⬜ Regelbasierte Auswertung (kein KI-Call pro Antwort)
-- ⬜ Ergebnis-Screen für Schüler (was war richtig, was falsch, Feedback)
+- ✅ Schüler-Login via Code (`/api/student/lookup`)
+- ✅ Spiel-Interface für alle 8 Spieltypen
+- ✅ Regelbasierte Auswertung
+- ✅ Lernzettel-PDF am Ende des Spiels
+- ⬜ Ergebnis-Screen mit konkretem Feedback pro Aufgabe
 
 ### 1.6 Auswertung Lehrkraft
-- ⬜ Klassenübersicht: wie viele haben Lernziel erreicht / teilweise / nicht gesichert
-- ⬜ Häufigste Fehler und Fehlvorstellungen
-- ⬜ Individuelle Kurzdiagnose pro Schülercode
-- ⬜ Schülergerechte Rückmeldung (motivierend, ohne Ampelfarbe)
+- ✅ Diagnose-API (`/api/diagnose`)
+- ✅ Klassendiagnose mit Kompakt-/Detailmodus
+- ⬜ UI für Klassenübersicht polishen (häufigste Fehler hervorheben)
+- ⬜ Individuelle Kurzdiagnose pro Schülercode anzeigen
 
 ### 1.7 Authentifizierung
-- ⬜ Lehrkraft-Login (E-Mail + Passwort via Supabase Auth)
-- ⬜ Klasse anlegen, Schüler-Codes generieren und drucken
+- ✅ Lehrkraft-Login via Supabase Auth (`/api/auth/callback`)
+- ✅ Klassen anlegen (`/dashboard/classes`)
+- ⬜ Schüler-Codes drucken/PDF-Export
 
 ---
 
 ## Phase 2 — MVP+: Qualität & Tiefe
-**Was diese Phase macht:** Den MVP für echte Lehrkräfte benutzbar machen. Mehr Spieltypen, KLP-Abgleich, Sourcemapping im UI, bessere Auswertung, Oberstufen-Formate.
+**Was diese Phase macht:** MVP für echte Lehrkräfte benutzbar machen. Mehr Spieltypen, KLP-Abgleich, Sourcemapping im UI, bessere Auswertung, Oberstufen-Formate.
 
 ### Spieltypen erweitern
 - 🟡 ⬜ `Lückentext mit Wortbank`
-- 🟡 ⬜ `Reihenfolge / Sortierung`
 - 🟡 ⬜ `Fehler markieren`
 - 🟡 ⬜ `Modell beschriften`
 - 🟢 ⬜ `Satzbaustein-Erklärung`
@@ -148,13 +141,14 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
 - 🟢 ⬜ Demo-Teilen als Growth-Mechanik (Link ohne Login spielbar)
 
 ### PDF-Export
+- ✅ Lernzettel-PDF für SuS am Spielende
 - 🟢 ⬜ Lehrkraft-PDF (Klassendiagnose, anonyme Codes)
 - 🟢 ⬜ SuS-PDF (individuell, motivierend, 1 pro Code)
 
 ---
 
 ## Phase 3 — Stufe 2: Komplette Unterrichtsstunde
-**Was diese Phase macht:** Aus Unterrichtsmaterial wird nicht nur ein Spiel, sondern eine vollständige didaktisch strukturierte Unterrichtsstunde generiert — mit Aktivierung, Input, Erarbeitung, Diagnose und Sicherung.
+**Was diese Phase macht:** Aus Unterrichtsmaterial wird nicht nur ein Spiel, sondern eine vollständige didaktisch strukturierte Unterrichtsstunde generiert.
 
 - 🟢 ⬜ Unterrichtsstunden-Struktur als generierbare Pipeline
   - Aktivierung (Vorwissen, Hypothesen, Problemfrage)
@@ -173,16 +167,15 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
 ---
 
 ## Phase 4 — Skalierung & Wachstum
-**Was diese Phase macht:** Das Produkt für den Massenmarkt fit machen — mehr Spieltypen, Gamification, Schulträger-Lizenzen, technische Skalierung.
 
 ### Gamification
 - 🟢 ⬜ Tier-Avatar: startet als Jungtier → wächst (Baby → Jugend → Erwachsen → Experte)
 - 🟢 ⬜ Abzeichen pro Modul
 - 🟢 ⬜ Klassen-Rangliste (Tier-Namen, keine Klarnamen)
-- 🟢 ⬜ Alterspezifische Skins (Unterstufe: Tiere; Oberstufe: Skilltrees)
+- 🟢 ⬜ Alterspezifische Skins
 
 ### Weitere Spieltypen (aus den 20)
-- 🟢 ⬜ Space Shooter, Doodle Jump, Boss Fight, Escape Room, Tower Defense
+- 🟢 ⬜ Doodle Jump, Tower Defense
 - 🟢 ⬜ Memory Matrix, Timeline Runner, Equation Balancer, Detective Room
 - 🟢 ⬜ Word Factory, Map Navigator, Virus Simulator, Debate Arena
 - 🟢 ⬜ Speed Builder, Rhythm Game, Market Sim, Code Breaker, Story Fork, Lab Simulator
@@ -194,41 +187,39 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
 
 ### Schülerprofil-Analyse (langfristig)
 - 🟢 ⬜ Welches Aufgabenformat funktioniert für diesen Schüler am besten?
-- 🟢 ⬜ Profilverteilung / Rollenlogik (Verlosung von Schülerprofilen)
+- 🟢 ⬜ Profilverteilung / Rollenlogik
 - 🟢 ⬜ LMS-Export (Moodle, IServ) — wenn Nachfrage vorhanden
 
 ---
 
 ## Offene strategische Entscheidungen
 
-Diese Punkte müssen bewusst entschieden werden, bevor die Umsetzung sinnvoll ist:
-
 | Frage | Status |
 |-------|--------|
 | Welche KLP-Datenquellen? (öffentliche API, manuelle Daten, NRW als Pilot) | ⬜ offen |
-| Welches Modell für die Pipeline? (Claude Sonnet 4.6 vs. Haiku für Kostenkontrolle) | ⬜ offen |
-| Wie regelbasierte Auswertung technisch? (JSON-Matching, Vektor-Ähnlichkeit) | ⬜ offen |
+| Welches Modell für die Pipeline? (Sonnet 4.6 vs. Haiku für Kostenkontrolle) | ⬜ Sonnet 4.6 in Pipeline gesetzt — Kostencheck steht aus |
+| Wie regelbasierte Auswertung technisch? (JSON-Matching, Vektor-Ähnlichkeit) | ✅ JSON-Matching im Einsatz |
 | DSGVO-Schüler-Sessions: Token-Lebensdauer, Speicherort, Löschlogik | ⬜ offen |
-| Lehrkraft-Check: nur informativ oder manuell bestätigbar (Signoff)? | ⬜ offen |
+| Lehrkraft-Check: nur informativ oder manuell bestätigbar (Signoff)? | ✅ Signoff implementiert |
 | Demo-Teilen: wie Missbrauch verhindern? | ⬜ offen |
 | Ab wann LMS-Export (Moodle, IServ)? P2 oder P3? | ⬜ offen |
-| Wie viele Spieltypen realistisch für MVP? (Empfehlung: 2–3) | ⬜ offen |
+| Wie viele Spieltypen realistisch für MVP? | ✅ 8 implementiert |
 
 ---
 
-## Kritischer Pfad — ohne das kein MVP
+## Kritischer Pfad — was bis zum freigabefähigen MVP fehlt
 
 ```
-1. Phase 0 abschließen          → Fundament ist solid
-2. Datei-Upload + PDF-Parsing   → Kein Input ohne das
-3. 21-Schritt-Pipeline (Zod)    → Keine didaktische Korrektheit ohne das
-4. Spielbarkeits-Ampel          → Keine Transparenz ohne das
-5. 2–3 Antwortformate           → Kein spielbares Spiel ohne das
-6. Sourcemapping-Grundstruktur  → Kein Lehrkraft-Vertrauen ohne das
-7. Lehrkraft-Check UI           → Keine Freigabe ohne das
-8. Schüler-Session + Auswertung → Kein geschlossener Loop ohne das
+1. Phase 0 abschließen          → ✅ bis auf Vercel + Prompt-E2E-Test
+2. Datei-Upload + PDF-Parsing   → ✅
+3. 21-Schritt-Pipeline (Zod)    → ✅
+4. Spielbarkeits-Ampel          → ✅
+5. 2–3 Antwortformate           → ✅ (8 vorhanden)
+6. Sourcemapping-Grundstruktur  → ✅ Datenmodell, ⬜ UI
+7. Lehrkraft-Check UI           → ✅
+8. Schüler-Session + Auswertung → ✅ Loop läuft, UI-Politur offen
 ```
 
 ---
 
-_Nächster Schritt: Phase 0 abschließen — Typen korrigieren, Zod installieren, Prompts prüfen._
+_Nächster Schritt: Vercel verbinden + Prompts E2E mit echtem Material testen → MVP-Politur in Phase 1.5/1.6._
