@@ -5,14 +5,13 @@ import {
   determineLernpfad,
   runSpielMapping,
   generateGame,
-  validateAndCheck,
   PipelineValidationError,
   PipelineJsonError,
   PipelineApiError,
 } from '@/lib/claude/pipeline'
 import { createClient } from '@/lib/supabase/server'
 import { sortiereModule } from '@/lib/flow/ordering'
-import type { AnalyseOutput, LernzielOutput, LernpfadOutput, SpielmappingOutput, SpielOutput, ValidationOutput } from '@/lib/schemas/pipeline'
+import type { AnalyseOutput, LernzielOutput, LernpfadOutput, SpielmappingOutput, SpielOutput } from '@/lib/schemas/pipeline'
 
 // Vercel: bis zu 5 Minuten für die Multi-Game-Pipeline erlauben
 export const maxDuration = 300
@@ -81,7 +80,10 @@ export async function POST(request: NextRequest) {
         send({ type: 'progress', label: 'Lernpfad wird bestimmt …', percent: 32, schrittIndex: 10 })
         const lernpfad = await determineLernpfad({ analyse, lernziel, kontext })
 
-        // Analyse in DB speichern (spielmapping kommt vom ersten Spiel)
+        // Analyse in DB speichern. raw_output enthält die rohen Pipeline-Outputs,
+        // damit die asynchrone Lehrkraft-Validierung später ohne erneutes
+        // Pipeline-Setup darauf zugreifen kann (siehe Migration 011).
+        // spielmapping wird gleich nach Phase 2 ergänzt.
         const { data: analyseRow, error: analyseError } = await supabase
           .from('analyses')
           .insert(buildAnalyseRow(materialId, analyse, lernziel, lernpfad))
@@ -114,6 +116,16 @@ export async function POST(request: NextRequest) {
           erlaubteFormate: erlaubteFormateArray,
         })
 
+        // Pipeline-Inputs für asynchrone Validierung persistieren — fire-and-forget,
+        // blockiert die Pipeline nicht falls es länger dauert.
+        supabase
+          .from('analyses')
+          .update({ raw_output: { analyse, lernziel, lernpfad, spielmapping: spielmappingGlobal } })
+          .eq('id', analyseRow.id)
+          .then((res) => {
+            if (res.error) console.error('[analyze] raw_output-Update fehlgeschlagen:', res.error)
+          })
+
         // 5 Vorschläge aus dem Mapping — für jedes Spiel einen anderen Rang
         const vorschlaege = [...spielmappingGlobal.vorschlaege].sort((a, b) => a.rang - b.rang)
 
@@ -126,26 +138,19 @@ export async function POST(request: NextRequest) {
           schrittIndex: 13,
         })
 
-        // Alle Spiele parallel generieren + jeweils direkt validieren — jedes Spiel
-        // bekommt einen Lehrkraft-Check, nicht nur das erste. Dank Prompt Caching
-        // sind die Folge-Calls (Gen + Validation) deutlich günstiger.
-        //
-        // Wichtig: jedes Task feuert eigene Progress-Events, damit der Client
-        // sieht, dass etwas passiert (sonst Stille für 60-120s).
-        // Progress-Verteilung: 55% (Start) → 80% (alle Spiele generiert) → 92% (alle validiert).
+        // Alle Spiele parallel generieren. Validierung läuft NICHT mehr hier —
+        // sie wird vom Frontend nach `done` als Fire-and-Forget pro Spiel
+        // angestoßen (POST /api/games/[gameId]/check). Das halbiert die
+        // wahrgenommene Pipeline-Zeit und verhindert, dass eine einzelne
+        // hängende Validierung die ganze Generation blockiert.
         let generated = 0
-        let validated = 0
         const sendGameProgress = () => {
-          const genShare = generated / anzahlSpiele         // 0..1
-          const valShare = validated / anzahlSpiele         // 0..1
-          const percent = Math.round(55 + genShare * 25 + valShare * 12)  // 55 → 92
+          const percent = Math.round(55 + (generated / anzahlSpiele) * 38)  // 55 → 93
           send({
             type: 'progress',
-            label: validated < anzahlSpiele
-              ? `Spiel ${generated}/${anzahlSpiele} generiert · Lehrkraft-Check ${validated}/${anzahlSpiele}`
-              : `Lehrkraft-Check ${validated}/${anzahlSpiele} fertig`,
+            label: `Spiel ${generated}/${anzahlSpiele} fertig`,
             percent,
-            schrittIndex: validated < anzahlSpiele ? 13 : 20,
+            schrittIndex: 13,
           })
         }
 
@@ -164,8 +169,6 @@ export async function POST(request: NextRequest) {
               kontext,
               erlaubteFormate: erlaubteFormateArray,
             })
-            generated++
-            sendGameProgress()
 
             const spielTitel = (i === 0 && spielname?.trim()) ? spielname.trim() : undefined
 
@@ -174,34 +177,16 @@ export async function POST(request: NextRequest) {
               .insert({
                 ...buildSpielRow(analyseRow.id, user.id, spiel, spielmappingFuerDiesesSpiel, spielTitel),
                 game_flow_id: gameFlow.id,
+                // spiel_output: rohes SpielOutput für die asynchrone Validierung
+                // (siehe Migration 011 + /api/games/[gameId]/check)
+                spiel_output: spiel,
                 // Reihenfolge wird gleich nach Sortierung gesetzt
               })
               .select()
               .single()
             if (spielError) throw spielError
 
-            // Validierung direkt im selben Task — bricht den Stream nicht ab,
-            // wenn sie fehlschlägt ODER zu lange braucht. Bei 4-6 parallel
-            // laufenden Validate-Calls kann ein einzelner hängender Claude-Stream
-            // sonst die ganze Pipeline blockieren. 90s Hard-Timeout pro Spiel.
-            try {
-              const VALIDATION_TIMEOUT_MS = 90_000
-              const check = await Promise.race([
-                validateAndCheck({
-                  analyse, lernziel, lernpfad,
-                  spielmapping: spielmappingFuerDiesesSpiel,
-                  spiel,
-                  abschnitte: material.abschnitte,
-                }),
-                new Promise<never>((_, reject) =>
-                  setTimeout(() => reject(new Error(`Validierung Spiel ${i + 1} > ${VALIDATION_TIMEOUT_MS}ms`)), VALIDATION_TIMEOUT_MS)
-                ),
-              ])
-              await supabase.from('lehrkraft_checks').insert(buildCheckRow(spielRow.id, check))
-            } catch (err) {
-              console.error(`[analyze] Validierung Spiel ${i + 1} übersprungen:`, err)
-            }
-            validated++
+            generated++
             sendGameProgress()
 
             return { spiel, spielRow }
@@ -338,19 +323,4 @@ function buildSpielRow(analyseId: string, lehrerId: string, s: SpielOutput, sm: 
   }
 }
 
-function buildCheckRow(spielId: string, c: ValidationOutput) {
-  const check = c.schritt_21_lehrkraft_check
-  return {
-    spiel_id: spielId,
-    gesamtampel: check.gesamtampel,
-    lernziel_original: check.lernziel_original,
-    lernziel_mvp_variante: check.lernziel_mvp_variante,
-    dimensionen: check.dimensionen,
-    lernzielanteile: check.lernzielanteile,
-    spielfunktion: check.spielfunktion,
-    hinweise_fuer_lehrkraft: check.hinweise_fuer_lehrkraft,
-    begruendung_anpassungen: check.begruendung_anpassungen,
-    sourcemapping: c.schritt_20_sourcemapping,
-    reduktionen: c.schritt_17_reduktion,
-  }
-}
+// buildCheckRow ist nach Migration 011 in /api/games/[gameId]/check umgezogen.

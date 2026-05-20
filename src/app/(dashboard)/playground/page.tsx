@@ -168,6 +168,14 @@ export default function GameErstellenPage() {
               setProgressSchrittIndex(ANALYSE_SCHRITTE.length)
               setAnalyseResult({ gameFlowId: event.gameFlowId, spielIds: event.spielIds, analyseId: event.analyseId })
               setStep('result')
+              // Lehrkraft-Validierung asynchron pro Spiel anstoßen (Fire-and-Forget).
+              // Jede POST-Anfrage läuft als eigenes Lambda; das LehrkraftCheckPanel
+              // pollt anschließend pro Spiel den GET-Endpoint.
+              if (Array.isArray(event.spielIds)) {
+                for (const spielId of event.spielIds as string[]) {
+                  fetch(`/api/games/${spielId}/check`, { method: 'POST' }).catch(() => { /* best effort */ })
+                }
+              }
             } else if (event.type === 'error') {
               throw new Error(event.message)
             }
