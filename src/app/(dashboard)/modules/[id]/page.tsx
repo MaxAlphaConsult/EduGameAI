@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { LehrkraftCheckPanel } from '@/components/playground/LehrkraftCheckPanel'
 import { AufgabenMitQuelle } from '@/components/playground/AufgabenMitQuelle'
+import { ModulInfoEdit } from '@/components/modules/ModulInfoEdit'
 import Link from 'next/link'
 
 const SKIN_LABEL: Record<string, string> = {
@@ -63,7 +64,15 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
       <div className="grid grid-cols-1 gap-6">
         {/* Meta-Info */}
         <div className="border rounded-xl p-5">
-          <h2 className="font-semibold mb-3">Modul-Info</h2>
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <h2 className="font-semibold">Modul-Info</h2>
+            <ModulInfoEdit
+              spielId={id}
+              titel={spiel.titel ?? ''}
+              status={spiel.status ?? 'entwurf'}
+              flowId={spiel.game_flow_id ?? null}
+            />
+          </div>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <dt className="text-muted-foreground">Spieltyp</dt>
             <dd>{spiel.spieltyp_didaktisch || '—'}</dd>
