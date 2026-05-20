@@ -6,10 +6,9 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '⊞' },
-  { href: '/playground', label: 'Game erstellen', icon: '✦' },
-  { href: '/spiele', label: 'GameFlows', icon: '▤' },
-  { href: '/classes', label: 'Klassen & Schüler', icon: '⊙' },
+  { href: '/dashboard', label: 'Start', icon: '🏠' },
+  { href: '/spiele', label: 'Lernspiele', icon: '📚' },
+  { href: '/classes', label: 'Klassen', icon: '👥' },
 ]
 
 const bottomItems = [

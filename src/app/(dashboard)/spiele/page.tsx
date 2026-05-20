@@ -78,15 +78,15 @@ export default function SpielePage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>GameFlows</h1>
+          <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Lernspiele</h1>
           <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>
-            Deine Spielsequenzen. Jeder Flow besteht aus mehreren Modulen, die didaktisch von leicht nach schwer sortiert sind.
+            Jedes Lernspiel ist eine Reihe von Modulen, didaktisch von leicht nach schwer sortiert.
           </p>
         </div>
         <Link href="/playground"
           className="rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
           style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', boxShadow: '0 4px 16px rgba(124,58,237,0.3)', textDecoration: 'none' }}>
-          ✦ Neuer Flow
+          ✦ Neues Lernspiel
         </Link>
       </div>
 
@@ -99,8 +99,8 @@ export default function SpielePage() {
       ) : flows.length === 0 ? (
         <div style={{ border: '2px dashed #E9D5FF', borderRadius: 20 }} className="p-16 text-center">
           <span className="text-4xl mb-3 block">🎮</span>
-          <p className="text-sm font-medium" style={{ color: '#7A6A94' }}>Noch keine Flows erstellt</p>
-          <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Lade im Playground Material hoch, um deinen ersten GameFlow zu erstellen.</p>
+          <p className="text-sm font-medium" style={{ color: '#7A6A94' }}>Noch kein Lernspiel</p>
+          <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Lade ein Arbeitsblatt hoch — wir bauen daraus dein erstes Lernspiel.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -149,7 +149,7 @@ export default function SpielePage() {
                   <Link href="/classes"
                     className="text-xs font-semibold px-3 py-1.5 rounded-xl"
                     style={{ background: '#7C3AED', color: 'white', textDecoration: 'none' }}>
-                    → Für Klasse freigeben
+                    → An Klasse freigeben
                   </Link>
                 </div>
               </div>

@@ -55,7 +55,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="p-8 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/modules" className="text-sm text-muted-foreground hover:text-foreground">← Module</Link>
+        <Link href="/spiele" className="text-sm text-muted-foreground hover:text-foreground">← Lernspiele</Link>
         <span className="text-muted-foreground">/</span>
         <span className="text-sm font-medium">{spiel.titel}</span>
       </div>
@@ -79,7 +79,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
           {spiel.status === 'freigegeben' && (
             <div className="mt-4 pt-4 border-t">
               <p className="text-xs text-muted-foreground">
-                Dieses Modul wird über einen GameFlow freigegeben. Erstelle einen Flow und gib ihn unter <Link href="/classes" className="text-primary hover:underline">Klassen</Link> für eine Klasse frei.
+                Dieses Modul wird Teil eines Lernspiels. Du gibst es unter <Link href="/classes" className="text-primary hover:underline">Klassen</Link> für eine Klasse frei.
               </p>
             </div>
           )}

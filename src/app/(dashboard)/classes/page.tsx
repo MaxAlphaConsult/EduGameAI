@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { QrCode } from '@/components/qr-code'
 
 // ── Tier-Namen für Code-Generierung ──────────────────────────────────────────
 const TIER_NAMEN = [
@@ -35,7 +36,7 @@ interface FlowItem {
   release: FlowReleaseInfo | null
 }
 
-type Tab = 'codes' | 'flows' | 'auswertung'
+type Tab = 'codes' | 'flows'
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const cardStyle = {
@@ -143,7 +144,7 @@ export default function ClassesPage() {
     setDiagnoseError(null)
     setSelectedReleaseId(null)
     if (activeTab === 'codes') loadStudents(selectedId)
-    if (activeTab === 'flows' || activeTab === 'auswertung') loadFlows(selectedId)
+    if (activeTab === 'flows') loadFlows(selectedId)
   }, [selectedId, activeTab, loadStudents, loadFlows])
 
   // ── Klasse anlegen ────────────────────────────────────────────────────────
@@ -272,8 +273,8 @@ export default function ClassesPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Klassen & Schüler</h1>
-          <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Klassen verwalten · Codes generieren · GameFlows freigeben · Auswertung</p>
+          <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Klassen</h1>
+          <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Schüler-Codes drucken · Lernspiele freigeben · Ergebnisse ansehen</p>
         </div>
         <button onClick={() => { setShowForm(!showForm); setFormError(null) }} style={btnPrimary}>
           + Klasse anlegen
@@ -383,8 +384,7 @@ export default function ClassesPage() {
             <div className="flex gap-1 mb-5 p-1 rounded-xl" style={{ background: '#F3EEFF' }}>
               {([
                 { key: 'codes', label: '🔑 Schüler-Codes' },
-                { key: 'flows', label: '🎮 GameFlows' },
-                { key: 'auswertung', label: '📊 Auswertung' },
+                { key: 'flows', label: '📚 Lernspiele & Ergebnisse' },
               ] as { key: Tab; label: string }[]).map((t) => (
                 <button key={t.key} onClick={() => setActiveTab(t.key)}
                   className="flex-1 py-2 text-sm font-semibold rounded-lg transition-all"
@@ -427,6 +427,23 @@ export default function ClassesPage() {
                   </div>
                 ) : (
                   <div>
+                    {/* QR-Code für die Klasse */}
+                    <div className="rounded-2xl p-5 mb-6 flex items-center gap-5"
+                      style={{ background: '#F6F1FF', border: '1px solid #E9D5FF' }}>
+                      <QrCode value={typeof window !== 'undefined' ? `${window.location.origin}/spielen` : '/spielen'} size={110} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold mb-1" style={{ color: '#7C3AED', letterSpacing: '0.08em' }}>
+                          FÜR {selected.name.toUpperCase()}
+                        </p>
+                        <p className="text-sm font-semibold mb-1" style={{ color: '#1F1235' }}>
+                          Schüler scannen den Code mit dem Handy
+                        </p>
+                        <p className="text-xs" style={{ color: '#7A6A94', lineHeight: 1.5 }}>
+                          Danach gibt jedes Kind den Spielcode und seinen persönlichen Tier-Code ein.
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="font-bold text-sm" style={{ color: '#1F1235' }}>{students.length} Schüler-Codes</p>
@@ -436,7 +453,7 @@ export default function ClassesPage() {
                         <button onClick={() => window.print()}
                           className="text-xs font-semibold px-3 py-1.5 rounded-xl"
                           style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF' }}>
-                          🖨️ Drucken
+                          🖨 Codes drucken
                         </button>
                         <button onClick={onDeleteCodes}
                           className="text-xs font-semibold px-3 py-1.5 rounded-xl"
@@ -458,13 +475,13 @@ export default function ClassesPage() {
               </div>
             )}
 
-            {/* ── Tab: GameFlows ── */}
+            {/* ── Tab: Lernspiele & Ergebnisse ── */}
             {activeTab === 'flows' && (
               <div style={cardStyle} className="p-6">
                 <div className="mb-5">
-                  <p className="font-bold text-sm" style={{ color: '#1F1235' }}>GameFlows für diese Klasse</p>
+                  <p className="font-bold text-sm" style={{ color: '#1F1235' }}>Lernspiele für diese Klasse</p>
                   <p className="text-xs mt-0.5" style={{ color: '#7A6A94' }}>
-                    Gib einen kompletten Spielflow frei. Der Spielcode führt deine Klasse durch alle Module nacheinander.
+                    Gib ein Lernspiel frei und sieh dir die Ergebnisse direkt darunter an.
                   </p>
                 </div>
 
@@ -478,9 +495,9 @@ export default function ClassesPage() {
                   <div className="text-sm text-center py-8" style={{ color: '#C4B5FD' }}>Lädt…</div>
                 ) : flows.length === 0 ? (
                   <div className="text-center py-10" style={{ border: '2px dashed #E9D5FF', borderRadius: 14 }}>
-                    <span className="text-3xl block mb-2">🎮</span>
-                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch keine GameFlows erstellt</p>
-                    <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Erstelle einen Flow im Playground (Material hochladen)</p>
+                    <span className="text-3xl block mb-2">📚</span>
+                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch kein Lernspiel erstellt</p>
+                    <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Lade ein Arbeitsblatt hoch — wir bauen daraus dein erstes Lernspiel.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
@@ -523,95 +540,54 @@ export default function ClassesPage() {
                           </div>
 
                           {istFreigegeben && release ? (
-                            <div className="mt-4 pt-4 border-t flex items-center gap-3" style={{ borderColor: '#E9D5FF' }}>
-                              <div className="flex-1">
-                                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: '#7C3AED' }}>Spielcode</p>
-                                <div className="flex items-center gap-2">
-                                  <code className="font-mono font-bold text-lg tracking-wider px-3 py-1.5 rounded-lg"
-                                    style={{ background: '#FFFFFF', color: '#5B21B6', border: '1.5px solid #C4B5FD' }}>
-                                    {release.access_code}
-                                  </code>
-                                  <button onClick={() => copyCode(release.access_code)}
-                                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                                    style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', cursor: 'pointer' }}>
-                                    📋 Kopieren
-                                  </button>
+                            <>
+                              <div className="mt-4 pt-4 border-t flex items-center gap-3 flex-wrap" style={{ borderColor: '#E9D5FF' }}>
+                                <div className="flex-1 min-w-[200px]">
+                                  <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: '#7C3AED' }}>Spielcode</p>
+                                  <div className="flex items-center gap-2">
+                                    <code className="font-mono font-bold text-lg tracking-wider px-3 py-1.5 rounded-lg"
+                                      style={{ background: '#FFFFFF', color: '#5B21B6', border: '1.5px solid #C4B5FD' }}>
+                                      {release.access_code}
+                                    </code>
+                                    <button onClick={() => copyCode(release.access_code)}
+                                      className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                                      style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', cursor: 'pointer' }}>
+                                      📋 Kopieren
+                                    </button>
+                                  </div>
                                 </div>
+                                <button
+                                  onClick={() => selectedReleaseId === release.id ? setSelectedReleaseId(null) : onDiagnose(release.id)}
+                                  disabled={diagnoseLoading && selectedReleaseId === release.id}
+                                  className="text-xs font-bold px-3 py-2 rounded-xl transition-all"
+                                  style={{
+                                    background: selectedReleaseId === release.id ? '#7C3AED' : '#F3EEFF',
+                                    color: selectedReleaseId === release.id ? 'white' : '#7C3AED',
+                                    border: selectedReleaseId === release.id ? '1px solid #7C3AED' : '1px solid #E9D5FF',
+                                    cursor: 'pointer',
+                                    opacity: diagnoseLoading && selectedReleaseId === release.id ? 0.6 : 1,
+                                  }}>
+                                  {diagnoseLoading && selectedReleaseId === release.id
+                                    ? '⟳ Wird ausgewertet…'
+                                    : selectedReleaseId === release.id
+                                      ? '× Schließen'
+                                      : '📊 Ergebnisse'}
+                                </button>
+                                <button onClick={() => onArchiveRelease(flow.id, release.id)}
+                                  disabled={istReleasing}
+                                  className="text-xs font-semibold px-3 py-2 rounded-xl"
+                                  style={{ background: '#FFFFFF', color: '#7A6A94', border: '1px solid #E9D5FF', cursor: 'pointer', opacity: istReleasing ? 0.6 : 1 }}>
+                                  Code deaktivieren
+                                </button>
                               </div>
-                              <button onClick={() => onArchiveRelease(flow.id, release.id)}
-                                disabled={istReleasing}
-                                className="text-xs font-semibold px-3 py-2 rounded-xl"
-                                style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', cursor: 'pointer', opacity: istReleasing ? 0.6 : 1 }}>
-                                Code deaktivieren
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="mt-4 pt-4 border-t flex items-center justify-between" style={{ borderColor: '#F3EEFF' }}>
-                              <p className="text-xs" style={{ color: '#7A6A94' }}>
-                                Noch nicht freigegeben für diese Klasse.
-                              </p>
-                              <button onClick={() => onReleaseFlow(flow.id)}
-                                disabled={istReleasing || flow.modul_anzahl === 0}
-                                style={{ ...btnPrimary, padding: '8px 16px', fontSize: 13, opacity: (istReleasing || flow.modul_anzahl === 0) ? 0.6 : 1 }}>
-                                {istReleasing ? 'Generiere Code…' : 'Flow freigeben →'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
 
-            {/* ── Tab: Auswertung ── */}
-            {activeTab === 'auswertung' && (
-              <div style={cardStyle} className="p-6">
-                <p className="font-bold text-sm mb-1" style={{ color: '#1F1235' }}>Lernstand analysieren</p>
-                <p className="text-xs mb-5" style={{ color: '#7A6A94' }}>
-                  Wähle einen freigegebenen GameFlow, um die Diagnose für diese Klasse zu starten.
-                </p>
-
-                {flowsLoading ? (
-                  <div className="text-sm text-center py-8" style={{ color: '#C4B5FD' }}>Lädt…</div>
-                ) : aktiveReleases.length === 0 ? (
-                  <div className="text-center py-10" style={{ border: '2px dashed #E9D5FF', borderRadius: 14 }}>
-                    <span className="text-3xl block mb-2">📊</span>
-                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch kein Flow freigegeben</p>
-                    <button onClick={() => setActiveTab('flows')}
-                      className="text-xs font-semibold mt-3 px-4 py-2 rounded-xl inline-block"
-                      style={{ background: '#F3EEFF', color: '#7C3AED', border: 'none', cursor: 'pointer' }}>
-                      → Zur Flow-Freigabe
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 mb-6">
-                    {aktiveReleases.map((flow) => (
-                      <div key={flow.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                        style={{
-                          background: selectedReleaseId === flow.release!.id ? '#F6F1FF' : '#FAFAFA',
-                          border: selectedReleaseId === flow.release!.id ? '1.5px solid #7C3AED' : '1px solid #F3EEFF',
-                        }}>
-                        <span className="text-lg">🎮</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate" style={{ color: '#1F1235' }}>{flow.titel}</p>
-                          <p className="text-xs font-mono" style={{ color: '#5B21B6' }}>{flow.release!.access_code}</p>
-                        </div>
-                        <button onClick={() => onDiagnose(flow.release!.id)} disabled={diagnoseLoading}
-                          style={{ ...btnPrimary, padding: '7px 14px', fontSize: 12, opacity: diagnoseLoading && selectedReleaseId === flow.release!.id ? 0.6 : 1 }}>
-                          {diagnoseLoading && selectedReleaseId === flow.release!.id ? 'Analysiert…' : 'Diagnose starten'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {diagnoseError && (
-                  <div className="rounded-xl p-4 text-sm mb-4" style={{ background: '#FEF2F2', color: '#DC2626' }}>⚠️ {diagnoseError}</div>
-                )}
-
-                {diagnose && (() => {
+                              {/* Inline Diagnose-Panel */}
+                              {selectedReleaseId === release.id && (
+                                <div className="mt-4 pt-4 border-t" style={{ borderColor: '#E9D5FF' }}>
+                                  {diagnoseError && (
+                                    <div className="rounded-xl p-3 text-sm mb-3" style={{ background: '#FEF2F2', color: '#DC2626' }}>⚠️ {diagnoseError}</div>
+                                  )}
+                                  {diagnose && (() => {
                   const d = diagnose as {
                     klassenueberblick?: { lernziel_erreicht: number; lernziel_teilweise: number; lernziel_noch_nicht_gesichert: number; gesamteinschaetzung: string }
                     kompetenzampel_klasse?: { teilkompetenz: string; status: string; einschaetzung: string }[]
@@ -695,9 +671,29 @@ export default function ClassesPage() {
                           })}
                         </div>
                       )}
-                    </div>
-                  )
-                })()}
+                                    </div>
+                                  )
+                                })()}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="mt-4 pt-4 border-t flex items-center justify-between" style={{ borderColor: '#F3EEFF' }}>
+                              <p className="text-xs" style={{ color: '#7A6A94' }}>
+                                Noch nicht freigegeben für diese Klasse.
+                              </p>
+                              <button onClick={() => onReleaseFlow(flow.id)}
+                                disabled={istReleasing || flow.modul_anzahl === 0}
+                                style={{ ...btnPrimary, padding: '8px 16px', fontSize: 13, opacity: (istReleasing || flow.modul_anzahl === 0) ? 0.6 : 1 }}>
+                                {istReleasing ? 'Generiere Code…' : 'Lernspiel freigeben →'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

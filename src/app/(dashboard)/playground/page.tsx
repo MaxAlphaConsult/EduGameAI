@@ -192,8 +192,8 @@ export default function GameErstellenPage() {
     <div className="p-8 max-w-3xl">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Game erstellen</h1>
-        <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Material hochladen → KI analysiert → Spiel generieren</p>
+        <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Neues Lernspiel</h1>
+        <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Lade dein Material hoch — der Rest läuft automatisch</p>
       </div>
 
       {/* Step Progress */}
@@ -377,7 +377,7 @@ export default function GameErstellenPage() {
             <button type="submit" disabled={isPending}
               className="w-full rounded-xl py-3 text-sm font-bold transition-all mt-2"
               style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', opacity: isPending ? 0.6 : 1 }}>
-              {isPending ? 'Wird gestartet…' : '✦ Spiel generieren →'}
+              {isPending ? 'Wird gestartet…' : '✦ Lernspiel erstellen →'}
             </button>
           </form>
         </div>
@@ -392,7 +392,7 @@ export default function GameErstellenPage() {
               🤖
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-bold" style={{ color: '#1F1235' }}>KI analysiert dein Material</h2>
+              <h2 className="text-base font-bold" style={{ color: '#1F1235' }}>Dein Lernspiel wird gerade gebaut</h2>
               <p className="text-xs" style={{ color: '#7A6A94' }}>{progressLabel || 'Wird vorbereitet …'}</p>
             </div>
             <span className="text-sm font-bold tabular-nums" style={{ color: '#7C3AED' }}>
@@ -426,20 +426,33 @@ export default function GameErstellenPage() {
       {/* Step 4: Result */}
       {step === 'result' && analyseResult && (
         <div className="flex flex-col gap-5">
-          <div className="rounded-2xl px-5 py-4 flex items-center gap-3"
-            style={{ background: '#D1FAE5', border: '1px solid #6EE7B7' }}>
-            <span className="text-2xl">🎉</span>
-            <div>
-              <p className="text-sm font-bold" style={{ color: '#065F46' }}>
-                GameFlow mit {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Modul' : 'Modulen'} erstellt!
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: '#059669' }}>
-                Die Module sind didaktisch sortiert. Gib den Flow unter „Klassen" für eine Klasse frei.
-              </p>
+          {/* Erfolgs-Header mit klaren nächsten Schritten */}
+          <div className="rounded-3xl p-6"
+            style={{ background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)', border: '1px solid #6EE7B7' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-3xl">🎉</span>
+              <div>
+                <p className="text-lg font-bold" style={{ color: '#065F46' }}>Dein Lernspiel ist fertig!</p>
+                <p className="text-xs" style={{ color: '#047857' }}>
+                  {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Modul' : 'Module'}, didaktisch sortiert. Wirf einen Blick rein und gib es deiner Klasse.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <a href="/spiele"
+                className="rounded-2xl px-5 py-3 text-center text-sm font-bold transition-all"
+                style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', boxShadow: '0 4px 16px rgba(124,58,237,0.3)', textDecoration: 'none' }}>
+                ▶ Lernspiel ansehen
+              </a>
+              <a href="/classes"
+                className="rounded-2xl px-5 py-3 text-center text-sm font-bold transition-all"
+                style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>
+                👥 An Klasse freigeben
+              </a>
             </div>
           </div>
 
-          {/* Spiele-Liste */}
+          {/* Module-Vorschauliste */}
           <div style={{ ...cardStyle, padding: '16px 20px' }}>
             <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A6A94' }}>
               Module in didaktischer Reihenfolge (leicht → schwer)
@@ -463,10 +476,6 @@ export default function GameErstellenPage() {
                 </a>
               ))}
             </div>
-            <a href="/classes" className="mt-4 inline-flex items-center gap-2 text-sm font-bold rounded-xl px-4 py-2.5"
-              style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', textDecoration: 'none' }}>
-              → Flow für Klasse freigeben
-            </a>
           </div>
 
           <LehrkraftCheckPanel spielId={analyseResult.spielIds[0]} />
