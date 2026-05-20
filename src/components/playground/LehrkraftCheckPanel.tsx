@@ -383,8 +383,13 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
           {/* Aktionen */}
           <div className="pt-2 border-t flex flex-col gap-2">
             {saved && (
-              <div className="text-sm text-green-700 font-medium bg-green-50 rounded-lg px-4 py-3">
-                ✅ Verbesserungen gespeichert.
+              <div className="rounded-lg px-4 py-3" style={{ background: '#ECFDF5', border: '1px solid #A7F3D0' }}>
+                <p className="text-sm font-bold" style={{ color: '#065F46' }}>
+                  ✅ Verbesserungen übernommen
+                </p>
+                <p className="text-xs mt-1" style={{ color: '#047857' }}>
+                  Die neuen Aufgaben findest du oben in der Aufgaben-Liste. Die alten Versionen wurden ersetzt.
+                </p>
               </div>
             )}
 
@@ -438,6 +443,9 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
             <p className="text-xs mt-1" style={{ color: '#7A6A94' }}>
               {improveResult.gesamtbegruendung}
             </p>
+            <div className="rounded-lg px-3 py-2 mt-3 text-xs" style={{ background: '#FFFFFF', border: '1px solid #C4B5FD', color: '#5B21B6' }}>
+              <strong>So funktioniert&apos;s:</strong> Jeder Vorschlag hat eine Checkbox. Hak die an, die übernommen werden sollen. Beim Klick auf <strong>„Übernehmen"</strong> ganz unten werden deine alten Aufgaben durch die neuen ersetzt — du siehst sie direkt danach in der Aufgaben-Liste oben.
+            </div>
           </div>
 
           <div className="divide-y">
@@ -462,17 +470,23 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
                       )}
                     </div>
                     {hatAenderungen && (
-                      <button
-                        onClick={() => setAngenommen(prev => ({ ...prev, [v.aufgabe_id]: !prev[v.aufgabe_id] }))}
-                        className="flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
+                      <label
+                        className="flex-shrink-0 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer select-none"
                         style={{
-                          background: aktiv ? '#7C3AED' : '#F6F1FF',
-                          color: aktiv ? 'white' : '#7C3AED',
-                          border: '1.5px solid #E9D5FF',
+                          background: aktiv ? '#EDE9FE' : '#FFFFFF',
+                          color: aktiv ? '#5B21B6' : '#7A6A94',
+                          border: aktiv ? '1.5px solid #7C3AED' : '1.5px solid #E9D5FF',
                         }}
                       >
-                        {aktiv ? '✓ Übernehmen' : 'Ablehnen'}
-                      </button>
+                        <input
+                          type="checkbox"
+                          checked={aktiv}
+                          onChange={() => setAngenommen(prev => ({ ...prev, [v.aufgabe_id]: !prev[v.aufgabe_id] }))}
+                          className="w-3.5 h-3.5 cursor-pointer"
+                          style={{ accentColor: '#7C3AED' }}
+                        />
+                        {aktiv ? 'Wird übernommen' : 'Übernehmen?'}
+                      </label>
                     )}
                   </div>
 
@@ -504,30 +518,39 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
             })}
           </div>
 
-          <div className="p-5 border-t bg-gray-50 flex flex-col gap-2">
+          <div className="p-5 border-t bg-gray-50 flex flex-col gap-3">
             {anzahlAngenommen === 0 ? (
-              <p className="text-xs text-center text-muted-foreground">Keine Verbesserung ausgewählt.</p>
+              <p className="text-xs text-center" style={{ color: '#7A6A94' }}>
+                Hak oben mindestens einen Vorschlag an, um ihn zu übernehmen.
+              </p>
             ) : (
-              <button
-                onClick={saveImprovements}
-                disabled={saving}
-                className="w-full rounded-lg px-4 py-2.5 text-sm font-bold transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-                  color: 'white',
-                  opacity: saving ? 0.6 : 1,
-                }}
-              >
-                {saving
-                  ? 'Wird gespeichert…'
-                  : `${anzahlAngenommen} Verbesserung${anzahlAngenommen !== 1 ? 'en' : ''} speichern`}
-              </button>
+              <>
+                <p className="text-xs text-center" style={{ color: '#7A6A94' }}>
+                  {anzahlAngenommen} {anzahlAngenommen === 1 ? 'Aufgabe wird' : 'Aufgaben werden'} ersetzt. Die alten Versionen sind danach weg.
+                </p>
+                <button
+                  onClick={saveImprovements}
+                  disabled={saving}
+                  className="w-full rounded-lg px-4 py-3 text-sm font-bold transition-all"
+                  style={{
+                    background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                    color: 'white',
+                    opacity: saving ? 0.6 : 1,
+                    boxShadow: '0 4px 16px rgba(124,58,237,0.25)',
+                  }}
+                >
+                  {saving
+                    ? '⟳ Wird gespeichert…'
+                    : `✓ ${anzahlAngenommen} ${anzahlAngenommen === 1 ? 'Aufgabe' : 'Aufgaben'} jetzt übernehmen`}
+                </button>
+              </>
             )}
             <button
               onClick={() => setImproveResult(null)}
-              className="text-xs text-center text-muted-foreground hover:text-foreground transition-colors"
+              className="text-xs text-center transition-colors"
+              style={{ color: '#7A6A94' }}
             >
-              Abbrechen
+              Abbrechen — keine Änderung übernehmen
             </button>
           </div>
         </div>
