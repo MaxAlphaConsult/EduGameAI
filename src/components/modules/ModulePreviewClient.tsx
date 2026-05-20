@@ -26,9 +26,10 @@ interface Props {
   titel: string
   gameSkin: string
   aufgaben: Aufgabe[]
+  flowId?: string | null
 }
 
-export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben }: Props) {
+export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben, flowId }: Props) {
   const [ergebnis, setErgebnis] = useState<ModulErgebnis | null>(null)
   const [runKey, setRunKey] = useState(0) // erlaubt Neustart durch Remount
 
@@ -108,6 +109,18 @@ export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben }: Prop
                 }}>
                 🔄 Nochmal testen
               </button>
+              {flowId && (
+                <Link href={`/spiele/${flowId}/preview`}
+                  className="text-sm font-bold px-5 py-3 rounded-2xl"
+                  style={{
+                    background: '#FFFFFF',
+                    color: '#5B21B6',
+                    border: '1.5px solid #C4B5FD',
+                    textDecoration: 'none',
+                  }}>
+                  ▶▶ Alle Module hintereinander testen
+                </Link>
+              )}
               <Link href={`/modules/${modulId}`}
                 className="text-sm font-bold px-5 py-3 rounded-2xl"
                 style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>

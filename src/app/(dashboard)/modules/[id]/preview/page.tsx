@@ -20,7 +20,7 @@ export default async function ModulePreviewPage({ params }: { params: Promise<{ 
 
   const { data: spiel } = await supabase
     .from('games')
-    .select('id, titel, game_skin, aufgaben')
+    .select('id, titel, game_skin, aufgaben, game_flow_id')
     .eq('id', id)
     .eq('lehrer_id', user.id)
     .single()
@@ -48,6 +48,7 @@ export default async function ModulePreviewPage({ params }: { params: Promise<{ 
       titel={spiel.titel ?? 'Modul'}
       gameSkin={spiel.game_skin ?? 'mittelstufe'}
       aufgaben={aufgaben}
+      flowId={spiel.game_flow_id ?? null}
     />
   )
 }

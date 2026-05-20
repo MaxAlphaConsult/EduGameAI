@@ -61,32 +61,64 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
         <span className="text-sm font-medium">{spiel.titel}</span>
       </div>
 
-      {/* Großer Spielen-Testen-Button */}
+      {/* Spielen-Testen-Buttons: Einzeln + ganzes Lernspiel */}
       {aufgaben.length > 0 && (
-        <Link
-          href={`/modules/${id}/preview`}
-          target="_blank"
-          className="block mb-6 rounded-2xl p-5 transition-all hover:scale-[1.005]"
-          style={{
-            background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-            color: 'white',
-            textDecoration: 'none',
-            boxShadow: '0 6px 24px rgba(124,58,237,0.25)',
-          }}>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-              style={{ background: 'rgba(255,255,255,0.18)' }}>
-              ▶
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+          {/* Ganzes Lernspiel testen — der „Hauptweg" für die meisten Lehrer */}
+          {spiel.game_flow_id && (
+            <Link
+              href={`/spiele/${spiel.game_flow_id}/preview`}
+              target="_blank"
+              className="block rounded-2xl p-5 transition-all hover:scale-[1.005]"
+              style={{
+                background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                color: 'white',
+                textDecoration: 'none',
+                boxShadow: '0 6px 24px rgba(124,58,237,0.25)',
+              }}>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.18)' }}>
+                  ▶▶
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-base">Ganzes Lernspiel testen</p>
+                  <p className="text-xs" style={{ color: '#E9D5FF' }}>
+                    Alle Module hintereinander, wie ein Schüler.
+                  </p>
+                </div>
+                <span className="text-xl flex-shrink-0" style={{ color: '#E9D5FF' }}>↗</span>
+              </div>
+            </Link>
+          )}
+
+          {/* Nur dieses Modul testen — für Debugging einer einzelnen Aufgabe */}
+          <Link
+            href={`/modules/${id}/preview`}
+            target="_blank"
+            className="block rounded-2xl p-5 transition-all hover:scale-[1.005]"
+            style={{
+              background: '#FFFFFF',
+              color: '#1F1235',
+              textDecoration: 'none',
+              border: '1.5px solid #C4B5FD',
+              boxShadow: '0 2px 12px rgba(124,58,237,0.08)',
+            }}>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                style={{ background: '#F3EEFF', color: '#7C3AED' }}>
+                ▶
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-base">Nur dieses Modul testen</p>
+                <p className="text-xs" style={{ color: '#7A6A94' }}>
+                  Schneller Probelauf einer einzelnen Aufgabe.
+                </p>
+              </div>
+              <span className="text-xl flex-shrink-0" style={{ color: '#C4B5FD' }}>↗</span>
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">Spielen testen</p>
-              <p className="text-xs" style={{ color: '#E9D5FF' }}>
-                Spiel das Modul wie ein Schüler — in neuem Tab, ohne Diagnostik-Eintrag.
-              </p>
-            </div>
-            <span className="text-xl" style={{ color: '#E9D5FF' }}>↗</span>
-          </div>
-        </Link>
+          </Link>
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-6">
