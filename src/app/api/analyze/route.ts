@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         send({ type: 'progress', label: 'Lernziel wird bestimmt …', percent: 20, schrittIndex: 6 })
         const lernziel = await determineLearningObjective({ analyse, lernzielLehrkraft })
 
-        send({ type: 'progress', label: 'Lernpfad wird bestimmt …', percent: 32, schrittIndex: 11 })
+        send({ type: 'progress', label: 'Lernpfad wird bestimmt …', percent: 32, schrittIndex: 10 })
         const lernpfad = await determineLernpfad({ analyse, lernziel, kontext })
 
         // Analyse in DB speichern (spielmapping kommt vom ersten Spiel)
@@ -111,58 +111,54 @@ export async function POST(request: NextRequest) {
         // 5 Vorschläge aus dem Mapping — für jedes Spiel einen anderen Rang
         const vorschlaege = [...spielmappingGlobal.vorschlaege].sort((a, b) => a.rang - b.rang)
 
-        const spielIds: string[] = []
-        let erstesSpielId: string | null = null
-        let erstesSpiel: SpielOutput | null = null
+        send({
+          type: 'progress',
+          label: anzahlSpiele === 1
+            ? 'Aufgaben werden generiert …'
+            : `${anzahlSpiele} Spiele werden parallel generiert …`,
+          percent: 55,
+          schrittIndex: 13,
+        })
 
-        for (let i = 0; i < anzahlSpiele; i++) {
-          const basePercent = 55
-          const perSpiel = Math.floor(38 / anzahlSpiele)
-          const spielPercent = basePercent + i * perSpiel
-          send({
-            type: 'progress',
-            label: `Spiel ${i + 1} von ${anzahlSpiele} wird generiert …`,
-            percent: spielPercent,
-            schrittIndex: 14,
-          })
+        // Alle Spiele parallel generieren — größter Zeitgewinn der Pipeline
+        const spielErgebnisse = await Promise.all(
+          Array.from({ length: anzahlSpiele }, async (_, i) => {
+            const vorschlag = vorschlaege[i % vorschlaege.length]
+            const spielmappingFuerDiesesSpiel: SpielmappingOutput = {
+              ...spielmappingGlobal,
+              ausgewaehlter_vorschlag_rang: vorschlag.rang,
+              auswahlbegruendung: vorschlag.passung_begruendung,
+            }
 
-          // Jeden Rang reihum nutzen (1–5, dann wieder von vorn)
-          const vorschlag = vorschlaege[i % vorschlaege.length]
-          const spielmappingFuerDiesesSpiel: SpielmappingOutput = {
-            ...spielmappingGlobal,
-            ausgewaehlter_vorschlag_rang: vorschlag.rang,
-            auswahlbegruendung: vorschlag.passung_begruendung,
-          }
-
-          const spiel = await generateGame({
-            analyse, lernziel, lernpfad,
-            spielmapping: spielmappingFuerDiesesSpiel,
-            kontext,
-            erlaubteFormate: erlaubteFormateArray,
-          })
-
-          const spielTitel = (i === 0 && spielname?.trim()) ? spielname.trim() : undefined
-
-          const { data: spielRow, error: spielError } = await supabase
-            .from('games')
-            .insert({
-              ...buildSpielRow(analyseRow.id, user.id, spiel, spielmappingFuerDiesesSpiel, spielTitel),
-              einheit_id: einheit.id,
-              reihenfolge: i + 1,
+            const spiel = await generateGame({
+              analyse, lernziel, lernpfad,
+              spielmapping: spielmappingFuerDiesesSpiel,
+              kontext,
+              erlaubteFormate: erlaubteFormateArray,
             })
-            .select()
-            .single()
-          if (spielError) throw spielError
 
-          spielIds.push(spielRow.id)
+            const spielTitel = (i === 0 && spielname?.trim()) ? spielname.trim() : undefined
 
-          if (i === 0) {
-            erstesSpielId = spielRow.id
-            erstesSpiel = spiel
-          }
-        }
+            const { data: spielRow, error: spielError } = await supabase
+              .from('games')
+              .insert({
+                ...buildSpielRow(analyseRow.id, user.id, spiel, spielmappingFuerDiesesSpiel, spielTitel),
+                einheit_id: einheit.id,
+                reihenfolge: i + 1,
+              })
+              .select()
+              .single()
+            if (spielError) throw spielError
 
-        send({ type: 'progress', label: 'Ergebnisse werden gespeichert …', percent: 95, schrittIndex: 21 })
+            return { spiel, spielRow }
+          })
+        )
+
+        const spielIds: string[] = spielErgebnisse.map(r => r.spielRow.id)
+        const erstesSpielId: string | null = spielErgebnisse[0]?.spielRow.id ?? null
+        const erstesSpiel: SpielOutput | null = spielErgebnisse[0]?.spiel ?? null
+
+        send({ type: 'progress', label: 'Ergebnisse werden gespeichert …', percent: 95, schrittIndex: 20 })
         send({ type: 'done', einheitId: einheit.id, spielIds, analyseId: analyseRow.id })
 
         // Validierung des ersten Spiels — Stream bleibt offen damit Vercel die Funktion nicht killt
