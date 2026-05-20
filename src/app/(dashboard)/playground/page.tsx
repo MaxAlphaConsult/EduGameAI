@@ -395,20 +395,35 @@ export default function GameErstellenPage() {
               <div>
                 <p className="text-lg font-bold" style={{ color: '#065F46' }}>Dein Lernspiel ist fertig!</p>
                 <p className="text-xs" style={{ color: '#047857' }}>
-                  {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Modul' : 'Module'}, didaktisch sortiert. Wirf einen Blick rein und gib es deiner Klasse.
+                  {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Modul' : 'Module'}, didaktisch sortiert. Spiel es einmal durch — wie ein Schüler.
                 </p>
               </div>
             </div>
+
+            {/* Primärer CTA: Testen */}
+            <a href={`/spiele/${analyseResult.gameFlowId}/preview`}
+              target="_blank"
+              className="block rounded-2xl px-5 py-4 text-center text-base font-bold transition-all mb-3"
+              style={{
+                background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                color: 'white',
+                boxShadow: '0 6px 24px rgba(124,58,237,0.3)',
+                textDecoration: 'none',
+              }}>
+              ▶▶ Lernspiel jetzt testen ↗
+            </a>
+
+            {/* Sekundäre Optionen */}
             <div className="grid grid-cols-2 gap-3">
-              <a href="/spiele"
-                className="rounded-2xl px-5 py-3 text-center text-sm font-bold transition-all"
-                style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', boxShadow: '0 4px 16px rgba(124,58,237,0.3)', textDecoration: 'none' }}>
-                ▶ Lernspiel ansehen
-              </a>
               <a href="/classes"
                 className="rounded-2xl px-5 py-3 text-center text-sm font-bold transition-all"
                 style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>
                 👥 An Klasse freigeben
+              </a>
+              <a href="/spiele"
+                className="rounded-2xl px-5 py-3 text-center text-sm font-bold transition-all"
+                style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>
+                📚 Zur Übersicht
               </a>
             </div>
           </div>

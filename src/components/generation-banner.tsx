@@ -54,6 +54,7 @@ export function GenerationBanner() {
 
   if (gen.status === 'done') {
     const modulCount = gen.result?.spielIds.length ?? 0
+    const flowId = gen.result?.gameFlowId
     return (
       <div className="px-6 pt-4">
         <div className="rounded-2xl px-5 py-3 flex items-center gap-4"
@@ -67,14 +68,26 @@ export function GenerationBanner() {
               „{gen.spielname || 'Lernspiel'}" ist fertig
             </p>
             <p className="text-xs" style={{ color: '#047857' }}>
-              {modulCount} {modulCount === 1 ? 'Modul' : 'Module'} bereit — gib es jetzt an deine Klasse weiter.
+              {modulCount} {modulCount === 1 ? 'Modul' : 'Module'} bereit — spiel es einmal durch.
             </p>
           </div>
-          <Link href="/spiele"
-            className="text-xs font-bold px-3 py-1.5 rounded-xl flex-shrink-0"
-            style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>
-            Ansehen →
-          </Link>
+          {flowId ? (
+            <Link href={`/spiele/${flowId}/preview`} target="_blank"
+              className="text-xs font-bold px-3 py-1.5 rounded-xl flex-shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                color: 'white', textDecoration: 'none',
+                boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
+              }}>
+              ▶▶ Testen ↗
+            </Link>
+          ) : (
+            <Link href="/spiele"
+              className="text-xs font-bold px-3 py-1.5 rounded-xl flex-shrink-0"
+              style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>
+              Ansehen →
+            </Link>
+          )}
           <button onClick={gen.dismiss}
             className="text-xs font-semibold px-2 py-1.5 rounded-lg flex-shrink-0"
             style={{ background: 'transparent', color: '#047857', border: 'none', cursor: 'pointer' }}>
