@@ -136,9 +136,11 @@ export default function SpielePage() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-base truncate" style={{ color: '#1F1235' }}>
+                      <Link href={`/spiele/${flow.id}`}
+                        className="font-semibold text-base truncate hover:underline"
+                        style={{ color: '#1F1235', textDecoration: 'none' }}>
                         {flow.titel}
-                      </p>
+                      </Link>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
                         style={{ background: '#F3EEFF', color: '#7C3AED' }}>
                         {flow.module.length} {flow.module.length === 1 ? 'Modul' : 'Module'}
@@ -174,6 +176,11 @@ export default function SpielePage() {
                     {isDeleting ? '⟳ Löscht…' : '🗑 Löschen'}
                   </button>
                   <div className="flex items-center gap-2 flex-wrap">
+                    <Link href={`/spiele/${flow.id}`}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                      style={{ background: '#FFFFFF', color: '#7C3AED', border: '1.5px solid #C4B5FD', textDecoration: 'none' }}>
+                      📖 Öffnen
+                    </Link>
                     {flow.module.length > 0 && (
                       <Link href={`/spiele/${flow.id}/preview`} target="_blank"
                         className="text-xs font-semibold px-3 py-1.5 rounded-xl"
