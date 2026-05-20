@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { UploadZone } from '@/components/playground/UploadZone'
 import { LehrkraftCheckPanel } from '@/components/playground/LehrkraftCheckPanel'
+import { useGeneration } from '@/lib/generation-context'
 
-type Step = 'upload' | 'metadata' | 'analysing' | 'result' | 'error'
+type LocalStep = 'upload' | 'metadata'
 
 const ANALYSE_SCHRITTE = [
   'Material analysieren', 'Kernaussagen extrahieren', 'Wissensform bestimmen',
@@ -21,12 +22,6 @@ const FAECHER = ['Biologie', 'Chemie', 'Physik', 'Mathematik', 'Deutsch', 'Gesch
   'Geographie', 'Politik', 'Philosophie', 'Englisch', 'Latein', 'Kunst', 'Musik', 'Sport', 'Informatik']
 const STUFEN = Array.from({ length: 9 }, (_, i) => `${i + 5}`)
 const SCHULFORMEN = ['Gymnasium', 'Realschule', 'Sekundarschule', 'Gesamtschule', 'Berufsschule', 'Grundschule']
-
-interface AnalyseResult {
-  gameFlowId: string
-  spielIds: string[]
-  analyseId: string
-}
 
 function getSpielRange(minuten: number): { min: number; max: number } {
   if (minuten <= 10) return { min: 2, max: 4 }
@@ -73,17 +68,27 @@ const SPIELFORMATE = [
 const ALLE_FORMAT_IDS = SPIELFORMATE.map(f => f.id)
 
 export default function GameErstellenPage() {
-  const [step, setStep] = useState<Step>('upload')
+  const gen = useGeneration()
+  const [localStep, setLocalStep] = useState<LocalStep>('upload')
   const [file, setFile] = useState<File | null>(null)
-  const [progressPercent, setProgressPercent] = useState(0)
-  const [progressLabel, setProgressLabel] = useState('')
-  const [progressSchrittIndex, setProgressSchrittIndex] = useState(0)
-  const [analyseResult, setAnalyseResult] = useState<AnalyseResult | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
   const [selectedFormate, setSelectedFormate] = useState<string[]>(ALLE_FORMAT_IDS)
   const [zeitrahmenInput, setZeitrahmenInput] = useState(15)
   const [anzahlSpiele, setAnzahlSpiele] = useState(4)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Sichtbarer Step ist eine Funktion aus Context + lokalem Step.
+  // Sobald eine Generierung läuft, gewinnt der Context.
+  const step: 'upload' | 'metadata' | 'analysing' | 'result' | 'error' =
+    gen.status === 'running' ? 'analysing'
+    : gen.status === 'done' ? 'result'
+    : gen.status === 'error' ? 'error'
+    : localStep
+
+  const progressPercent = gen.percent
+  const progressLabel = gen.label
+  const progressSchrittIndex = gen.schrittIndex
+  const analyseResult = gen.result
+  const errorMsg = gen.error
 
   function onZeitrahmenChange(minuten: number) {
     setZeitrahmenInput(minuten)
@@ -102,91 +107,47 @@ export default function GameErstellenPage() {
 
   const stepIndex = step === 'upload' ? 0 : step === 'metadata' ? 1 : step === 'analysing' ? 2 : step === 'result' ? 3 : 0
 
-  function onFile(f: File) { setFile(f); setStep('metadata') }
+  function onFile(f: File) { setFile(f); setLocalStep('metadata') }
 
-  function onSubmitMetadata(e: React.FormEvent<HTMLFormElement>) {
+  function weiter() {
+    // Nach Erfolg oder Fehler zurück zur Upload-Ansicht für die nächste Erstellung
+    gen.dismiss()
+    setFile(null)
+    setLocalStep('upload')
+  }
+
+  async function onSubmitMetadata(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!file) return
     const form = e.currentTarget
     const spielname = (form.elements.namedItem('spielname') as HTMLInputElement).value
     const fach = (form.elements.namedItem('fach') as HTMLSelectElement).value
     const jahrgangsstufe = (form.elements.namedItem('jahrgangsstufe') as HTMLSelectElement).value
     const schulform = (form.elements.namedItem('schulform') as HTMLSelectElement).value
     const lernziel = (form.elements.namedItem('lernziel') as HTMLInputElement).value
-    const zeitrahmen = zeitrahmenInput
 
-    // Sofort rendern — außerhalb der Transition
-    setStep('analysing')
-    setErrorMsg(null)
-    setProgressPercent(0)
-    setProgressLabel('Upload läuft …')
-    setProgressSchrittIndex(0)
-
-    startTransition(async () => {
-      try {
-        const formData = new FormData()
-        formData.append('file', file!)
-        formData.append('fach', fach)
-        formData.append('jahrgangsstufe', jahrgangsstufe)
-        formData.append('schulform', schulform)
-
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
-        if (!uploadRes.ok) {
-          const body = await uploadRes.json().catch(() => ({}))
-          throw new Error(body.error ?? 'Upload fehlgeschlagen')
-        }
-        const { material } = await uploadRes.json()
-
-        const analyseRes = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ materialId: material.id, spielname: spielname || undefined, lernzielLehrkraft: lernziel || undefined, zeitrahmenMinuten: zeitrahmen, erlaubteFormate: selectedFormate, anzahlSpiele }),
-        })
-        if (!analyseRes.ok) {
-          const body = await analyseRes.json().catch(() => ({}))
-          throw new Error(body.error ?? 'Analyse fehlgeschlagen')
-        }
-
-        const reader = analyseRes.body!.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop() ?? ''
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue
-            const event = JSON.parse(line.slice(6))
-            if (event.type === 'progress') {
-              setProgressLabel(event.label)
-              setProgressPercent(event.percent)
-              setProgressSchrittIndex(event.schrittIndex)
-            } else if (event.type === 'done') {
-              setProgressPercent(100)
-              setProgressSchrittIndex(ANALYSE_SCHRITTE.length)
-              setAnalyseResult({ gameFlowId: event.gameFlowId, spielIds: event.spielIds, analyseId: event.analyseId })
-              setStep('result')
-              // Lehrkraft-Validierung asynchron pro Spiel anstoßen (Fire-and-Forget).
-              // Jede POST-Anfrage läuft als eigenes Lambda; das LehrkraftCheckPanel
-              // pollt anschließend pro Spiel den GET-Endpoint.
-              if (Array.isArray(event.spielIds)) {
-                for (const spielId of event.spielIds as string[]) {
-                  fetch(`/api/games/${spielId}/check`, { method: 'POST' }).catch(() => { /* best effort */ })
-                }
-              }
-            } else if (event.type === 'error') {
-              throw new Error(event.message)
-            }
-          }
-        }
-      } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : 'Unbekannter Fehler')
-        setStep('error')
-      }
-    })
+    setSubmitting(true)
+    try {
+      await gen.start({
+        file,
+        fach,
+        jahrgangsstufe,
+        schulform,
+        spielname,
+        lernziel: lernziel || undefined,
+        zeitrahmenMinuten: zeitrahmenInput,
+        erlaubteFormate: selectedFormate,
+        anzahlSpiele,
+      })
+    } catch (err) {
+      // gen.start setzt selbst den Error-State; nur Pending zurücksetzen
+      console.error('[playground]', err)
+    } finally {
+      setSubmitting(false)
+    }
   }
+
+  const isPending = submitting || gen.status === 'running'
 
   return (
     <div className="p-8 max-w-3xl">
@@ -245,7 +206,7 @@ export default function GameErstellenPage() {
               <p className="text-sm font-semibold truncate" style={{ color: '#1F1235' }}>{file.name}</p>
               <p className="text-xs" style={{ color: '#7A6A94' }}>{(file.size / 1024).toFixed(0)} KB</p>
             </div>
-            <button type="button" onClick={() => setStep('upload')}
+            <button type="button" onClick={() => setLocalStep('upload')}
               className="text-xs font-medium transition-colors"
               style={{ color: '#7C3AED' }}>Ändern</button>
           </div>
@@ -479,6 +440,15 @@ export default function GameErstellenPage() {
           </div>
 
           <LehrkraftCheckPanel spielId={analyseResult.spielIds[0]} />
+
+          {/* Noch ein Lernspiel erstellen */}
+          <div className="flex justify-center">
+            <button onClick={weiter}
+              className="text-sm font-semibold px-5 py-2 rounded-xl"
+              style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', cursor: 'pointer' }}>
+              ✦ Noch ein Lernspiel erstellen
+            </button>
+          </div>
         </div>
       )}
 
@@ -490,7 +460,7 @@ export default function GameErstellenPage() {
             <div>
               <p className="font-bold text-sm mb-1" style={{ color: '#991B1B' }}>Fehler beim Erstellen</p>
               <p className="text-sm" style={{ color: '#B91C1C' }}>{errorMsg}</p>
-              <button onClick={() => setStep('upload')} className="mt-4 text-sm font-medium"
+              <button onClick={weiter} className="mt-4 text-sm font-medium"
                 style={{ color: '#7C3AED' }}>← Neu versuchen</button>
             </div>
           </div>

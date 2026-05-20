@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { GenerationProvider } from '@/lib/generation-context'
+import { GenerationBanner } from '@/components/generation-banner'
 
 const navItems = [
   { href: '/dashboard', label: 'Start', icon: '🏠' },
@@ -43,6 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <GenerationProvider>
     <div className="min-h-screen flex" style={{ background: '#F6F1FF' }}>
       {/* Sidebar */}
       <aside className="w-60 flex flex-col flex-shrink-0 fixed top-0 left-0 h-full z-20"
@@ -121,8 +124,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main */}
       <main className="flex-1 ml-60 min-h-screen overflow-auto" style={{ background: '#F6F1FF' }}>
+        <GenerationBanner />
         {children}
       </main>
     </div>
+    </GenerationProvider>
   )
 }
