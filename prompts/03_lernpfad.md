@@ -25,7 +25,6 @@ Du planst Lernpfade so, dass sie in der angegebenen Zeit realistisch durchführb
     "fach": "<z.B. Biologie>",
     "jahrgangsstufe": "<z.B. 8>",
     "schulform": "<z.B. Gymnasium>",
-    "bundesland": "<z.B. NRW>",
     "zeitrahmen_minuten": "<z.B. 30>"
   }
 }
@@ -284,7 +283,7 @@ Wenn der Lerninhalt für `zeitrahmen_minuten` zu umfangreich ist:
           "didaktische_funktion": "<z.B. Aktivierung | Grundlagen sichern | Anwendung | Fehleranalyse | Lernzielcheck>",
           "lerninhalt": "<Was genau wird in diesem Level gelernt / geübt?>",
           "komplexitaetsstufe": "<z.B. '1 – Wiedererkennen' oder '4 – Zusammenhänge herstellen'>",
-          "aufgabenformat": "<z.B. single_choice | zuordnung | reihenfolge | hangman | boss_fight | sprint_quiz | escape_room>",
+          "aufgabenformat": "<z.B. single_choice | multiple_choice | lueckentext | zuordnung | reihenfolge | hangman | boss_fight | sprint_quiz | escape_room>",
           "game_engine": "<Engine-Typ, identisch mit aufgabenformat oder begründete Abweichung>",
           "game_skin": "<unterstufe | mittelstufe | oberstufe>",
           "differenzierung": "<Wie wird Hilfe/Schwierigkeit geregelt?>",

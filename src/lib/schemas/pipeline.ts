@@ -61,7 +61,7 @@ const KomplexitaetsstufeSchema = z.union([
   z.literal(5), z.literal(6), z.literal(7),
 ])
 
-// Alle implementierten Templates inkl. neuer Skins (boss_fight, sprint_quiz, escape_room)
+// Alle implementierten Templates inkl. neuer Skins (boss_fight, sprint_quiz, escape_room, lueckentext)
 const AntwortformatSchema = z.enum([
   'single_choice',
   'multiple_choice',
@@ -72,6 +72,7 @@ const AntwortformatSchema = z.enum([
   'boss_fight',
   'sprint_quiz',
   'escape_room',
+  'lueckentext',
 ])
 
 const AmpelSchema = z.enum(['gruen', 'gelb', 'rot'])

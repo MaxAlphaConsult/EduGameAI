@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
           fach: material.fach,
           jahrgangsstufe: material.jahrgangsstufe,
           schulform: material.schulform,
-          bundesland: material.bundesland,
           zeitrahmenMinuten,
         }
 
@@ -284,5 +283,7 @@ function buildCheckRow(spielId: string, c: ValidationOutput) {
     spielfunktion: check.spielfunktion,
     hinweise_fuer_lehrkraft: check.hinweise_fuer_lehrkraft,
     begruendung_anpassungen: check.begruendung_anpassungen,
+    sourcemapping: c.schritt_20_sourcemapping,
+    reduktionen: c.schritt_17_reduktion,
   }
 }

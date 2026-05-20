@@ -65,6 +65,7 @@ export type Antwortformat =
   | 'boss_fight'
   | 'sprint_quiz'
   | 'escape_room'
+  | 'lueckentext'
 
 export type SpielbarkeitsAmpel = 'gruen' | 'gelb' | 'rot'
 
@@ -151,7 +152,6 @@ export interface Material {
   fach: string
   jahrgangsstufe: string
   schulform: string
-  bundesland: string
   upload_datum: string
 }
 
@@ -289,15 +289,6 @@ export interface Klasse {
   jahrgangsstufe: string
   fach: string
   erstellt_am: string
-}
-
-// KLP — Kerncurriculum / Lehrplan-Konfiguration
-export interface KLP {
-  bundesland: string
-  schulform: string
-  jahrgangsstufe: string
-  fach: string
-  kompetenzbereiche: string[]
 }
 
 // --- Diagnosis Types -----------------------------------------

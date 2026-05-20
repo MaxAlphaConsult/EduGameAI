@@ -9,6 +9,7 @@ import { SpaceInvaders } from './SpaceInvaders'
 import { BossFight } from './BossFight'
 import { SprintQuiz } from './SprintQuiz'
 import { EscapeRoom } from './EscapeRoom'
+import { Lueckentext } from './Lueckentext'
 
 interface Aufgabe {
   aufgabe_id: string
@@ -277,6 +278,15 @@ export function GameEngine({ sessionId, aufgaben, gameSkin, gameId }: Props) {
             optionen={buildOptionen(aufgabe)}
             schlossNummer={current + 1}
             gesamtSchloesser={aufgaben.length}
+            onAntwort={handleAntwort}
+          />
+        ) : format === 'lueckentext' ? (
+          <Lueckentext
+            text={aufgabe.text}
+            loesungen={aufgabe.loesungen}
+            distraktoren={aufgabe.distraktoren ?? []}
+            hilfen={hilfen}
+            feedback={feedback}
             onAntwort={handleAntwort}
           />
         ) : format === 'reihenfolge' ? (

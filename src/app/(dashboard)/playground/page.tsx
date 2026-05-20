@@ -20,10 +20,7 @@ const ANALYSE_SCHRITTE = [
 const FAECHER = ['Biologie', 'Chemie', 'Physik', 'Mathematik', 'Deutsch', 'Geschichte',
   'Geographie', 'Politik', 'Philosophie', 'Englisch', 'Latein', 'Kunst', 'Musik', 'Sport', 'Informatik']
 const STUFEN = Array.from({ length: 9 }, (_, i) => `${i + 5}`)
-const SCHULFORMEN = ['Gymnasium', 'Realschule', 'Gesamtschule', 'Berufsschule', 'Grundschule']
-const BUNDESLAENDER = ['NRW', 'Bayern', 'Berlin', 'Hamburg', 'Hessen', 'Baden-Württemberg',
-  'Sachsen', 'Niedersachsen', 'Brandenburg', 'Thüringen', 'Sachsen-Anhalt',
-  'Mecklenburg-Vorpommern', 'Rheinland-Pfalz', 'Saarland', 'Schleswig-Holstein', 'Bremen']
+const SCHULFORMEN = ['Gymnasium', 'Realschule', 'Sekundarschule', 'Gesamtschule', 'Berufsschule', 'Grundschule']
 
 interface AnalyseResult {
   einheitId: string
@@ -63,6 +60,7 @@ const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, marginBott
 const SPIELFORMATE = [
   { id: 'single_choice',   label: 'Single Choice',   emoji: '☑️',  dauer: '1–2 Min',  zweck: 'Prüfen',    zweckFarbe: '#7C3AED' },
   { id: 'multiple_choice', label: 'Multiple Choice', emoji: '✅',  dauer: '2–3 Min',  zweck: 'Prüfen',    zweckFarbe: '#7C3AED' },
+  { id: 'lueckentext',     label: 'Lückentext',      emoji: '📝',  dauer: '3–5 Min',  zweck: 'Festigen',  zweckFarbe: '#D97706' },
   { id: 'zuordnung',       label: 'Zuordnung',       emoji: '🔗',  dauer: '3–5 Min',  zweck: 'Festigen',  zweckFarbe: '#D97706' },
   { id: 'reihenfolge',     label: 'Reihenfolge',     emoji: '🔢',  dauer: '3–5 Min',  zweck: 'Festigen',  zweckFarbe: '#D97706' },
   { id: 'hangman',         label: 'Hangman',         emoji: '🔤',  dauer: '3–5 Min',  zweck: 'Vermitteln', zweckFarbe: '#059669' },
@@ -113,7 +111,6 @@ export default function GameErstellenPage() {
     const fach = (form.elements.namedItem('fach') as HTMLSelectElement).value
     const jahrgangsstufe = (form.elements.namedItem('jahrgangsstufe') as HTMLSelectElement).value
     const schulform = (form.elements.namedItem('schulform') as HTMLSelectElement).value
-    const bundesland = (form.elements.namedItem('bundesland') as HTMLSelectElement).value
     const lernziel = (form.elements.namedItem('lernziel') as HTMLInputElement).value
     const zeitrahmen = zeitrahmenInput
 
@@ -131,7 +128,6 @@ export default function GameErstellenPage() {
         formData.append('fach', fach)
         formData.append('jahrgangsstufe', jahrgangsstufe)
         formData.append('schulform', schulform)
-        formData.append('bundesland', bundesland)
 
         const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
         if (!uploadRes.ok) {
@@ -253,7 +249,7 @@ export default function GameErstellenPage() {
               <p className="text-xs mt-1.5" style={{ color: '#7A6A94' }}>So findest du das Spiel später in deiner Übersicht.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label style={labelStyle}>Fach</label>
                 <select name="fach" required style={inputStyle}>
@@ -273,13 +269,6 @@ export default function GameErstellenPage() {
                 <select name="schulform" required style={inputStyle}>
                   <option value="">Bitte wählen</option>
                   {SCHULFORMEN.map((s) => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Bundesland</label>
-                <select name="bundesland" required style={inputStyle}>
-                  <option value="">Bitte wählen</option>
-                  {BUNDESLAENDER.map((b) => <option key={b}>{b}</option>)}
                 </select>
               </div>
             </div>

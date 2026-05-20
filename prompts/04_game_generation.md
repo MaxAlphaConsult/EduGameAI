@@ -45,6 +45,7 @@ Alle Spieltemplates und ihre Antwortformat-Werte:
 |---|---|---|
 | Single Choice | `single_choice` | Eine richtige Antwort aus 4 Optionen |
 | Multiple Choice | `multiple_choice` | Mehrere richtige Antworten aus 5–6 Optionen |
+| Lückentext | `lueckentext` | Begriffe aus Wortbank in Lücken einsetzen |
 | Zuordnung | `zuordnung` | Begriffe ihren Definitionen/Kategorien zuordnen |
 | Reihenfolge | `reihenfolge` | Schritte, Prozesse, Ereignisse sortieren |
 | Hangman | `hangman` | Fachbegriff erraten |
@@ -72,6 +73,13 @@ Erstelle exakt **4 Aufgaben**. Nicht mehr, nicht weniger.
 - `loesungen`: 2–3 richtige Antworten
 - `distraktoren`: 2–3 falsche Antworten
 - `hilfen`: 1–2 kurze Hinweise (optional)
+
+**Für `lueckentext`:**
+- `text`: Aussage/Definition mit Lücken — jede Lücke als `___` (3+ Unterstriche) markieren. Die Anzahl `___` muss exakt der Länge von `loesungen` entsprechen. Z.B. `"Die Zellatmung findet in den ___ statt und liefert ___ für die Zelle."`
+- `loesungen`: Begriffe in der **Reihenfolge der Lücken** (mind. 2, max. 5 Lücken pro Aufgabe). Single-Token-Begriffe bevorzugt.
+- `distraktoren`: 2–4 zusätzliche falsche Wortbank-Einträge (gleiche Wortart, plausible Verwechslungen)
+- `hilfen`: 1–2 Hinweise (optional). Kein Hinweis darf die Lösung direkt nennen.
+- Eignet sich für: Faktenwissen, Begriffswissen, sprachliches Wissen. **Nicht** für komplexe Definitionen mit Synonymen — Auswertung ist token-exakt (case-insensitive).
 
 **Für `zuordnung`:**
 - `text`: Aufgabenstellung (z.B. "Ordne die Begriffe ihren Definitionen zu")
@@ -159,7 +167,7 @@ Gib für beide Felder leere Arrays zurück:
     {
       "aufgabe_id": "Q1",
       "text": "<Aufgabentext>",
-      "antwortformat": "single_choice | multiple_choice | zuordnung | reihenfolge | hangman | space_invaders | boss_fight | sprint_quiz | escape_room",
+      "antwortformat": "single_choice | multiple_choice | lueckentext | zuordnung | reihenfolge | hangman | space_invaders | boss_fight | sprint_quiz | escape_room",
       "loesungen": ["<richtige Antwort(en) oder Paare oder geordnete Elemente>"],
       "distraktoren": ["<falsche Antwort 1>", "<falsche Antwort 2>", "<falsche Antwort 3>"],
       "hilfen": ["<optionaler Hinweis>"],

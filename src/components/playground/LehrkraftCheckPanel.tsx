@@ -163,6 +163,8 @@ export function LehrkraftCheckPanel({ spielId }: Props) {
         if (!body.pending && body.check) {
           setCheck(body.check)
           setPolling(false)
+          // Server-Component neu rendern, damit Sourcemapping in AufgabenMitQuelle erscheint
+          router.refresh()
         } else {
           setTimeout(poll, 4000)
         }

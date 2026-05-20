@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     // Aufgabe aus dem Spiel suchen
     const aufgaben = (spiel?.aufgaben ?? []) as Array<{
       aufgabe_id: string
+      antwortformat?: string
       loesungen: string[]
       teilloesungen?: string[]
       feedbackbausteine?: { bei_korrekt: string; bei_falsch: string }
@@ -53,19 +54,35 @@ export async function POST(request: NextRequest) {
     let ausgeloestes_feedback = ''
 
     if (aufgabe) {
-      const antworten = Array.isArray(antwortWert) ? antwortWert : [antwortWert]
-      const loesungen = aufgabe.loesungen.map((l) => l.toLowerCase().trim())
-      const teilloesungen = (aufgabe.teilloesungen ?? []).map((l) => l.toLowerCase().trim())
+      const norm = (s: string) => s.toLowerCase().trim()
+      const antworten = Array.isArray(antwortWert) ? antwortWert.map(String) : [String(antwortWert)]
+      const loesungen = aufgabe.loesungen.map(norm)
+      const teilloesungen = (aufgabe.teilloesungen ?? []).map(norm)
+      const format = aufgabe.antwortformat ?? ''
 
-      const alleKorrekt = antworten.every((a) => loesungen.includes(a.toLowerCase().trim()))
-      const irgendeineTeil = antworten.some((a) =>
-        teilloesungen.includes(a.toLowerCase().trim())
-      )
+      // Positions-abhängige Formate: Antwort[i] muss === Lösung[i]
+      const positionsAbhaengig = format === 'lueckentext' || format === 'reihenfolge'
 
-      if (alleKorrekt && antworten.length >= loesungen.length) {
+      const antwortenNorm = antworten.map(norm)
+
+      let alleKorrekt: boolean
+      let teilrichtig: number
+      if (positionsAbhaengig) {
+        const minLen = Math.min(antwortenNorm.length, loesungen.length)
+        const richtigeAnzahl = Array.from({ length: minLen }).filter((_, i) => antwortenNorm[i] === loesungen[i]).length
+        alleKorrekt = antwortenNorm.length === loesungen.length && richtigeAnzahl === loesungen.length
+        teilrichtig = richtigeAnzahl
+      } else {
+        alleKorrekt = antwortenNorm.every(a => loesungen.includes(a)) && antwortenNorm.length >= loesungen.length
+        teilrichtig = antwortenNorm.filter(a => loesungen.includes(a)).length
+      }
+
+      const irgendeineTeil = antwortenNorm.some(a => teilloesungen.includes(a))
+
+      if (alleKorrekt) {
         status = 'korrekt'
         ausgeloestes_feedback = aufgabe.feedbackbausteine?.bei_korrekt ?? ''
-      } else if (irgendeineTeil) {
+      } else if (irgendeineTeil || (positionsAbhaengig && teilrichtig > 0 && teilrichtig < loesungen.length)) {
         status = 'teilweise_korrekt'
         ausgeloestes_feedback = aufgabe.feedbackbausteine?.bei_falsch ?? ''
       } else {

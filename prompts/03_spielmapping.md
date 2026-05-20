@@ -21,7 +21,6 @@ Spielvorlagen und wählst situationsgerecht aus. Fachliche Korrektheit und Auswe
     "fach": "<z.B. Biologie>",
     "jahrgangsstufe": "<z.B. 9>",
     "schulform": "<z.B. Gymnasium>",
-    "bundesland": "<z.B. NRW>",
     "zeitrahmen_minuten": 15
   }
 }
@@ -62,6 +61,7 @@ Der Lernpfad-Typ bestimmt, aus welchem Phasen-Pool (Kennenlernen / Vertiefen / P
 | V3 | Begriff-Schmied | Wissensabruf Fachbegriff | `hangman` | Werkzeugkasten | gruen |
 | V4 | Fehler-Detektor | Fehleranalyse / Fehler erkennen | `multiple_choice` | Fehler-Scanner | gruen |
 | V5 | Kriterien-Waage | Kriterienanwendung / Pro-Contra | `zuordnung` | Waage | gruen |
+| V6 | Begriffe-im-Satz | Begriffswissen im Kontext / Definition füllen | `lueckentext` | Werkzeugkasten | gruen |
 
 **Regeln für VERTIEFEN:**
 - Mittel-Hilfen (1–2 Stufen)
@@ -96,8 +96,8 @@ Leite die Phase aus `schritt_9_ampel.spielfunktion` ab:
 | spielfunktion | Spielphase | Vorlagen-Pool |
 |---------------|------------|---------------|
 | `vorbereitung` | KENNENLERNEN | K1–K5 |
-| `uebung` | VERTIEFEN | V1–V5 |
-| `sicherung` | VERTIEFEN | V1–V5 |
+| `uebung` | VERTIEFEN | V1–V6 |
+| `sicherung` | VERTIEFEN | V1–V6 |
 | `diagnose` | PRÜFEN | P1–P5 |
 | `teilueberpruefung` | PRÜFEN | P1–P5 |
 
@@ -171,7 +171,7 @@ Antworte ausschließlich mit dem folgenden JSON-Objekt. Kein Text außerhalb.
       "typ": "beste_didaktische_passung",
       "name": "<Spielname aus den 15 Vorlagen>",
       "didaktischer_spieltyp": "<z.B. Zuordnung Begriff ↔ Definition>",
-      "game_engine": "<einer der implementierten Werte: single_choice | multiple_choice | zuordnung | reihenfolge | hangman | space_invaders | boss_fight | sprint_quiz | escape_room>",
+      "game_engine": "<einer der implementierten Werte: single_choice | multiple_choice | lueckentext | zuordnung | reihenfolge | hangman | space_invaders | boss_fight | sprint_quiz | escape_room>",
       "game_skin_konzept": "<z.B. Werkstatt-Band — visuelle Beschreibung>",
       "game_skin_mvp": "<unterstufe | mittelstufe | oberstufe>",
       "antwortformate": ["<game_engine-Wert>"],

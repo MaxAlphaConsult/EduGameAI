@@ -1,13 +1,25 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { LehrkraftCheckPanel } from '@/components/playground/LehrkraftCheckPanel'
-import { AufgabenListe } from '@/components/playground/AufgabenListe'
+import { AufgabenMitQuelle } from '@/components/playground/AufgabenMitQuelle'
 import Link from 'next/link'
 
 const SKIN_LABEL: Record<string, string> = {
   unterstufe: 'Unterstufe (Kl. 1–6)',
   mittelstufe: 'Mittelstufe (Kl. 7–10)',
   oberstufe: 'Oberstufe (Kl. 11–13)',
+}
+
+interface AnalyseRow { material_id: string }
+
+interface MaterialAbschnitt { id: string; text: string; seite?: number }
+
+interface AufgabeRow {
+  aufgabe_id: string
+  text: string
+  antwortformat: string
+  loesungen: string[]
+  abschnitt_ref?: string
 }
 
 export default async function ModuleDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +37,20 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
 
   if (!spiel) notFound()
 
-  const aufgaben = (spiel.aufgaben ?? []) as Array<{ aufgabe_id: string; text: string; antwortformat: string; loesungen: string[] }>
+  const aufgaben = (spiel.aufgaben ?? []) as AufgabeRow[]
+  const analyse = spiel.analyses as AnalyseRow | null
+
+  // Materialabschnitte und Sourcemapping parallel laden
+  const [materialResult, checkResult] = await Promise.all([
+    analyse?.material_id
+      ? supabase.from('materials').select('abschnitte').eq('id', analyse.material_id).single()
+      : Promise.resolve({ data: null }),
+    supabase.from('lehrkraft_checks').select('sourcemapping, reduktionen').eq('spiel_id', id).maybeSingle(),
+  ])
+
+  const abschnitte = (materialResult.data?.abschnitte ?? []) as MaterialAbschnitt[]
+  const sourcemapping = checkResult.data?.sourcemapping ?? null
+  const reduktionen = checkResult.data?.reduktionen ?? null
 
   return (
     <div className="p-8 max-w-3xl">
@@ -56,7 +81,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
               <p className="text-xs text-muted-foreground mb-2">Schüler-Link:</p>
               <div className="flex items-center gap-2">
                 <code className="text-xs bg-muted px-3 py-1.5 rounded flex-1 truncate">
-                  {typeof window !== 'undefined' ? window.location.origin : ''}/play/{id}
+                  /play/{id}
                 </code>
                 <Link href={`/play/${id}`} target="_blank"
                   className="text-xs text-primary hover:underline whitespace-nowrap">
@@ -67,8 +92,14 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
           )}
         </div>
 
-        {/* Aufgaben-Vorschau mit Neu-Generieren */}
-        <AufgabenListe spielId={id} initialAufgaben={aufgaben} />
+        {/* Aufgaben mit Sourcemapping + "Neu generieren" */}
+        <AufgabenMitQuelle
+          spielId={id}
+          aufgaben={aufgaben}
+          abschnitte={abschnitte}
+          sourcemapping={sourcemapping}
+          reduktionen={reduktionen}
+        />
 
         {/* Lehrkraft-Check */}
         <LehrkraftCheckPanel spielId={id} />
