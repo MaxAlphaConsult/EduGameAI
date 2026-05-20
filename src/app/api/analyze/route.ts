@@ -180,17 +180,26 @@ export async function POST(request: NextRequest) {
               .single()
             if (spielError) throw spielError
 
-            // Validierung direkt im selben Task — bricht den Stream nicht ab, wenn sie fehlschlägt
+            // Validierung direkt im selben Task — bricht den Stream nicht ab,
+            // wenn sie fehlschlägt ODER zu lange braucht. Bei 4-6 parallel
+            // laufenden Validate-Calls kann ein einzelner hängender Claude-Stream
+            // sonst die ganze Pipeline blockieren. 90s Hard-Timeout pro Spiel.
             try {
-              const check = await validateAndCheck({
-                analyse, lernziel, lernpfad,
-                spielmapping: spielmappingFuerDiesesSpiel,
-                spiel,
-                abschnitte: material.abschnitte,
-              })
+              const VALIDATION_TIMEOUT_MS = 90_000
+              const check = await Promise.race([
+                validateAndCheck({
+                  analyse, lernziel, lernpfad,
+                  spielmapping: spielmappingFuerDiesesSpiel,
+                  spiel,
+                  abschnitte: material.abschnitte,
+                }),
+                new Promise<never>((_, reject) =>
+                  setTimeout(() => reject(new Error(`Validierung Spiel ${i + 1} > ${VALIDATION_TIMEOUT_MS}ms`)), VALIDATION_TIMEOUT_MS)
+                ),
+              ])
               await supabase.from('lehrkraft_checks').insert(buildCheckRow(spielRow.id, check))
             } catch (err) {
-              console.error(`[analyze] Validierung Spiel ${i + 1} fehlgeschlagen:`, err)
+              console.error(`[analyze] Validierung Spiel ${i + 1} übersprungen:`, err)
             }
             validated++
             sendGameProgress()
