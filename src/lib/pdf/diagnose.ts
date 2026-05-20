@@ -164,7 +164,7 @@ export async function generateLehrkraftDiagnosePDF(data: DiagnoseInput): Promise
 
   const kachelW = (contentW - 6) / 3
   const kachelH = 22
-  const kacheln = [
+  const kacheln: { label: string; wert: number; bg: readonly [number, number, number]; fg: readonly [number, number, number] }[] = [
     { label: 'Lernziel erreicht', wert: data.klassenueberblick.lernziel_erreicht, bg: GREEN_LIGHT, fg: GREEN },
     { label: 'Teilweise erreicht', wert: data.klassenueberblick.lernziel_teilweise, bg: YELLOW_LIGHT, fg: YELLOW },
     { label: 'Noch nicht gesichert', wert: data.klassenueberblick.lernziel_noch_nicht_gesichert, bg: RED_LIGHT, fg: RED },
@@ -206,7 +206,7 @@ export async function generateLehrkraftDiagnosePDF(data: DiagnoseInput): Promise
     sektionsTitel('Teilkompetenzen')
     for (const k of data.kompetenzampel_klasse) {
       neueSeiteWennNoetig(8)
-      const dotColor = k.status === 'gruen' ? GREEN : k.status === 'gelb' ? YELLOW : RED
+      const dotColor: readonly [number, number, number] = k.status === 'gruen' ? GREEN : k.status === 'gelb' ? YELLOW : RED
       doc.setFillColor(...dotColor)
       doc.circle(margin + 1.5, y - 1.5, 1.2, 'F')
       doc.setFontSize(9.5)
@@ -344,7 +344,7 @@ export async function generateLehrkraftDiagnosePDF(data: DiagnoseInput): Promise
     sektionsTitel(`Individuelle Diagnosen (${data.individuelle_diagnosen.length} Codes)`)
 
     for (const d of data.individuelle_diagnosen) {
-      const statusFarbe = d.lernzielstatus === 'erreicht' ? GREEN
+      const statusFarbe: readonly [number, number, number] = d.lernzielstatus === 'erreicht' ? GREEN
         : d.lernzielstatus === 'teilweise_erreicht' ? YELLOW : RED
 
       const metaTeile = [STATUS_LABEL[d.lernzielstatus] ?? d.lernzielstatus]
