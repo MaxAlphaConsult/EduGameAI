@@ -11,6 +11,7 @@ import {
   ValidationOutputSchema,
   DiagnoseOutputSchema,
   ImproveOutputSchema,
+  EinzelAufgabeSchema,
   type AnalyseOutput,
   type LernzielOutput,
   type LernpfadOutput,
@@ -19,6 +20,7 @@ import {
   type ValidationOutput,
   type DiagnoseOutput,
   type ImproveOutput,
+  type EinzelAufgabe,
 } from '../schemas/pipeline'
 
 let _client: Anthropic | null = null
@@ -314,6 +316,28 @@ export async function improveGame(input: {
       kontext: input.kontext,
     }),
     ImproveOutputSchema
+  )
+}
+
+// --- Einzelne Aufgabe neu generieren (Prompt 08) --------------------
+export async function regenerateAufgabe(input: {
+  altAufgabe: EinzelAufgabe
+  kontext: {
+    lernziel: string
+    fach: string
+    jahrgangsstufe: string
+    zusammenfassung: string
+    kernaussagen: string[]
+  }
+}): Promise<EinzelAufgabe> {
+  return callClaude(
+    'Aufgabe neu generieren',
+    loadPrompt('08_aufgabe_regenerieren.md'),
+    JSON.stringify({
+      alt_aufgabe: input.altAufgabe,
+      kontext: input.kontext,
+    }),
+    EinzelAufgabeSchema
   )
 }
 

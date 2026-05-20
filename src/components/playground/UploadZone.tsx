@@ -6,8 +6,18 @@ interface Props {
   onFile: (file: File) => void
 }
 
-const ACCEPTED = ['application/pdf', 'text/plain']
-const MAX_MB = 10
+const ACCEPTED_MIME = [
+  'application/pdf',
+  'text/plain',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]
+const ACCEPTED_EXT = ['.pdf', '.txt', '.docx']
+const MAX_MB = 20
+
+function hatErlaubteExtension(name: string) {
+  const lower = name.toLowerCase()
+  return ACCEPTED_EXT.some((ext) => lower.endsWith(ext))
+}
 
 export function UploadZone({ onFile }: Props) {
   const [dragging, setDragging] = useState(false)
@@ -15,8 +25,9 @@ export function UploadZone({ onFile }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   function validate(file: File): string | null {
-    if (!ACCEPTED.includes(file.type) && !file.name.endsWith('.txt')) {
-      return 'Nur PDF und TXT-Dateien erlaubt.'
+    if (file.size === 0) return 'Die Datei ist leer.'
+    if (!ACCEPTED_MIME.includes(file.type) && !hatErlaubteExtension(file.name)) {
+      return 'Nur PDF, DOCX und TXT-Dateien erlaubt.'
     }
     if (file.size > MAX_MB * 1024 * 1024) {
       return `Datei zu groß (max. ${MAX_MB} MB).`
@@ -49,13 +60,13 @@ export function UploadZone({ onFile }: Props) {
           ${dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/40'}`}
       >
         <div className="text-3xl mb-3">📄</div>
-        <p className="text-sm font-medium mb-1">PDF oder TXT hierher ziehen</p>
+        <p className="text-sm font-medium mb-1">PDF, DOCX oder TXT hierher ziehen</p>
         <p className="text-xs text-muted-foreground">oder klicken zum Auswählen · max. {MAX_MB} MB</p>
       </div>
       <input
         ref={inputRef}
         type="file"
-        accept=".pdf,.txt"
+        accept=".pdf,.docx,.txt"
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
       />

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { LehrkraftCheckPanel } from '@/components/playground/LehrkraftCheckPanel'
+import { AufgabenListe } from '@/components/playground/AufgabenListe'
 import Link from 'next/link'
 
 const SKIN_LABEL: Record<string, string> = {
@@ -66,28 +67,8 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
           )}
         </div>
 
-        {/* Aufgaben-Vorschau */}
-        <div className="border rounded-xl p-5">
-          <h2 className="font-semibold mb-3">Aufgaben ({aufgaben.length})</h2>
-          <div className="flex flex-col gap-2">
-            {aufgaben.map((q, i) => (
-              <div key={q.aufgabe_id} className="bg-muted/40 rounded-lg px-4 py-3">
-                <div className="flex items-start gap-3">
-                  <span className="text-xs font-mono text-muted-foreground pt-0.5 flex-shrink-0">Q{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm">{q.text}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{q.antwortformat}</p>
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {q.loesungen.map((l, j) => (
-                        <span key={j} className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">{l}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Aufgaben-Vorschau mit Neu-Generieren */}
+        <AufgabenListe spielId={id} initialAufgaben={aufgaben} />
 
         {/* Lehrkraft-Check */}
         <LehrkraftCheckPanel spielId={id} />
