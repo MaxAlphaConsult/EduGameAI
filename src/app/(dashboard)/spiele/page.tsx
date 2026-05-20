@@ -38,40 +38,61 @@ const STATUS_LABEL: Record<string, { label: string; bg: string; color: string; b
 export default function SpielePage() {
   const [flows, setFlows] = useState<Flow[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function loadFlows() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); return }
+
+    const { data } = await supabase
+      .from('game_flows')
+      .select(`
+        id, titel, status, created_at, anzahl_spiele,
+        games(id, titel, status, reihenfolge, spieltyp_didaktisch, game_engine)
+      `)
+      .eq('lehrer_id', user.id)
+      .order('created_at', { ascending: false })
+
+    const mapped: Flow[] = (data ?? []).map((f) => {
+      const games = (f.games ?? []) as FlowModule[]
+      games.sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
+      return {
+        id: f.id,
+        titel: f.titel,
+        status: f.status,
+        created_at: f.created_at,
+        anzahl_spiele: f.anzahl_spiele ?? games.length,
+        module: games,
+      }
+    })
+
+    setFlows(mapped)
+    setLoading(false)
+  }
 
   useEffect(() => {
-    async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
-
-      const { data } = await supabase
-        .from('game_flows')
-        .select(`
-          id, titel, status, created_at, anzahl_spiele,
-          games(id, titel, status, reihenfolge, spieltyp_didaktisch, game_engine)
-        `)
-        .eq('lehrer_id', user.id)
-        .order('created_at', { ascending: false })
-
-      const mapped: Flow[] = (data ?? []).map((f) => {
-        const games = (f.games ?? []) as FlowModule[]
-        games.sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
-        return {
-          id: f.id,
-          titel: f.titel,
-          status: f.status,
-          created_at: f.created_at,
-          anzahl_spiele: f.anzahl_spiele ?? games.length,
-          module: games,
-        }
-      })
-
-      setFlows(mapped)
-      setLoading(false)
-    }
-    load()
+    loadFlows()
   }, [])
+
+  async function onDelete(flow: Flow) {
+    const bestätigung = confirm(
+      `„${flow.titel}" wirklich löschen?\n\nDamit verschwinden auch alle Module und bisherige Schüler-Antworten zu diesem Lernspiel.`
+    )
+    if (!bestätigung) return
+    setDeletingId(flow.id)
+    try {
+      const res = await fetch(`/api/flows/${flow.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        alert(`Löschen fehlgeschlagen: ${body.error ?? 'Unbekannter Fehler'}`)
+        return
+      }
+      await loadFlows()
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <div className="p-8 max-w-4xl">
@@ -105,9 +126,10 @@ export default function SpielePage() {
       ) : (
         <div className="flex flex-col gap-3">
           {flows.map((flow) => {
-            const moduleFreigegeben = flow.module.filter((m) => m.status === 'freigegeben').length
+            const moduleBereit = flow.module.filter((m) => m.status === 'freigegeben').length
+            const isDeleting = deletingId === flow.id
             return (
-              <div key={flow.id} style={{ ...cardStyle, borderRadius: 16 }} className="p-5">
+              <div key={flow.id} style={{ ...cardStyle, borderRadius: 16, opacity: isDeleting ? 0.5 : 1 }} className="p-5 transition-all">
                 <div className="flex items-start gap-4 mb-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
                     style={{ background: '#F3EEFF' }}>🎮</div>
@@ -123,7 +145,7 @@ export default function SpielePage() {
                       </span>
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: '#7A6A94' }}>
-                      Erstellt {new Date(flow.created_at).toLocaleDateString('de-DE')} · {moduleFreigegeben}/{flow.module.length} freigegeben
+                      Erstellt {new Date(flow.created_at).toLocaleDateString('de-DE')} · {moduleBereit}/{flow.module.length} Module bereit
                     </p>
                   </div>
                 </div>
@@ -145,11 +167,16 @@ export default function SpielePage() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t" style={{ borderColor: '#F3EEFF' }}>
+                  <button onClick={() => onDelete(flow)} disabled={isDeleting}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
+                    style={{ background: '#FFFFFF', color: '#DC2626', border: '1px solid #FECACA', cursor: isDeleting ? 'not-allowed' : 'pointer' }}>
+                    {isDeleting ? '⟳ Löscht…' : '🗑 Löschen'}
+                  </button>
                   <Link href="/classes"
                     className="text-xs font-semibold px-3 py-1.5 rounded-xl"
                     style={{ background: '#7C3AED', color: 'white', textDecoration: 'none' }}>
-                    → An Klasse freigeben
+                    → Klasse zuweisen
                   </Link>
                 </div>
               </div>
