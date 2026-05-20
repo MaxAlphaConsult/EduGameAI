@@ -120,7 +120,9 @@ export async function POST(request: NextRequest) {
           schrittIndex: 13,
         })
 
-        // Alle Spiele parallel generieren — größter Zeitgewinn der Pipeline
+        // Alle Spiele parallel generieren + jeweils direkt validieren — jedes Spiel
+        // bekommt einen Lehrkraft-Check, nicht nur das erste. Dank Prompt Caching
+        // sind die Folge-Calls (Gen + Validation) deutlich günstiger.
         const spielErgebnisse = await Promise.all(
           Array.from({ length: anzahlSpiele }, async (_, i) => {
             const vorschlag = vorschlaege[i % vorschlaege.length]
@@ -150,32 +152,27 @@ export async function POST(request: NextRequest) {
               .single()
             if (spielError) throw spielError
 
+            // Validierung direkt im selben Task — bricht den Stream nicht ab, wenn sie fehlschlägt
+            try {
+              const check = await validateAndCheck({
+                analyse, lernziel, lernpfad,
+                spielmapping: spielmappingFuerDiesesSpiel,
+                spiel,
+                abschnitte: material.abschnitte,
+              })
+              await supabase.from('lehrkraft_checks').insert(buildCheckRow(spielRow.id, check))
+            } catch (err) {
+              console.error(`[analyze] Validierung Spiel ${i + 1} fehlgeschlagen:`, err)
+            }
+
             return { spiel, spielRow }
           })
         )
 
         const spielIds: string[] = spielErgebnisse.map(r => r.spielRow.id)
-        const erstesSpielId: string | null = spielErgebnisse[0]?.spielRow.id ?? null
-        const erstesSpiel: SpielOutput | null = spielErgebnisse[0]?.spiel ?? null
 
         send({ type: 'progress', label: 'Ergebnisse werden gespeichert …', percent: 95, schrittIndex: 20 })
         send({ type: 'done', einheitId: einheit.id, spielIds, analyseId: analyseRow.id })
-
-        // Validierung des ersten Spiels — Stream bleibt offen damit Vercel die Funktion nicht killt
-        if (erstesSpielId && erstesSpiel) {
-          await validateAndCheck({
-            analyse,
-            lernziel,
-            lernpfad,
-            spielmapping: spielmappingGlobal,
-            spiel: erstesSpiel,
-            abschnitte: material.abschnitte,
-          }).then((check) => {
-            return supabase.from('lehrkraft_checks').insert(buildCheckRow(erstesSpielId!, check))
-          }).catch((err) => {
-            console.error('[analyze] Validierung fehlgeschlagen:', err)
-          })
-        }
 
       } catch (err) {
         let message = 'Analyse fehlgeschlagen'
