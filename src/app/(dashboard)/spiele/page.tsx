@@ -167,17 +167,26 @@ export default function SpielePage() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t" style={{ borderColor: '#F3EEFF' }}>
+                <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t flex-wrap" style={{ borderColor: '#F3EEFF' }}>
                   <button onClick={() => onDelete(flow)} disabled={isDeleting}
                     className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
                     style={{ background: '#FFFFFF', color: '#DC2626', border: '1px solid #FECACA', cursor: isDeleting ? 'not-allowed' : 'pointer' }}>
                     {isDeleting ? '⟳ Löscht…' : '🗑 Löschen'}
                   </button>
-                  <Link href="/classes"
-                    className="text-xs font-semibold px-3 py-1.5 rounded-xl"
-                    style={{ background: '#7C3AED', color: 'white', textDecoration: 'none' }}>
-                    → Klasse zuweisen
-                  </Link>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {flow.module.length > 0 && (
+                      <Link href={`/spiele/${flow.id}/preview`} target="_blank"
+                        className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                        style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', textDecoration: 'none' }}>
+                        ▶ Testen
+                      </Link>
+                    )}
+                    <Link href="/classes"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-xl"
+                      style={{ background: '#7C3AED', color: 'white', textDecoration: 'none' }}>
+                      → Klasse zuweisen
+                    </Link>
+                  </div>
                 </div>
               </div>
             )
