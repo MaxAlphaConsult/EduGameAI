@@ -250,9 +250,17 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
         body: JSON.stringify({ aufgaben: aufgabenNeu }),
       })
       if (!res.ok) throw new Error('Speichern fehlgeschlagen')
+
       setSaved(true)
       setImproveResult(null)
       setOriginalAufgaben(null)
+
+      // Lehrkraft-Check neu anstoßen — der alte basiert auf den alten Aufgaben.
+      // Fire-and-Forget; das Polling-useEffect übernimmt das Warten.
+      fetch(`/api/games/${spielId}/check?force=true`, { method: 'POST' }).catch(() => { /* polling holt sich's */ })
+      setCheck(null)
+      setPolling(true)
+
       router.refresh()
     } catch (err) {
       setImproveError(err instanceof Error ? err.message : 'Speicherfehler')
@@ -264,17 +272,33 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
   // ── Pending State ───────────────────────────────────────────
   if (!check) {
     return (
-      <div className="border rounded-xl overflow-hidden">
-        <div className="flex items-center gap-3 p-4 border-b bg-gray-50 text-gray-600">
-          <span className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-300 animate-pulse" />
-          <div className="flex-1">
-            <p className="font-semibold text-sm">Lehrkraft-Check</p>
-            <p className="text-xs opacity-70">Qualitätsprüfung läuft im Hintergrund …</p>
+      <div className="flex flex-col gap-4">
+        {saved && (
+          <div className="rounded-lg px-4 py-3" style={{ background: '#ECFDF5', border: '1px solid #A7F3D0' }}>
+            <p className="text-sm font-bold" style={{ color: '#065F46' }}>
+              ✅ Verbesserungen übernommen
+            </p>
+            <p className="text-xs mt-1" style={{ color: '#047857' }}>
+              Die neuen Aufgaben findest du oben in der Aufgaben-Liste. Schüler sehen ab jetzt die neue Version. Der Lehrkraft-Check wird gerade neu erstellt (Aufgaben haben sich geändert).
+            </p>
           </div>
-        </div>
-        <div className="p-5">
-          <p className="text-sm text-muted-foreground">Die KI prüft gerade die didaktische Qualität des Spiels. Das dauert noch einen Moment.</p>
-          <p className="text-xs text-muted-foreground mt-1">Seite wird automatisch aktualisiert.</p>
+        )}
+        <div className="border rounded-xl overflow-hidden">
+          <div className="flex items-center gap-3 p-4 border-b bg-gray-50 text-gray-600">
+            <span className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-300 animate-pulse" />
+            <div className="flex-1">
+              <p className="font-semibold text-sm">Lehrkraft-Check</p>
+              <p className="text-xs opacity-70">
+                {saved
+                  ? 'Wird auf Basis der neuen Aufgaben neu berechnet …'
+                  : 'Qualitätsprüfung läuft im Hintergrund …'}
+              </p>
+            </div>
+          </div>
+          <div className="p-5">
+            <p className="text-sm text-muted-foreground">Die KI prüft gerade die didaktische Qualität des Spiels. Das dauert noch einen Moment.</p>
+            <p className="text-xs text-muted-foreground mt-1">Seite wird automatisch aktualisiert.</p>
+          </div>
         </div>
       </div>
     )
@@ -388,12 +412,12 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
                   ✅ Verbesserungen übernommen
                 </p>
                 <p className="text-xs mt-1" style={{ color: '#047857' }}>
-                  Die neuen Aufgaben findest du oben in der Aufgaben-Liste. Die alten Versionen wurden ersetzt.
+                  Die neuen Aufgaben sind oben in der Aufgaben-Liste. Schüler sehen ab jetzt die neue Version. Der Lehrkraft-Check oben wurde mit den neuen Aufgaben neu berechnet.
                 </p>
               </div>
             )}
 
-            {hatProbleme(check) && !saved && (
+            {hatProbleme(check) && !saved && !improveResult && (
               <button
                 onClick={startImprovement}
                 disabled={improving}
@@ -485,7 +509,7 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
                           className="w-3.5 h-3.5 cursor-pointer"
                           style={{ accentColor: '#7C3AED' }}
                         />
-                        {aktiv ? 'Wird übernommen' : 'Übernehmen?'}
+                        {aktiv ? '✓ Übernommen' : 'Übernehmen'}
                       </label>
                     )}
                   </div>

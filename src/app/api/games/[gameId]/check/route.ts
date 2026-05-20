@@ -35,19 +35,27 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 // Idempotent: falls bereits ein Check existiert, wird er nicht überschrieben.
 // Pipeline-Inputs werden aus analyses.raw_output und games.spiel_output
 // geladen (siehe Migration 011).
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
 
-  // Idempotenz: bereits validiert?
+  // ?force=true → existierenden Check löschen und neu erstellen
+  // (z.B. nachdem Aufgaben durch KI-Verbesserungsvorschläge aktualisiert wurden,
+  // damit der Check nicht mehr auf dem alten Stand basiert).
+  const force = request.nextUrl.searchParams.get('force') === 'true'
+
   const { data: existing } = await supabase
     .from('lehrkraft_checks')
     .select('id')
     .eq('spiel_id', gameId)
     .maybeSingle()
-  if (existing) return NextResponse.json({ ok: true, status: 'already_exists' })
+
+  if (existing && !force) return NextResponse.json({ ok: true, status: 'already_exists' })
+  if (existing && force) {
+    await supabase.from('lehrkraft_checks').delete().eq('id', existing.id)
+  }
 
   // Spiel + Analyse + Material laden
   const { data: spiel, error: spielError } = await supabase
