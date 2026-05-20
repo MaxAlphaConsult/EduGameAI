@@ -13,6 +13,7 @@ import {
   ImproveOutputSchema,
   EinzelAufgabeSchema,
   FlowCheckOutputSchema,
+  FlowImproveOutputSchema,
   type AnalyseOutput,
   type LernzielOutput,
   type LernpfadOutput,
@@ -23,6 +24,7 @@ import {
   type ImproveOutput,
   type EinzelAufgabe,
   type FlowCheckOutput,
+  type FlowImproveOutput,
 } from '../schemas/pipeline'
 
 let _client: Anthropic | null = null
@@ -376,6 +378,44 @@ export async function flowLehrkraftCheck(input: {
     }),
     FlowCheckOutputSchema,
     12288
+  )
+}
+
+// --- Flow-weite Verbesserungen (Schritt 23) ------------------
+//
+// Nimmt den Flow-Check + alle Module entgegen und schlägt vor, in welchem
+// Modul welche Änderung gemacht werden soll. Eine Antwort kann mehrere
+// Module gleichzeitig betreffen.
+export async function flowImprove(input: {
+  lernziel: string
+  fach: string
+  jahrgangsstufe: string
+  schulform: string
+  flow_check: unknown
+  module: Array<{
+    modul_id: string
+    modul_position: number
+    titel: string
+    spieltyp_didaktisch: string | null
+    game_engine: string | null
+    aufgaben: unknown
+  }>
+}): Promise<FlowImproveOutput> {
+  return callClaude(
+    'Flow-weite Verbesserungen (Schritt 23)',
+    loadPrompt('10_flow_improvements.md'),
+    JSON.stringify({
+      flow_lernziel: input.lernziel,
+      kontext: {
+        fach: input.fach,
+        jahrgangsstufe: input.jahrgangsstufe,
+        schulform: input.schulform,
+      },
+      flow_check: input.flow_check,
+      module: input.module,
+    }),
+    FlowImproveOutputSchema,
+    16384
   )
 }
 

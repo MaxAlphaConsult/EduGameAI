@@ -523,6 +523,44 @@ export const FlowCheckOutputSchema = z.object({
 
 export type FlowCheckOutput = z.infer<typeof FlowCheckOutputSchema>
 
+// --- Schema 8: Flow-weite Verbesserungs-Vorschläge (Prompt 10) -
+//
+// Im Unterschied zum Pro-Modul-Improve denkt die KI hier flow-weit: sie sieht
+// alle Module + den Flow-Check und entscheidet, in welchem Modul welche
+// Änderung am besten platziert ist. Eine einzelne KI-Antwort kann Vorschläge
+// für mehrere Module enthalten.
+const FlowNeueAufgabeSchema = z.object({
+  aufgabe_id: z.string().min(1),
+  text: z.string().min(1),
+  antwortformat: z.string().min(1),
+  loesungen: z.array(z.string()),
+  distraktoren: z.array(z.string()),
+  hilfen: z.array(z.string()),
+  teilkompetenz: z.string().optional(),
+})
+
+const FlowAenderungSchema = z.object({
+  // 'aufgabe_ersetzen': eine bestehende Aufgabe wird durch eine bessere ersetzt
+  // 'aufgabe_ergaenzen': eine zusätzliche Aufgabe wird angehängt
+  art: z.enum(['aufgabe_ersetzen', 'aufgabe_ergaenzen']),
+  // Welche bestehende Aufgabe ersetzt wird (null bei 'ergaenzen')
+  ziel_aufgabe_id: z.union([z.string(), z.null()]),
+  begruendung: z.string().min(1), // mit Bezug zum Flow-Lernziel / -Check
+  neue_aufgabe: FlowNeueAufgabeSchema,
+})
+
+export const FlowImproveOutputSchema = z.object({
+  gesamtbegruendung: z.string().min(1),
+  module_vorschlaege: z.array(z.object({
+    modul_id: z.string().min(1),
+    modul_position: z.number().int(),
+    modul_titel: z.string(),
+    aenderungen: z.array(FlowAenderungSchema),
+  })),
+})
+
+export type FlowImproveOutput = z.infer<typeof FlowImproveOutputSchema>
+
 // Vorab exportierte Schemas für externe Nutzung
 export {
   WissensformSchema,

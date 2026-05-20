@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { FlowLehrkraftCheckPanel } from '@/components/modules/FlowLehrkraftCheckPanel'
+import { FlowImprovePanel } from '@/components/modules/FlowImprovePanel'
 
 interface GameRow {
   id: string
@@ -37,7 +38,7 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
 
   const { data: flow } = await supabase
     .from('game_flows')
-    .select('id, titel, status, created_at, anzahl_spiele')
+    .select('id, titel, status, created_at, anzahl_spiele, flow_check_status')
     .eq('id', flowId)
     .eq('lehrer_id', user.id)
     .single()
@@ -100,8 +101,13 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
       )}
 
       {/* Flow-weiter Lehrkraft-Check */}
-      <div className="mb-6">
+      <div className="mb-4">
         <FlowLehrkraftCheckPanel flowId={flowId} />
+      </div>
+
+      {/* Flow-weite KI-Verbesserungsvorschläge */}
+      <div className="mb-6">
+        <FlowImprovePanel flowId={flowId} flowCheckFertig={flow.flow_check_status === 'fertig'} />
       </div>
 
       {/* Module-Liste */}
