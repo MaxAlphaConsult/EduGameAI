@@ -59,15 +59,13 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
   const abschnitte = (materialResult.data?.abschnitte ?? []) as MaterialAbschnitt[]
   const sourcemapping = checkResult.data?.sourcemapping ?? null
   const reduktionen = checkResult.data?.reduktionen ?? null
-  const geschwisterModule = ((geschwisterResult.data ?? []) as Array<{
+  const alleModule = ((geschwisterResult.data ?? []) as Array<{
     id: string
     titel: string | null
     spieltyp_didaktisch: string | null
     game_engine: string | null
     reihenfolge: number | null
-  }>)
-    .filter((m) => m.id !== id)
-    .sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
+  }>).sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
 
   return (
     <div className="p-8 max-w-3xl">
@@ -77,95 +75,76 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
         <span className="text-sm font-medium">{spiel.titel}</span>
       </div>
 
-      {/* Spielen-Testen-Buttons: Einzeln + ganzes Lernspiel */}
-      {aufgaben.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-          {/* Ganzes Lernspiel testen — der „Hauptweg" für die meisten Lehrer */}
-          {spiel.game_flow_id && (
-            <Link
-              href={`/spiele/${spiel.game_flow_id}/preview`}
-              target="_blank"
-              className="block rounded-2xl p-5 transition-all hover:scale-[1.005]"
-              style={{
-                background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-                color: 'white',
-                textDecoration: 'none',
-                boxShadow: '0 6px 24px rgba(124,58,237,0.25)',
-              }}>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                  style={{ background: 'rgba(255,255,255,0.18)' }}>
-                  ▶▶
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-base">Ganzes Lernspiel testen</p>
-                  <p className="text-xs" style={{ color: '#E9D5FF' }}>
-                    Alle Module hintereinander, wie ein Schüler.
-                  </p>
-                </div>
-                <span className="text-xl flex-shrink-0" style={{ color: '#E9D5FF' }}>↗</span>
-              </div>
-            </Link>
-          )}
-
-          {/* Nur dieses Modul testen — für Debugging einer einzelnen Aufgabe */}
-          <Link
-            href={`/modules/${id}/preview`}
-            target="_blank"
-            className="block rounded-2xl p-5 transition-all hover:scale-[1.005]"
-            style={{
-              background: '#FFFFFF',
-              color: '#1F1235',
-              textDecoration: 'none',
-              border: '1.5px solid #C4B5FD',
-              boxShadow: '0 2px 12px rgba(124,58,237,0.08)',
-            }}>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                style={{ background: '#F3EEFF', color: '#7C3AED' }}>
-                ▶
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-base">Nur dieses Modul testen</p>
-                <p className="text-xs" style={{ color: '#7A6A94' }}>
-                  Schneller Probelauf einer einzelnen Aufgabe.
-                </p>
-              </div>
-              <span className="text-xl flex-shrink-0" style={{ color: '#C4B5FD' }}>↗</span>
+      {/* Großer CTA: ganzes Lernspiel testen */}
+      {aufgaben.length > 0 && spiel.game_flow_id && (
+        <Link
+          href={`/spiele/${spiel.game_flow_id}/preview`}
+          target="_blank"
+          className="block mb-4 rounded-2xl p-5 transition-all hover:scale-[1.005]"
+          style={{
+            background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+            color: 'white',
+            textDecoration: 'none',
+            boxShadow: '0 6px 24px rgba(124,58,237,0.25)',
+          }}>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,0.18)' }}>
+              ▶▶
             </div>
-          </Link>
-        </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base">Ganzes Lernspiel testen</p>
+              <p className="text-xs" style={{ color: '#E9D5FF' }}>
+                Alle Module hintereinander, wie ein Schüler.
+              </p>
+            </div>
+            <span className="text-xl flex-shrink-0" style={{ color: '#E9D5FF' }}>↗</span>
+          </div>
+        </Link>
       )}
 
-      {/* Andere Module aus diesem Lernspiel — schneller Wechsel */}
-      {geschwisterModule.length > 0 && (
+      {/* Module einzeln testen — Liste aller Module inkl. dem aktuellen */}
+      {alleModule.length > 0 && (
         <div className="mb-6 rounded-2xl p-4" style={{ background: '#FAFAFA', border: '1px solid #E9D5FF' }}>
           <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A6A94' }}>
-            Andere Module aus diesem Lernspiel
+            Module einzeln testen
           </p>
           <div className="flex flex-col gap-2">
-            {geschwisterModule.map((m) => (
-              <div key={m.id} className="flex items-center gap-2 rounded-xl px-3 py-2"
-                style={{ background: '#FFFFFF', border: '1px solid #F3EEFF' }}>
-                <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={{ background: '#F3EEFF', color: '#7C3AED' }}>
-                  {m.reihenfolge ?? '·'}
-                </span>
-                <span className="text-xs font-medium flex-1 truncate" style={{ color: '#1F1235' }}>
-                  {m.titel || m.spieltyp_didaktisch || m.game_engine || 'Modul'}
-                </span>
-                <Link href={`/modules/${m.id}/preview`} target="_blank"
-                  className="text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0"
-                  style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', textDecoration: 'none' }}>
-                  ▶ Testen
-                </Link>
-                <Link href={`/modules/${m.id}`}
-                  className="text-xs font-semibold px-2.5 py-1 rounded-lg flex-shrink-0"
-                  style={{ background: '#FFFFFF', color: '#7A6A94', border: '1px solid #E9D5FF', textDecoration: 'none' }}>
-                  Öffnen →
-                </Link>
-              </div>
-            ))}
+            {alleModule.map((m) => {
+              const istAktuell = m.id === id
+              return (
+                <div key={m.id} className="flex items-center gap-2 rounded-xl px-3 py-2"
+                  style={{
+                    background: istAktuell ? '#F6F1FF' : '#FFFFFF',
+                    border: istAktuell ? '1.5px solid #7C3AED' : '1px solid #F3EEFF',
+                  }}>
+                  <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                    style={{ background: istAktuell ? '#7C3AED' : '#F3EEFF', color: istAktuell ? 'white' : '#7C3AED' }}>
+                    {m.reihenfolge ?? '·'}
+                  </span>
+                  <span className="text-xs font-medium flex-1 truncate" style={{ color: '#1F1235' }}>
+                    {m.titel || m.spieltyp_didaktisch || m.game_engine || 'Modul'}
+                  </span>
+                  {istAktuell && (
+                    <span className="text-xs font-bold flex-shrink-0" style={{ color: '#7C3AED' }}>
+                      du bist hier
+                    </span>
+                  )}
+                  <Link href={`/modules/${m.id}/preview`} target="_blank"
+                    className="text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0"
+                    style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', textDecoration: 'none' }}>
+                    ▶ Testen
+                  </Link>
+                  {!istAktuell && (
+                    <Link href={`/modules/${m.id}`}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-lg flex-shrink-0"
+                      style={{ background: '#FFFFFF', color: '#7A6A94', border: '1px solid #E9D5FF', textDecoration: 'none' }}>
+                      Öffnen →
+                    </Link>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
