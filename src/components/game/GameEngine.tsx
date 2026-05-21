@@ -153,7 +153,7 @@ export function GameEngine({ moduleSessionId, aufgaben, gameSkin, onModulFertig,
   const format = aufgabe.antwortformat
 
   return (
-    <div className="max-w-xl mx-auto p-6 flex flex-col gap-6">
+    <div className="max-w-xl mx-auto p-4 sm:p-6 flex flex-col gap-4 sm:gap-6">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground font-medium">{SKIN_LABEL[gameSkin] ?? 'Spiel'}</span>
         <span className="text-xs text-muted-foreground">Aufgabe {current + 1} / {aufgaben.length}</span>
@@ -163,7 +163,7 @@ export function GameEngine({ moduleSessionId, aufgaben, gameSkin, onModulFertig,
         <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${fortschritt}%` }} />
       </div>
 
-      <div key={current} className="border rounded-2xl p-6">
+      <div key={current} className="border rounded-2xl p-4 sm:p-6">
         {format === 'hangman' ? (
           <Hangman
             text={aufgabe.text}

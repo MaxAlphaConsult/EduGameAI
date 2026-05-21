@@ -95,21 +95,21 @@ export default function SpielerPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 sm:py-12">
 
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-10">
-        <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-white text-lg"
+      <div className="flex items-center gap-3 mb-8 sm:mb-10">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-black text-white text-lg sm:text-xl"
           style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', boxShadow: '0 0 32px rgba(168,85,247,0.5)' }}>
           E
         </div>
         <div>
-          <p className="text-white font-bold text-lg leading-none">EduGame AI</p>
-          <p className="text-xs mt-0.5" style={{ color: '#C4B5FD' }}>Schüler-Zugang</p>
+          <p className="text-white font-bold text-lg sm:text-xl leading-none">EduGame AI</p>
+          <p className="text-xs sm:text-sm mt-0.5" style={{ color: '#C4B5FD' }}>Schüler-Zugang</p>
         </div>
       </div>
 
-      <div className="w-full max-w-md rounded-3xl p-8"
+      <div className="w-full max-w-md sm:max-w-lg rounded-3xl p-6 sm:p-8"
         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(196,181,253,0.2)', backdropFilter: 'blur(20px)' }}>
 
         {/* ── Step 1: Flow-Code ── */}

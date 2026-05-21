@@ -106,7 +106,7 @@ export function AntwortmusterPanel({ data }: Props) {
       <div className="rounded-2xl p-6"
         style={{ background: '#FFFFFF', border: '1px solid #E9D5FF', boxShadow: '0 2px 24px rgba(124,58,237,0.08)', borderRadius: 20 }}>
         <h2 className="font-bold mb-4" style={{ color: '#1F1235' }}>Teilnahme &amp; Erfolgsquote</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <p className="text-2xl font-black tabular-nums" style={{ color: '#1F1235' }}>{data.anzahl_sessions}</p>
             <p className="text-xs mt-0.5" style={{ color: '#7A6A94' }}>

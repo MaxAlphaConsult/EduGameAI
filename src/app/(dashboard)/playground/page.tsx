@@ -150,7 +150,7 @@ export default function GameErstellenPage() {
   const isPending = submitting || gen.status === 'running'
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 md:p-6 lg:p-8 max-w-3xl">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Neues Lernspiel</h1>
@@ -159,7 +159,7 @@ export default function GameErstellenPage() {
 
       {/* Step Progress */}
       {step !== 'error' && (
-        <div className="flex items-center gap-0 mb-8">
+        <div className="flex items-center gap-0 mb-6 md:mb-8">
           {STEPS_NAV.map((s, i) => (
             <div key={i} className="flex items-center flex-1">
               <div className="flex items-center gap-2">
@@ -170,13 +170,13 @@ export default function GameErstellenPage() {
                   }}>
                   {i < stepIndex ? '✓' : i + 1}
                 </div>
-                <span className="text-xs font-medium whitespace-nowrap"
+                <span className="hidden sm:inline text-xs font-medium whitespace-nowrap"
                   style={{ color: i === stepIndex ? '#7C3AED' : i < stepIndex ? '#1F1235' : '#7A6A94' }}>
                   {s}
                 </span>
               </div>
               {i < STEPS_NAV.length - 1 && (
-                <div className="flex-1 h-0.5 mx-3" style={{ background: i < stepIndex ? '#7C3AED' : '#E9D5FF' }} />
+                <div className="flex-1 h-0.5 mx-2 sm:mx-3" style={{ background: i < stepIndex ? '#7C3AED' : '#E9D5FF' }} />
               )}
             </div>
           ))}
@@ -185,7 +185,7 @@ export default function GameErstellenPage() {
 
       {/* Step 1: Upload */}
       {step === 'upload' && (
-        <div style={cardStyle} className="p-8">
+        <div style={cardStyle} className="p-5 sm:p-6 md:p-8">
           <h2 className="text-lg font-bold mb-1" style={{ color: '#1F1235' }}>Material hochladen</h2>
           <p className="text-sm mb-6" style={{ color: '#7A6A94' }}>Lade ein PDF oder eine Textdatei mit deinem Unterrichtsmaterial hoch.</p>
           <UploadZone onFile={onFile} />
@@ -194,7 +194,7 @@ export default function GameErstellenPage() {
 
       {/* Step 2: Metadata */}
       {step === 'metadata' && file && (
-        <div style={cardStyle} className="p-8">
+        <div style={cardStyle} className="p-5 sm:p-6 md:p-8">
           <h2 className="text-lg font-bold mb-1" style={{ color: '#1F1235' }}>Details angeben</h2>
           <p className="text-sm mb-6" style={{ color: '#7A6A94' }}>Damit die KI ein passendes Spiel erstellt, brauchen wir noch ein paar Infos.</p>
 
@@ -346,7 +346,7 @@ export default function GameErstellenPage() {
 
       {/* Step 3: Analysing */}
       {step === 'analysing' && (
-        <div style={cardStyle} className="p-8">
+        <div style={cardStyle} className="p-5 sm:p-6 md:p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
               style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)' }}>

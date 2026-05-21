@@ -76,7 +76,7 @@ export default function StartPage() {
   }, [])
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">
 
       {/* Begrüßung */}
       <div className="mb-8">
@@ -90,7 +90,7 @@ export default function StartPage() {
 
       {/* Großer CTA */}
       <Link href="/playground"
-        className="block mb-10 rounded-3xl p-8 transition-all hover:scale-[1.01]"
+        className="block mb-8 md:mb-10 rounded-3xl p-5 sm:p-6 md:p-8 transition-all hover:scale-[1.01]"
         style={{
           background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
           color: 'white',

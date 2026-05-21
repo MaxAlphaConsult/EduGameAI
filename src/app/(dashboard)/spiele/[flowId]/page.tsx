@@ -56,7 +56,7 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
   const totalAufgaben = module.reduce((sum, m) => sum + (m.aufgaben?.length ?? 0), 0)
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 md:p-6 lg:p-8 max-w-3xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-3 mb-6">
         <Link href="/spiele" className="text-sm" style={{ color: '#7A6A94', textDecoration: 'none' }}>← Lernspiele</Link>

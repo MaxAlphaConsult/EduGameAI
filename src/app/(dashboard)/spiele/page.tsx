@@ -95,9 +95,9 @@ export default function SpielePage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 md:p-6 lg:p-8 max-w-4xl">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 md:mb-8">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Lernspiele</h1>
           <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>

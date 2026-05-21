@@ -269,9 +269,9 @@ export default function ClassesPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 md:p-6 lg:p-8 max-w-5xl">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 md:mb-8">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Klassen</h1>
           <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Schüler-Codes drucken · Lernspiele freigeben · Ergebnisse ansehen</p>
@@ -286,7 +286,7 @@ export default function ClassesPage() {
         <div style={cardStyle} className="p-6 mb-6">
           <h3 className="font-bold text-sm mb-4" style={{ color: '#1F1235' }}>Neue Klasse</h3>
           <form onSubmit={onCreateKlasse} className="flex flex-col gap-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div><label style={labelStyle}>Bezeichnung</label><input name="name" required placeholder="z.B. 9a" style={inputStyle} /></div>
               <div><label style={labelStyle}>Jahrgangsstufe</label><input name="jahrgangsstufe" required placeholder="z.B. 9" style={inputStyle} /></div>
               <div><label style={labelStyle}>Fach</label><input name="fach" required placeholder="z.B. Biologie" style={inputStyle} /></div>
@@ -304,16 +304,16 @@ export default function ClassesPage() {
         </div>
       )}
 
-      <div className="flex gap-6">
-        {/* ── Klassenliste (links) ── */}
-        <div className="w-64 flex-shrink-0">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+        {/* ── Klassenliste (links / oben auf Tablet) ── */}
+        <div className="w-full lg:w-64 lg:flex-shrink-0">
           {klassen.length === 0 ? (
             <div style={{ border: '2px dashed #E9D5FF', borderRadius: 16 }} className="p-8 text-center">
               <span className="text-3xl block mb-2">👥</span>
               <p className="text-xs" style={{ color: '#7A6A94' }}>Noch keine Klassen</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-1 gap-2">
               {klassen.map((k) => {
                 const active = selectedId === k.id
                 return (
@@ -354,7 +354,7 @@ export default function ClassesPage() {
             {editMode ? (
               <div style={cardStyle} className="p-5 mb-4">
                 <form onSubmit={onEditKlasse} className="flex flex-col gap-3">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div><label style={{ ...labelStyle, fontSize: 12 }}>Bezeichnung</label><input name="name" required defaultValue={selected.name} style={inputStyle} /></div>
                     <div><label style={{ ...labelStyle, fontSize: 12 }}>Stufe</label><input name="jahrgangsstufe" required defaultValue={selected.jahrgangsstufe} style={inputStyle} /></div>
                     <div><label style={{ ...labelStyle, fontSize: 12 }}>Fach</label><input name="fach" required defaultValue={selected.fach} style={inputStyle} /></div>
@@ -411,7 +411,7 @@ export default function ClassesPage() {
                       <p className="text-sm font-medium mb-1" style={{ color: '#1F1235' }}>Noch keine Codes generiert</p>
                       <p className="text-xs" style={{ color: '#7A6A94' }}>Codes werden in der Datenbank gespeichert und bleiben dauerhaft erhalten.</p>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                       <span className="text-sm font-semibold" style={{ color: '#1F1235' }}>Anzahl Schüler:</span>
                       <div className="flex items-center rounded-xl overflow-hidden" style={{ border: '1.5px solid #E9D5FF' }}>
                         <button onClick={() => setGenerateAnzahl((n) => Math.max(1, n - 1))}
@@ -428,7 +428,7 @@ export default function ClassesPage() {
                 ) : (
                   <div>
                     {/* QR-Code für die Klasse */}
-                    <div className="rounded-2xl p-5 mb-6 flex items-center gap-5"
+                    <div className="rounded-2xl p-4 sm:p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5"
                       style={{ background: '#F6F1FF', border: '1px solid #E9D5FF' }}>
                       <QrCode value={typeof window !== 'undefined' ? `${window.location.origin}/spielen` : '/spielen'} size={110} />
                       <div className="flex-1 min-w-0">
@@ -462,7 +462,7 @@ export default function ClassesPage() {
                         </button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                       {students.map((s) => (
                         <div key={s.id} className="rounded-lg py-2.5 text-center font-mono text-xs font-bold"
                           style={{ border: '1.5px dashed #C4B5FD', background: '#FAFAFA', color: '#5B21B6' }}>

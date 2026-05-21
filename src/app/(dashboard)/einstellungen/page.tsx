@@ -139,7 +139,7 @@ export default function EinstellungenPage() {
     : email.slice(0, 2).toUpperCase()
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 md:p-6 lg:p-8 max-w-2xl">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Einstellungen</h1>

@@ -67,7 +67,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
   }>).sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 md:p-6 lg:p-8 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/spiele" className="text-sm text-muted-foreground hover:text-foreground">← Lernspiele</Link>
         <span className="text-muted-foreground">/</span>
@@ -160,7 +160,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
               flowId={spiel.game_flow_id ?? null}
             />
           </div>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <dt className="text-muted-foreground">Spieltyp</dt>
             <dd>{spiel.spieltyp_didaktisch || '—'}</dd>
             <dt className="text-muted-foreground">Altersstufe</dt>
