@@ -33,8 +33,8 @@ und auf die Wissensstruktur aus der Materialanalyse abgestimmt.
 **WICHTIG:** Verwende ausschließlich die `game_engine` des ausgewählten Spielvorschlags
 (`ausgewaehlter_vorschlag_rang`) aus dem Spielmapping. Übernimm folgende Felder direkt:
 - `didaktischer_spieltyp` → für `schritt_13_spieltyp_didaktisch`
-- `game_skin_mvp` → für `schritt_12_game_skin.altersstufe`
-- `game_skin_konzept` → für `schritt_12_game_skin.skin_name` und `beschreibung`
+- `game_skin_mvp` → für `schritt_12_game_skin.altersstufe` (Altersstufen-Fallback)
+- `game_skin_konzept` → für `schritt_12_game_skin.skin_name` (**maßgeblich** — exakt einer der bekannten Skin-Strings, kein freier Text) sowie `beschreibung`
 - `typische_fehler_fehlvorstellungen` → als Pflicht-Distraktoren einbauen
 - `feedbacklogik` → für Feedback-Texte je Aufgabe
 - `differenzierung_moeglichkeiten` → als Grundlage für Hilfen
@@ -53,12 +53,16 @@ Alle Spieltemplates und ihre Antwortformat-Werte:
 | Boss Fight | `boss_fight` | Single Choice mit Boss-Mechanik, kein Hint |
 | Sprint-Quiz | `sprint_quiz` | Single Choice mit Timer, kein Hint |
 | Escape-Kette | `escape_room` | Single Choice mit sequentiellem Unlock |
+| Memory Match | `memory` | Begriffspaare in Kartenform aufdecken & matchen |
+| Study Bird | `study_bird` | Flappy-Bird durch grüne Antwort-Gates fliegen |
 
 ---
 
 ## Aufgaben (Schritt 14)
 
 Erstelle exakt **4 Aufgaben**. Nicht mehr, nicht weniger.
+
+**Ausnahme `study_bird`:** Wenn das gewählte Antwortformat `study_bird` ist, erstelle **mindestens 10 Aufgaben** (idealerweise 10–14), da das Spiel ein einziger Endlos-Flug ist und jedes Hindernis eine eigene Frage abbildet. Die Aufgaben müssen alle dieselbe Teilkompetenz/das gleiche Lernziel abdecken (unterschiedliche Facetten/Fragestellungen erlaubt).
 
 ### Anforderungen pro Aufgabe:
 
@@ -124,6 +128,23 @@ Erstelle exakt **4 Aufgaben**. Nicht mehr, nicht weniger.
 - `loesungen`: genau 1 richtige Antwort
 - `distraktoren`: genau 3 Distraktoren
 
+**Für `memory`:**
+- Wie `zuordnung`, aber für Memory-Match aufbereitet
+- `text`: Aufgabenstellung (z.B. "Decke die passenden Paare auf")
+- `loesungen`: Paare im Format `"Begriff → Definition"` (mind. 3, max. 6 Paare). Kürzer ist besser — beide Seiten sollen auf Karten lesbar bleiben (max. ~6 Wörter pro Seite).
+- `distraktoren`: `[]` (nicht nötig)
+- `hilfen`: 1–2 kurze Hinweise (optional)
+- Eignet sich für: Begriff↔Definition, Person↔Werk, Datum↔Ereignis, Formel↔Bedeutung. **Nicht** für prozedurales oder komplexes konzeptuelles Wissen.
+
+**Für `study_bird`:**
+- Wie `single_choice`, aber für ein Flappy-Bird-Spiel aufbereitet — pro Hindernis erscheinen 2 Türen (richtige + 1 Distraktor)
+- **Mindestens 10 Aufgaben pro Modul** (siehe oben) — jede Aufgabe = ein Hindernis im Endlos-Flug
+- `text`: Sehr kurze, präzise Frage (max. 8 Wörter — wird oben als Banner angezeigt, wechselt pro Hindernis)
+- `loesungen`: genau 1 richtige Antwort (max. 3 Wörter — muss auf ein schmales Tor passen)
+- `distraktoren`: genau 1 falsche Antwort (max. 3 Wörter, plausible Verwechslung)
+- `hilfen`: `[]` — im schnellen Flug nicht nutzbar
+- Eignet sich für: Schnelle Faktenchecks, Begriffsabfrage, Wiedererkennen — Drill-Format. **Nicht** für längere Definitionen oder mehrere richtige Antworten.
+
 ### Qualitätsregeln:
 - Alle Inhalte müssen im Originalmaterial belegt sein
 - Distraktoren müssen typische Fehlvorstellungen der Zielgruppe darstellen — keine absurden Falschantworten
@@ -167,7 +188,7 @@ Gib für beide Felder leere Arrays zurück:
     {
       "aufgabe_id": "Q1",
       "text": "<Aufgabentext>",
-      "antwortformat": "single_choice | multiple_choice | lueckentext | zuordnung | reihenfolge | hangman | space_invaders | boss_fight | sprint_quiz | escape_room",
+      "antwortformat": "single_choice | multiple_choice | lueckentext | zuordnung | reihenfolge | hangman | space_invaders | boss_fight | sprint_quiz | escape_room | memory | study_bird",
       "loesungen": ["<richtige Antwort(en) oder Paare oder geordnete Elemente>"],
       "distraktoren": ["<falsche Antwort 1>", "<falsche Antwort 2>", "<falsche Antwort 3>"],
       "hilfen": ["<optionaler Hinweis>"],

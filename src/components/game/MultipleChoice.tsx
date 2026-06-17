@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { cn } from '@/lib/utils'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useGameTheme } from './shared/GameTheme'
+import { ResultBanner } from './shared/FeedbackBurst'
+import { burstKorrekt } from '@/lib/game/feedback'
 
 interface Option {
   text: string
@@ -18,7 +21,10 @@ interface Props {
   onAntwort: (antworten: string[], korrekt: boolean) => void
 }
 
-export function MultipleChoice({ aufgabeId, text, optionen, mehrfach, hilfen, feedback, onAntwort }: Props) {
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
+
+export function MultipleChoice({ text, optionen, mehrfach, hilfen, feedback, onAntwort }: Props) {
+  const theme = useGameTheme()
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [submitted, setSubmitted] = useState(false)
   const [showHilfe, setShowHilfe] = useState(false)
@@ -37,101 +43,199 @@ export function MultipleChoice({ aufgabeId, text, optionen, mehrfach, hilfen, fe
   }
 
   function submit() {
-    if (selected.size === 0) return
+    if (selected.size === 0 || submitted) return
     const antworten = Array.from(selected).map((i) => optionen[i].text)
     const korrekt = optionen.every((o, i) => o.isCorrect === selected.has(i))
     setSubmitted(true)
+    if (korrekt) {
+      burstKorrekt({ farbe: theme.success, intensitaet: mehrfach ? 'normal' : 'klein' })
+    }
     onAntwort(antworten, korrekt)
   }
 
   const korrektNachSubmit = submitted && optionen.every((o, i) => o.isCorrect === selected.has(i))
+  const status: 'idle' | 'korrekt' | 'falsch' = !submitted ? 'idle' : korrektNachSubmit ? 'korrekt' : 'falsch'
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-base font-medium leading-snug">{text}</p>
+    <div className="flex flex-col gap-5">
+      <motion.p
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="text-lg font-bold leading-snug"
+        style={{ color: theme.text }}
+      >
+        {text}
+      </motion.p>
 
       {mehrfach && (
-        <p className="text-xs text-muted-foreground -mt-2">Mehrere Antworten möglich</p>
+        <p className="text-xs -mt-3 font-medium" style={{ color: theme.textMuted }}>
+          Mehrere Antworten möglich
+        </p>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2.5">
         {optionen.map((opt, i) => {
           const isSelected = selected.has(i)
           const showResult = submitted
           const isRight = opt.isCorrect
+
+          let bg = theme.surface
+          let border = theme.border
+          let color = theme.text
+          let glow = 'none'
+
+          if (!submitted) {
+            if (isSelected) {
+              bg = theme.accentSoft
+              border = theme.accent
+              glow = theme.glowAccent
+            }
+          } else {
+            if (isSelected && isRight) {
+              bg = theme.successSoft
+              border = theme.success
+              color = theme.success
+            } else if (isSelected && !isRight) {
+              bg = theme.errorSoft
+              border = theme.error
+              color = theme.error
+            } else if (!isSelected && isRight) {
+              bg = theme.successSoft
+              border = theme.success
+              color = theme.success
+            } else {
+              bg = theme.surfaceAlt
+              border = theme.border
+              color = theme.textMuted
+            }
+          }
+
           return (
-            <button
+            <motion.button
               key={i}
+              type="button"
               onClick={() => toggle(i)}
               disabled={submitted}
-              className={cn(
-                'text-left px-4 py-3 rounded-xl border text-sm transition-all',
-                !submitted && !isSelected && 'border-border hover:border-primary/50 hover:bg-primary/5',
-                !submitted && isSelected && 'border-primary bg-primary/10 font-medium',
-                showResult && isSelected && isRight && 'border-green-500 bg-green-50 text-green-900',
-                showResult && isSelected && !isRight && 'border-red-400 bg-red-50 text-red-900',
-                showResult && !isSelected && isRight && 'border-green-300 bg-green-50/50 text-green-700',
-                showResult && !isSelected && !isRight && 'border-border opacity-50',
-              )}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 * i, duration: 0.25 }}
+              whileHover={!submitted ? { scale: 1.02, x: 4 } : undefined}
+              whileTap={!submitted ? { scale: 0.98 } : undefined}
+              className="group text-left rounded-2xl border-2 transition-colors duration-150 overflow-hidden disabled:cursor-default"
+              style={{
+                background: bg,
+                borderColor: border,
+                color,
+                boxShadow: glow,
+              }}
             >
-              <span className="flex items-center gap-3">
-                <span className={cn(
-                  'w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center text-xs',
-                  mehrfach ? 'rounded' : 'rounded-full',
-                  !submitted && isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-current',
-                  showResult && isSelected && isRight && 'border-green-500 bg-green-500 text-white',
-                  showResult && isSelected && !isRight && 'border-red-400 bg-red-400 text-white',
-                )}>
-                  {showResult && isRight ? '✓' : isSelected && !showResult ? '•' : ''}
+              <div className="flex items-center gap-3 px-4 py-3.5">
+                <span
+                  className="flex items-center justify-center font-extrabold text-sm flex-shrink-0 rounded-xl"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    background:
+                      submitted && isRight
+                        ? theme.success
+                        : submitted && isSelected && !isRight
+                        ? theme.error
+                        : isSelected
+                        ? theme.accent
+                        : 'transparent',
+                    color:
+                      (submitted && isRight) || (submitted && isSelected && !isRight) || isSelected
+                        ? '#fff'
+                        : theme.textMuted,
+                    border: `2px solid ${
+                      submitted && isRight
+                        ? theme.success
+                        : submitted && isSelected && !isRight
+                        ? theme.error
+                        : isSelected
+                        ? theme.accent
+                        : theme.border
+                    }`,
+                  }}
+                >
+                  {submitted && isRight ? '✓' : submitted && isSelected && !isRight ? '✗' : LETTERS[i] ?? '?'}
                 </span>
-                {opt.text}
-              </span>
-            </button>
+                <span className="text-sm font-semibold leading-snug flex-1">{opt.text}</span>
+              </div>
+            </motion.button>
           )
         })}
       </div>
 
-      {/* Feedback nach Abgabe */}
-      {submitted && (
-        <div className={cn(
-          'rounded-xl px-4 py-3 text-sm',
-          korrektNachSubmit ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'
-        )}>
-          {korrektNachSubmit ? feedback.bei_korrekt || 'Richtig!' : feedback.bei_falsch || 'Nicht ganz — die richtigen Antworten sind grün markiert.'}
-        </div>
-      )}
+      <ResultBanner
+        status={status}
+        detail={korrektNachSubmit ? '+10 XP' : undefined}
+        erklaerung={
+          !korrektNachSubmit && submitted
+            ? feedback.bei_falsch || 'Die richtige Antwort ist farblich markiert.'
+            : undefined
+        }
+      />
 
       {/* Hilfe */}
-      {!submitted && hilfen.length > 0 && (
-        <div>
-          {!showHilfe ? (
-            <button onClick={() => setShowHilfe(true)}
-              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2">
-              Hilfe anzeigen
-            </button>
-          ) : (
-            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-              <p className="text-xs font-medium text-blue-700 mb-1">Hilfe {hilfeIndex + 1}/{hilfen.length}</p>
-              <p className="text-sm text-blue-900">{hilfen[hilfeIndex]}</p>
-              {hilfeIndex < hilfen.length - 1 && (
-                <button onClick={() => setHilfeIndex((h) => h + 1)}
-                  className="text-xs text-blue-600 hover:underline mt-2">
-                  Weitere Hilfe
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      <AnimatePresence>
+        {!submitted && hilfen.length > 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {!showHilfe ? (
+              <button
+                type="button"
+                onClick={() => setShowHilfe(true)}
+                className="text-xs font-semibold underline underline-offset-4 hover:opacity-100 opacity-70"
+                style={{ color: theme.textMuted }}
+              >
+                💡 Hilfe anzeigen
+              </button>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="rounded-2xl px-4 py-3 border"
+                style={{
+                  background: theme.accentSoft,
+                  borderColor: theme.border,
+                  color: theme.text,
+                }}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: theme.accent }}>
+                  Hilfe {hilfeIndex + 1}/{hilfen.length}
+                </p>
+                <p className="text-sm leading-relaxed">{hilfen[hilfeIndex]}</p>
+                {hilfeIndex < hilfen.length - 1 && (
+                  <button
+                    onClick={() => setHilfeIndex((h) => h + 1)}
+                    className="text-xs font-semibold mt-2 underline underline-offset-4"
+                    style={{ color: theme.accent }}
+                  >
+                    Weitere Hilfe →
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {!submitted && (
-        <button
+        <motion.button
+          type="button"
           onClick={submit}
           disabled={selected.size === 0}
-          className="self-start bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+          whileHover={selected.size > 0 ? { scale: 1.02 } : undefined}
+          whileTap={selected.size > 0 ? { scale: 0.97 } : undefined}
+          className="self-stretch rounded-2xl py-4 font-bold text-base text-white disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{
+            background: theme.accentGradient,
+            boxShadow: selected.size > 0 ? theme.glowAccent : 'none',
+          }}
         >
-          Antwort abgeben
-        </button>
+          Antwort abgeben →
+        </motion.button>
       )}
     </div>
   )

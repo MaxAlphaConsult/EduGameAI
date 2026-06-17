@@ -80,6 +80,8 @@ Der Lernpfad-Typ bestimmt, aus welchem Phasen-Pool (Kennenlernen / Vertiefen / P
 | P3 | Sprint-Quiz | Schnellabruf / Timed Recall | `sprint_quiz` | Sprint-Bahn | gruen |
 | P4 | Escape-Kette | Verketteter Wissensabruf | `escape_room` | Escape Room | gruen |
 | P5 | Wissens-Gauntlet | Gemischter Abruf aller Teilkompetenzen | `multiple_choice` | Arena | gruen |
+| P6 | Study Bird | Schnelldrill mit Reaktion + Reroll | `study_bird` | Sprint-Bahn | gruen |
+| V7 | Memory Match | Begriff↔Definition-Paare aufdecken | `memory` | Werkzeugkasten | gruen |
 
 **Regeln für PRÜFEN:**
 - Keine Hilfen
@@ -96,10 +98,10 @@ Leite die Phase aus `schritt_9_ampel.spielfunktion` ab:
 | spielfunktion | Spielphase | Vorlagen-Pool |
 |---------------|------------|---------------|
 | `vorbereitung` | KENNENLERNEN | K1–K5 |
-| `uebung` | VERTIEFEN | V1–V6 |
-| `sicherung` | VERTIEFEN | V1–V6 |
-| `diagnose` | PRÜFEN | P1–P5 |
-| `teilueberpruefung` | PRÜFEN | P1–P5 |
+| `uebung` | VERTIEFEN | V1–V7 |
+| `sicherung` | VERTIEFEN | V1–V7 |
+| `diagnose` | PRÜFEN | P1–P6 |
+| `teilueberpruefung` | PRÜFEN | P1–P6 |
 
 ---
 
@@ -172,8 +174,8 @@ Antworte ausschließlich mit dem folgenden JSON-Objekt. Kein Text außerhalb.
       "name": "<Spielname aus den 15 Vorlagen>",
       "didaktischer_spieltyp": "<z.B. Zuordnung Begriff ↔ Definition>",
       "game_engine": "<einer der implementierten Werte: single_choice | multiple_choice | lueckentext | zuordnung | reihenfolge | hangman | space_invaders | boss_fight | sprint_quiz | escape_room>",
-      "game_skin_konzept": "<z.B. Werkstatt-Band — visuelle Beschreibung>",
-      "game_skin_mvp": "<unterstufe | mittelstufe | oberstufe>",
+      "game_skin_konzept": "<exakt einer der erlaubten Skin-Namen: Boss Battle | Sprint-Bahn | Escape Room | Detective Room | Radar-Scanner | Space Invaders | Puzzle-Karte | Entdeckerkarte | Story-Fork | Werkstatt-Band | Flow-Kette | Werkzeugkasten | Fehler-Scanner | Waage | Arena — passend zur ID aus der Tabelle oben>",
+      "game_skin_mvp": "<unterstufe | mittelstufe | oberstufe — Altersstufen-Fallback falls ein Skin nicht passt>",
       "antwortformate": ["<game_engine-Wert>"],
       "passung_begruendung": "<warum diese Engine zur Denkhandlung und Wissensstruktur passt>",
       "mvp_ampel": "<gruen | gelb | rot>",

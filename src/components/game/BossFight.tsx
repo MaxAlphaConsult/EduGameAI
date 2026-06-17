@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { cn } from '@/lib/utils'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useGameTheme } from './shared/GameTheme'
+import { ResultBanner } from './shared/FeedbackBurst'
+import { burstKorrekt } from '@/lib/game/feedback'
 
 interface Option {
   text: string
@@ -11,123 +14,326 @@ interface Option {
 interface Props {
   text: string
   optionen: Option[]
+  /** Sekunden, bis der Boss angreift. Default: 12s */
+  zeitSekunden?: number
   onAntwort: (antworten: string[], korrekt: boolean) => void
 }
 
-const MAX_LEBEN = 3
+const ATTACK_ICONS = ['🗡️', '✨', '⚡', '💥']
+const ATTACK_NAMES = ['Slash', 'Magic', 'Strike', 'Smash']
+const DEFAULT_ZEIT = 12
 
-export function BossFight({ text, optionen, onAntwort }: Props) {
+type Phase = 'kampf' | 'spieler-attack' | 'boss-attack' | 'fertig'
+
+export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwort }: Props) {
+  const theme = useGameTheme()
+  const [phase, setPhase] = useState<Phase>('kampf')
   const [selected, setSelected] = useState<number | null>(null)
-  const [submitted, setSubmitted] = useState(false)
-  const [leben, setLeben] = useState(MAX_LEBEN)
   const [bossHp, setBossHp] = useState(100)
-  const [bossAngegriffen, setBossAngegriffen] = useState(false)
-  const [spielerGetroffen, setSpielerGetroffen] = useState(false)
+  const [spielerHp, setSpielerHp] = useState(3)
+  const [verbleibend, setVerbleibend] = useState(zeitSekunden)
+  const [bossShake, setBossShake] = useState(false)
+  const [spielerShake, setSpielerShake] = useState(false)
+  const [attackEffect, setAttackEffect] = useState<{ icon: string; type: 'spieler' | 'boss' } | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const finishedRef = useRef(false)
 
-  function waehle(i: number) {
-    if (submitted) return
-    setSelected(i)
+  const triggerEnde = useCallback(
+    (gewonnen: boolean, antwort: string) => {
+      if (finishedRef.current) return
+      finishedRef.current = true
+      if (timerRef.current) clearInterval(timerRef.current)
+      setPhase('fertig')
+      if (gewonnen) burstKorrekt({ farbe: theme.success, intensitaet: 'normal' })
+      setTimeout(() => onAntwort([antwort], gewonnen), 1200)
+    },
+    [onAntwort, theme.success],
+  )
+
+  // Timer
+  useEffect(() => {
+    if (phase !== 'kampf') return
+    timerRef.current = setInterval(() => {
+      setVerbleibend((v) => {
+        if (v <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current)
+          // Boss greift an
+          bossAttacke()
+          return 0
+        }
+        return v - 1
+      })
+    }, 1000)
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [phase])
+
+  function bossAttacke() {
+    if (finishedRef.current) return
+    setPhase('boss-attack')
+    setAttackEffect({ icon: '💢', type: 'boss' })
+    setSpielerShake(true)
+    setTimeout(() => setSpielerShake(false), 400)
+    setSpielerHp((hp) => {
+      const neueHp = Math.max(0, hp - 1)
+      if (neueHp <= 0) {
+        triggerEnde(false, '⏱️ Zeit abgelaufen')
+      } else {
+        // Eine weitere Chance — neuer Timer
+        setTimeout(() => {
+          setAttackEffect(null)
+          setVerbleibend(zeitSekunden)
+          setPhase('kampf')
+        }, 700)
+      }
+      return neueHp
+    })
   }
 
-  function submit() {
-    if (selected === null || submitted) return
-    setSubmitted(true)
-    const korrekt = optionen[selected].isCorrect
+  function angreifen(i: number) {
+    if (phase !== 'kampf' || finishedRef.current) return
+    if (timerRef.current) clearInterval(timerRef.current)
+    setSelected(i)
+    const korrekt = optionen[i].isCorrect
+    setPhase('spieler-attack')
+    setAttackEffect({ icon: ATTACK_ICONS[i % ATTACK_ICONS.length], type: 'spieler' })
 
     if (korrekt) {
-      setBossAngegriffen(true)
-      setBossHp((hp) => Math.max(0, hp - 25))
-      setTimeout(() => setBossAngegriffen(false), 500)
+      // Boss-Treffer
+      setBossShake(true)
+      setTimeout(() => setBossShake(false), 400)
+      const schaden = 34 + Math.floor(Math.random() * 12)
+      setBossHp((hp) => {
+        const neueHp = Math.max(0, hp - schaden)
+        if (neueHp <= 0) {
+          setTimeout(() => triggerEnde(true, optionen[i].text), 600)
+        } else {
+          // Nächste Runde — falls Aufgabe-Pattern später Multi-Round zulässt
+          // Hier: erste richtige Antwort beendet die Aufgabe
+          setTimeout(() => triggerEnde(true, optionen[i].text), 600)
+        }
+        return neueHp
+      })
     } else {
-      setSpielerGetroffen(true)
-      setLeben((l) => Math.max(0, l - 1))
-      setTimeout(() => setSpielerGetroffen(false), 500)
+      // Spieler verfehlt → Boss greift sofort an
+      setTimeout(() => {
+        setAttackEffect(null)
+        setPhase('boss-attack')
+        setSpielerShake(true)
+        setTimeout(() => setSpielerShake(false), 400)
+        setSpielerHp((hp) => {
+          const neueHp = Math.max(0, hp - 1)
+          // Falsche Antwort = Aufgabe gilt als falsch beantwortet, Spiel endet
+          setTimeout(() => triggerEnde(false, optionen[i].text), 600)
+          return neueHp
+        })
+      }, 500)
     }
-
-    setTimeout(() => {
-      onAntwort([optionen[selected].text], korrekt)
-    }, 800)
   }
 
+  const prozentZeit = (verbleibend / zeitSekunden) * 100
+  const status: 'idle' | 'korrekt' | 'falsch' =
+    phase !== 'fertig' ? 'idle' : bossHp <= 0 || (selected !== null && optionen[selected].isCorrect) ? 'korrekt' : 'falsch'
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* Boss */}
-      <div className={cn(
-        'flex flex-col items-center gap-2 transition-transform duration-150',
-        bossAngegriffen && 'translate-x-2 opacity-60'
-      )}>
-        <div className="text-6xl select-none">👾</div>
-        <div className="w-full max-w-[200px] h-2 bg-red-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-red-500 rounded-full transition-all duration-500"
-            style={{ width: `${bossHp}%` }}
+      <motion.div
+        animate={bossShake ? { x: [0, -12, 12, -8, 8, 0], rotate: [0, -3, 3, 0] } : {}}
+        transition={{ duration: 0.4 }}
+        className="flex flex-col items-center gap-2"
+      >
+        <div className="relative">
+          <motion.div
+            animate={phase === 'kampf' ? { y: [0, -4, 0] } : {}}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            className="text-7xl"
+            style={{ filter: `drop-shadow(0 6px 12px ${theme.error}60)` }}
+          >
+            {bossHp > 50 ? '👹' : bossHp > 0 ? '😡' : '💀'}
+          </motion.div>
+          {/* Attack Effect on Boss */}
+          <AnimatePresence>
+            {attackEffect?.type === 'spieler' && (
+              <motion.div
+                initial={{ scale: 0, rotate: -45, opacity: 0 }}
+                animate={{ scale: [0, 1.6, 1.2], rotate: 0, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                className="absolute top-0 left-1/2 -translate-x-1/2 text-5xl pointer-events-none"
+                style={{ filter: 'drop-shadow(0 0 8px gold)' }}
+              >
+                {attackEffect.icon}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        {/* Boss HP */}
+        <div className="w-full max-w-[260px]">
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-1">
+            <span style={{ color: theme.error }}>Boss</span>
+            <span style={{ color: theme.textMuted }} className="tabular-nums">
+              {bossHp}/100
+            </span>
+          </div>
+          <div className="h-3 rounded-full overflow-hidden" style={{ background: theme.surfaceAlt, border: `1px solid ${theme.border}` }}>
+            <motion.div
+              animate={{ width: `${bossHp}%` }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              className="h-full"
+              style={{ background: `linear-gradient(90deg, ${theme.error}, ${theme.warning})` }}
+            />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Boss-Charge-Timer */}
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+          <span style={{ color: theme.warning }}>⏳ Boss lädt Angriff …</span>
+          <span style={{ color: verbleibend <= 3 ? theme.error : theme.textMuted }} className="tabular-nums">
+            {verbleibend}s
+          </span>
+        </div>
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: theme.surfaceAlt }}>
+          <motion.div
+            animate={{ width: `${100 - prozentZeit}%` }}
+            transition={{ duration: 1, ease: 'linear' }}
+            className="h-full"
+            style={{ background: `linear-gradient(90deg, ${theme.warning}, ${theme.error})` }}
           />
         </div>
-        <span className="text-xs text-muted-foreground">Boss HP: {bossHp}%</span>
       </div>
 
       {/* Frage */}
-      <div className={cn(
-        'px-4 py-3 rounded-xl bg-muted/50 text-sm font-medium text-center transition-transform duration-150',
-        spielerGetroffen && 'translate-x-[-4px] bg-red-50'
-      )}>
+      <div
+        className="rounded-2xl px-4 py-3 text-center text-sm font-bold leading-snug"
+        style={{
+          background: theme.accentSoft,
+          border: `1px solid ${theme.border}`,
+          color: theme.text,
+        }}
+      >
         {text}
       </div>
 
-      {/* Antwortoptionen */}
+      {/* Attack Cards */}
       <div className="grid grid-cols-1 gap-2">
         {optionen.map((opt, i) => {
           const isSelected = selected === i
-          const showResult = submitted && isSelected
+          const showResult = phase !== 'kampf' && isSelected
+          const isRight = opt.isCorrect
+
+          let bg = theme.surface
+          let border = theme.border
+          let color = theme.text
+          let glow = 'none'
+
+          if (phase !== 'kampf') {
+            if (showResult && isRight) {
+              bg = theme.successSoft
+              border = theme.success
+              color = theme.success
+            } else if (showResult && !isRight) {
+              bg = theme.errorSoft
+              border = theme.error
+              color = theme.error
+            } else if (!isSelected && isRight) {
+              bg = theme.successSoft
+              border = theme.success
+              color = theme.success
+            } else if (!isSelected) {
+              bg = theme.surfaceAlt
+              color = theme.textMuted
+            }
+          }
 
           return (
-            <button
+            <motion.button
               key={i}
-              onClick={() => waehle(i)}
-              disabled={submitted}
-              className={cn(
-                'w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all',
-                !submitted && 'hover:border-purple-400 hover:bg-purple-50',
-                isSelected && !submitted && 'border-purple-500 bg-purple-50',
-                showResult && opt.isCorrect && 'border-green-500 bg-green-50 text-green-800',
-                showResult && !opt.isCorrect && 'border-red-400 bg-red-50 text-red-800',
-                submitted && !isSelected && 'opacity-40 cursor-default',
-              )}
+              type="button"
+              onClick={() => angreifen(i)}
+              disabled={phase !== 'kampf'}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 * i, duration: 0.25 }}
+              whileHover={phase === 'kampf' ? { scale: 1.02, x: 4 } : undefined}
+              whileTap={phase === 'kampf' ? { scale: 0.97 } : undefined}
+              className="rounded-2xl border-2 px-3 py-3 flex items-center gap-3 text-left disabled:cursor-default"
+              style={{ background: bg, borderColor: border, color, boxShadow: glow }}
             >
-              {opt.text}
-            </button>
+              <span
+                className="flex items-center justify-center text-lg flex-shrink-0 rounded-xl"
+                style={{
+                  width: 38,
+                  height: 38,
+                  background: theme.accentGradient,
+                  border: `2px solid ${theme.border}`,
+                  color: '#fff',
+                }}
+              >
+                {ATTACK_ICONS[i % ATTACK_ICONS.length]}
+              </span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: theme.textMuted }}>
+                  {ATTACK_NAMES[i % ATTACK_NAMES.length]}
+                </span>
+                <span className="text-sm font-semibold leading-snug">{opt.text}</span>
+              </div>
+            </motion.button>
           )
         })}
       </div>
 
-      {/* Spielerleben */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Deine Leben:</span>
-        <div className="flex gap-1">
-          {Array.from({ length: MAX_LEBEN }).map((_, i) => (
-            <span key={i} className={cn('text-base', i < leben ? 'opacity-100' : 'opacity-20')}>❤️</span>
-          ))}
+      {/* Spieler-HP */}
+      <motion.div
+        animate={spielerShake ? { x: [0, -8, 8, -4, 4, 0] } : {}}
+        transition={{ duration: 0.4 }}
+        className="flex items-center justify-between rounded-2xl px-3 py-2 border"
+        style={{ background: theme.surface, borderColor: theme.border }}
+      >
+        <span className="text-lg">🧙</span>
+        <div className="flex flex-col flex-1 mx-3">
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: theme.textMuted }}>
+            Du
+          </span>
+          <div className="flex gap-1">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <motion.span
+                key={i}
+                animate={{ scale: i < spielerHp ? 1 : 0.7, opacity: i < spielerHp ? 1 : 0.3 }}
+                className="text-base leading-none"
+              >
+                {i < spielerHp ? '❤️' : '🤍'}
+              </motion.span>
+            ))}
+          </div>
         </div>
-      </div>
+        <AnimatePresence>
+          {attackEffect?.type === 'boss' && (
+            <motion.span
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [0, 1.5, 1.2], opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="text-2xl"
+            >
+              💢
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-      {!submitted && selected !== null && (
-        <button
-          onClick={submit}
-          className="w-full py-3 rounded-xl font-semibold text-sm text-white"
-          style={{ background: 'linear-gradient(135deg, #DC2626, #7C3AED)' }}
-        >
-          ⚔️ Angreifen
-        </button>
-      )}
-
-      {submitted && (
-        <div className={cn(
-          'text-center text-sm font-semibold py-2 rounded-xl',
-          optionen[selected!]?.isCorrect ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'
-        )}>
-          {optionen[selected!]?.isCorrect ? '⚔️ Treffer! Der Boss ist geschwächt.' : '💥 Boss kontert! Aufgepasst.'}
-        </div>
-      )}
+      <ResultBanner
+        status={status}
+        detail={status === 'korrekt' ? '⚔️ Treffer!' : status === 'falsch' ? 'Boss kontert' : undefined}
+        erklaerung={
+          status === 'falsch'
+            ? `Die richtige Attacke wäre: ${optionen.find((o) => o.isCorrect)?.text ?? ''}`
+            : undefined
+        }
+      />
     </div>
   )
 }

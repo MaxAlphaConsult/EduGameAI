@@ -63,6 +63,8 @@ const SPIELFORMATE = [
   { id: 'boss_fight',      label: 'Boss Fight',      emoji: '⚔️',  dauer: '5–8 Min',  zweck: 'Prüfen',    zweckFarbe: '#7C3AED' },
   { id: 'sprint_quiz',     label: 'Sprint Quiz',     emoji: '🏃',  dauer: '3–5 Min',  zweck: 'Prüfen',    zweckFarbe: '#7C3AED' },
   { id: 'escape_room',     label: 'Escape Room',     emoji: '🔐',  dauer: '8–12 Min', zweck: 'Festigen',  zweckFarbe: '#D97706' },
+  { id: 'memory',          label: 'Memory Match',    emoji: '🃏',  dauer: '3–5 Min',  zweck: 'Festigen',  zweckFarbe: '#D97706' },
+  { id: 'study_bird',      label: 'Study Bird',      emoji: '🐦',  dauer: '2–4 Min',  zweck: 'Prüfen',    zweckFarbe: '#7C3AED' },
 ]
 
 const ALLE_FORMAT_IDS = SPIELFORMATE.map(f => f.id)
