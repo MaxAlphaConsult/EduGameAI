@@ -1,10 +1,18 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { GameEngine } from '@/components/game/GameEngine'
+import { BausteinView } from '@/components/game/BausteinView'
+import type { Aufgabe, BausteinTyp, BausteinInhalt } from '@/types'
 import Link from 'next/link'
 
-type Phase = 'lade-session' | 'lade-modul' | 'spielt' | 'uebergang' | 'fertig' | 'error'
+type Phase = 'lade-session' | 'lade-modul' | 'spielt' | 'uebergang' | 'fertig' | 'bonus' | 'error'
+
+interface BonusSpiel {
+  gameId: string
+  titel: string
+  gameSkin: string
+  aufgaben: unknown[]
+}
 
 interface AktuellesModul {
   moduleSessionId: string
@@ -21,6 +29,8 @@ interface ModulInhalt {
   titel: string
   gameSkin: string
   aufgaben: unknown[]
+  bausteinTyp: BausteinTyp
+  bausteinInhalt: BausteinInhalt | null
   niveau: string
   position: number
 }
@@ -48,6 +58,8 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
   const [letztesErgebnis, setLetztesErgebnis] = useState<ModulErgebnis | null>(null)
   const [gesamtKorrekt, setGesamtKorrekt] = useState(0)
   const [gesamtAufgaben, setGesamtAufgaben] = useState(0)
+  const [bonusSpiele, setBonusSpiele] = useState<BonusSpiel[] | null>(null)
+  const [bonusAktuell, setBonusAktuell] = useState<BonusSpiel | null>(null)
 
   // Auflösen des dynamischen Param
   useEffect(() => { params.then(({ sessionId }) => setSessionId(sessionId)) }, [params])
@@ -104,6 +116,8 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
           titel: data.titel,
           gameSkin: data.gameSkin,
           aufgaben: data.aufgaben,
+          bausteinTyp: (data.bausteinTyp ?? 'spiel') as BausteinTyp,
+          bausteinInhalt: (data.bausteinInhalt ?? null) as BausteinInhalt | null,
           niveau: data.niveau,
           position: data.position,
         })
@@ -156,6 +170,22 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
     }
   }, [flowState, modulInhalt])
 
+  // Nach Abschluss: optionale Bonus-Spiele zum Thema laden (freiwillig).
+  useEffect(() => {
+    if (phase !== 'fertig' || !flowState || bonusSpiele !== null) return
+    let abort = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/student/bonus/${flowState.studentSessionId}`, { cache: 'no-store' })
+        const data = res.ok ? await res.json() : { spiele: [] }
+        if (!abort) setBonusSpiele(data.spiele ?? [])
+      } catch {
+        if (!abort) setBonusSpiele([])
+      }
+    })()
+    return () => { abort = true }
+  }, [phase, flowState, bonusSpiele])
+
   if (!sessionId || phase === 'lade-session') {
     return <CenterMessage emoji="🚀" text="Lade Spiel …" />
   }
@@ -181,7 +211,7 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
         <div>
           <h1 className="text-3xl font-black mb-1">Geschafft!</h1>
           <p className="text-base text-muted-foreground">
-            Du hast alle {flowState?.modul_anzahl ?? 0} Spiele dieser Lernreise abgeschlossen.
+            Du hast alle {flowState?.modul_anzahl ?? 0} Schritte dieser Lernreise abgeschlossen.
           </p>
         </div>
         <div className="rounded-2xl border bg-violet-50 border-violet-200 px-6 py-4">
@@ -192,6 +222,43 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
         <p className="text-sm text-muted-foreground max-w-md">
           Deine Lehrkraft kann jetzt sehen, was schon gut sitzt und wo es noch Übung braucht.
         </p>
+        {bonusSpiele && bonusSpiele.length > 0 && (
+          <div className="w-full max-w-md rounded-2xl border border-violet-200 bg-violet-50 px-5 py-4 text-left">
+            <p className="text-sm font-bold text-violet-900 mb-1">🎮 Lust auf ein paar Spiele zum Thema?</p>
+            <p className="text-xs text-violet-700 mb-3">Ganz freiwillig — zählt nicht in deine Auswertung.</p>
+            <div className="flex flex-col gap-2">
+              {bonusSpiele.map((s) => (
+                <button key={s.gameId} onClick={() => { setBonusAktuell(s); setPhase('bonus') }}
+                  className="text-left rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-medium text-violet-900 hover:border-violet-400">
+                  ▶ {s.titel}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (phase === 'bonus' && bonusAktuell) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="border-b bg-muted/30 px-4 py-3 flex items-center justify-between">
+          <span className="text-xs font-semibold text-violet-700">🎮 Bonus-Spiel (freiwillig)</span>
+          <button onClick={() => { setBonusAktuell(null); setPhase('fertig') }}
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground">✕ Beenden</button>
+        </div>
+        <BausteinView
+          moduleSessionId="bonus"
+          titel={bonusAktuell.titel}
+          gameSkin={bonusAktuell.gameSkin}
+          niveau="standard"
+          aufgaben={bonusAktuell.aufgaben as Aufgabe[]}
+          bausteinTyp="spiel"
+          bausteinInhalt={null}
+          preview
+          onModulFertig={() => { setBonusAktuell(null); setPhase('fertig') }}
+        />
       </div>
     )
   }
@@ -221,11 +288,14 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
           gesamt={flowState.modul_anzahl}
           titel={modulInhalt.titel}
         />
-        <GameEngine
+        <BausteinView
           moduleSessionId={modulInhalt.moduleSessionId}
-          aufgaben={modulInhalt.aufgaben as Parameters<typeof GameEngine>[0]['aufgaben']}
-          niveau={modulInhalt.niveau}
+          titel={modulInhalt.titel}
           gameSkin={modulInhalt.gameSkin}
+          niveau={modulInhalt.niveau}
+          aufgaben={modulInhalt.aufgaben as Aufgabe[]}
+          bausteinTyp={modulInhalt.bausteinTyp}
+          bausteinInhalt={modulInhalt.bausteinInhalt}
           onModulFertig={handleModulFertig}
         />
       </div>
@@ -251,7 +321,7 @@ function FlowProgress({ position, gesamt, titel }: { position: number; gesamt: n
       <div className="max-w-xl mx-auto">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-semibold text-muted-foreground">
-            Spiel {position + 1} von {gesamt}
+            Schritt {position + 1} von {gesamt}
           </span>
           <span className="text-xs text-muted-foreground truncate ml-3 max-w-[60%]" title={titel}>
             {titel}
@@ -289,7 +359,7 @@ function ModulUebergang({
       <div className="text-5xl">{emoji}</div>
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-          Spiel {position} von {gesamt} geschafft
+          Schritt {position} von {gesamt} geschafft
         </p>
         <h2 className="text-2xl font-bold">{ergebnis.korrekt} von {ergebnis.gesamt} richtig</h2>
         <p className="text-sm text-muted-foreground mt-1">{message}</p>
@@ -325,7 +395,7 @@ function ModulUebergang({
         className="w-full max-w-md py-3.5 rounded-xl font-bold text-base text-white transition-opacity"
         style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)' }}
       >
-        {istLetztes ? 'Lernreise abschließen →' : 'Weiter zum nächsten Spiel →'}
+        {istLetztes ? 'Lernreise abschließen →' : 'Weiter →'}
       </button>
     </div>
   )

@@ -2,17 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { GameEngine } from '@/components/game/GameEngine'
-
-interface Aufgabe {
-  aufgabe_id: string
-  text: string
-  antwortformat: string
-  loesungen: string[]
-  distraktoren?: string[]
-  hilfen?: string[]
-  teilkompetenz?: string
-}
+import { BausteinView } from '@/components/game/BausteinView'
+import type { Aufgabe, BausteinTyp, BausteinInhalt } from '@/types'
 
 interface ModulErgebnis {
   korrekt: number
@@ -26,6 +17,8 @@ export interface PreviewModul {
   titel: string
   gameSkin: string
   aufgaben: Aufgabe[]
+  bausteinTyp: BausteinTyp
+  bausteinInhalt: BausteinInhalt | null
 }
 
 interface Props {
@@ -119,15 +112,19 @@ export function FlowPreviewClient({ flowId, flowTitel, module }: Props) {
           </div>
 
           <div className="max-w-4xl mx-auto p-6">
-            <GameEngine
-              key={`${aktuellesModul.id}-${runKey}`}
-              moduleSessionId="preview"
-              aufgaben={aktuellesModul.aufgaben}
-              niveau="standard"
-              gameSkin={aktuellesModul.gameSkin}
-              onModulFertig={handleModulFertig}
-              preview
-            />
+            <div key={`${aktuellesModul.id}-${runKey}`}>
+              <BausteinView
+                moduleSessionId="preview"
+                titel={aktuellesModul.titel}
+                gameSkin={aktuellesModul.gameSkin}
+                niveau="standard"
+                aufgaben={aktuellesModul.aufgaben}
+                bausteinTyp={aktuellesModul.bausteinTyp}
+                bausteinInhalt={aktuellesModul.bausteinInhalt}
+                onModulFertig={handleModulFertig}
+                preview
+              />
+            </div>
           </div>
         </>
       )}

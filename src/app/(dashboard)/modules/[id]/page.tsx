@@ -2,12 +2,34 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { AufgabenMitQuelle } from '@/components/playground/AufgabenMitQuelle'
 import { ModulInfoEdit } from '@/components/modules/ModulInfoEdit'
+import { BausteinInhaltEdit } from '@/components/modules/BausteinInhaltEdit'
 import Link from 'next/link'
+import { getThemeForSkin } from '@/lib/game/theme'
+import type { BausteinTyp, BausteinInhalt } from '@/types'
+
+const BAUSTEIN_LABEL: Record<string, string> = {
+  einstieg: 'Einstieg',
+  vorwissen_check: 'Vorwissen-Check',
+  input: 'Input / Erklärung',
+  erarbeitung: 'Erarbeitung',
+  spiel: 'Spiel',
+  sicherung: 'Sicherung',
+  transfer: 'Transfer',
+  post_check: 'Abschluss-Check',
+}
 
 const SKIN_LABEL: Record<string, string> = {
   unterstufe: 'Unterstufe (Kl. 1–6)',
   mittelstufe: 'Mittelstufe (Kl. 7–10)',
   oberstufe: 'Oberstufe (Kl. 11–13)',
+}
+
+function skinLabel(skin: string | null | undefined): string {
+  if (!skin) return '—'
+  if (SKIN_LABEL[skin]) return SKIN_LABEL[skin]
+  // Fallback: Theme-Label nutzen (mit Emoji), oder den rohen Skin-Namen
+  const theme = getThemeForSkin(skin)
+  return `${theme.label}  ·  ${skin}`
 }
 
 interface AnalyseRow { material_id: string }
@@ -161,10 +183,12 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
             />
           </div>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <dt className="text-muted-foreground">Baustein</dt>
+            <dd>{BAUSTEIN_LABEL[spiel.baustein_typ ?? 'spiel'] ?? 'Spiel'}</dd>
             <dt className="text-muted-foreground">Spieltyp</dt>
             <dd>{spiel.spieltyp_didaktisch || '—'}</dd>
             <dt className="text-muted-foreground">Altersstufe</dt>
-            <dd>{SKIN_LABEL[spiel.game_skin] ?? spiel.game_skin}</dd>
+            <dd>{skinLabel(spiel.game_skin)}</dd>
             <dt className="text-muted-foreground">Aufgaben</dt>
             <dd>{aufgaben.length}</dd>
             <dt className="text-muted-foreground">Status</dt>
@@ -180,6 +204,15 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
             </div>
           )}
         </div>
+
+        {/* Erklär-Inhalt bearbeiten — nur für Nicht-Spiel-Bausteine */}
+        {spiel.baustein_typ && spiel.baustein_typ !== 'spiel' && (
+          <BausteinInhaltEdit
+            spielId={id}
+            bausteinTyp={spiel.baustein_typ as BausteinTyp}
+            bausteinInhalt={(spiel.baustein_inhalt ?? null) as BausteinInhalt | null}
+          />
+        )}
 
         {/* Aufgaben mit Sourcemapping + "Neu generieren" */}
         <AufgabenMitQuelle

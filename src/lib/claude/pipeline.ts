@@ -14,6 +14,8 @@ import {
   EinzelAufgabeSchema,
   FlowCheckOutputSchema,
   FlowImproveOutputSchema,
+  BausteinSequenzOutputSchema,
+  InputBausteinOutputSchema,
   type AnalyseOutput,
   type LernzielOutput,
   type LernpfadOutput,
@@ -25,6 +27,8 @@ import {
   type EinzelAufgabe,
   type FlowCheckOutput,
   type FlowImproveOutput,
+  type BausteinSequenzOutput,
+  type InputBausteinOutput,
 } from '../schemas/pipeline'
 
 let _client: Anthropic | null = null
@@ -188,6 +192,63 @@ export async function determineLernpfad(input: {
     }),
     LernpfadOutputSchema,
     16384
+  )
+}
+
+// --- LernFlow: Bausteinsequenz planen (Prompt 11) ------------
+//
+// Leitet aus dem Lernpfad-Archetyp die konkrete, didaktisch geordnete
+// Baustein-Sequenz ab. 'spiel' ist nur ein Typ unter mehreren und wird nur
+// nach Passung gewählt.
+export async function planBausteinSequenz(input: {
+  analyse: AnalyseOutput
+  lernziel: LernzielOutput
+  lernpfad: LernpfadOutput
+  kontext: { fach: string; jahrgangsstufe: string; schulform: string; zeitrahmenMinuten: number }
+}): Promise<BausteinSequenzOutput> {
+  return callClaude(
+    'Bausteinsequenz planen (LernFlow)',
+    loadPrompt('11_baustein_sequenz.md'),
+    JSON.stringify({
+      analyse: input.analyse,
+      lernziel: input.lernziel,
+      lernpfad: lernpfadKurzfassung(input.lernpfad),
+      kontext: {
+        fach: input.kontext.fach,
+        jahrgangsstufe: input.kontext.jahrgangsstufe,
+        schulform: input.kontext.schulform,
+        zeitrahmen_minuten: input.kontext.zeitrahmenMinuten,
+      },
+    }),
+    BausteinSequenzOutputSchema
+  )
+}
+
+// --- LernFlow: Input-/Erklär-Baustein generieren (Prompt 12) -
+//
+// Erzeugt den Inhalt EINES Nicht-Spiel-Bausteins: Erklärtext (Markdown) +
+// Kernaussagen + genau eine Mini-Verständnisfrage, streng aus dem Material.
+export async function generateInputBaustein(input: {
+  analyse: AnalyseOutput
+  lernziel: LernzielOutput
+  baustein: {
+    baustein_typ: string
+    titel: string
+    thema: string
+    didaktische_funktion: string
+  }
+  kontext: { fach: string; jahrgangsstufe: string; schulform: string }
+}): Promise<InputBausteinOutput> {
+  return callClaude(
+    'Input-Baustein generieren (LernFlow)',
+    loadPrompt('12_input_baustein.md'),
+    JSON.stringify({
+      analyse: input.analyse,
+      lernziel: input.lernziel,
+      baustein: input.baustein,
+      kontext: input.kontext,
+    }),
+    InputBausteinOutputSchema
   )
 }
 
@@ -359,8 +420,10 @@ export async function flowLehrkraftCheck(input: {
     modul_id: string
     modul_position: number
     titel: string
+    baustein_typ?: string
     spieltyp_didaktisch: string | null
     game_engine: string | null
+    erklaer_inhalt?: string | null
     aufgaben: unknown
   }>
 }): Promise<FlowCheckOutput> {

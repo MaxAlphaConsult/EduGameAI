@@ -14,6 +14,23 @@ Module isoliert. Module bauen aufeinander auf bzw. ergänzen sich:
 * Markiere Wissen nur dann als „fehlend", wenn es in **keinem** Modul des
   Flows vorkommt und für das Lernziel nötig ist.
 
+**Modul-Typen (`baustein_typ`):** Ein Flow ist eine didaktische Lernsequenz aus
+typisierten Bausteinen, nicht nur aus Spielen:
+
+* `einstieg` — Hinführung / Leitfrage
+* `vorwissen_check` — kurze, unbenotete Diagnose des Vorwissens
+* `input` / `erarbeitung` — **vermitteln** neues Wissen (Inhalt steht in
+  `erklaer_inhalt`, die `aufgaben` enthalten nur eine kurze Verständnisfrage)
+* `spiel` — Üben/Festigen durch Wiederholung (Aufgaben in `aufgaben`)
+* `sicherung` — zusammenfassen/festigen
+* `transfer` — Übertragung auf Neues
+* `post_check` — Abschluss-Check
+
+Werte `input`/`erarbeitung`-Bausteine als **Wissensvermittlung** (nutze
+`erklaer_inhalt`), nicht als „leere Module ohne Aufgaben". Ein Vorwissens- oder
+Abschluss-Check ist **gewollt** und keine Lücke. Die Rolle eines Moduls richtet
+sich nach seinem `baustein_typ`.
+
 ---
 
 ## Deine Aufgabe

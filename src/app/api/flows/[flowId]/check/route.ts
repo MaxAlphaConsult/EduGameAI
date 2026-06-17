@@ -75,7 +75,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Module laden
   const { data: games, error: gamesErr } = await supabase
     .from('games')
-    .select('id, titel, spieltyp_didaktisch, game_engine, reihenfolge, aufgaben')
+    .select('id, titel, spieltyp_didaktisch, game_engine, reihenfolge, aufgaben, baustein_typ, baustein_inhalt')
     .eq('game_flow_id', flowId)
     .eq('lehrer_id', user.id)
 
@@ -84,14 +84,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const sortiert = [...games].sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
-  const moduleInput = sortiert.map((g, i) => ({
-    modul_id: g.id,
-    modul_position: g.reihenfolge ?? i + 1,
-    titel: g.titel ?? `Modul ${i + 1}`,
-    spieltyp_didaktisch: g.spieltyp_didaktisch ?? null,
-    game_engine: g.game_engine ?? null,
-    aufgaben: g.aufgaben ?? [],
-  }))
+  const moduleInput = sortiert.map((g, i) => {
+    const inhalt = g.baustein_inhalt as { markdown?: string } | null
+    return {
+      modul_id: g.id,
+      modul_position: g.reihenfolge ?? i + 1,
+      titel: g.titel ?? `Modul ${i + 1}`,
+      baustein_typ: g.baustein_typ ?? 'spiel',
+      spieltyp_didaktisch: g.spieltyp_didaktisch ?? null,
+      game_engine: g.game_engine ?? null,
+      // Bei Erklär-/Input-Bausteinen den Inhalt mitgeben (statt Aufgaben),
+      // damit der Check sieht, welches Wissen hier VERMITTELT wird.
+      erklaer_inhalt: inhalt?.markdown ?? null,
+      aufgaben: g.aufgaben ?? [],
+    }
+  })
 
   // Status auf pending
   await supabase

@@ -55,23 +55,34 @@ export async function POST(
     return NextResponse.json({ error: 'Flow enthält keine Module' }, { status: 400 })
   }
 
-  // Defensive Re-Sortierung: falls jemand die Reihenfolge manuell zerschossen
-  // hat, oder noch nie sortiert wurde — wir setzen sie hier nochmal sauber.
-  const sortierbar = games.map((g) => {
-    const analyse = Array.isArray(g.analyses) ? g.analyses[0] : g.analyses
-    const aufgaben = (g.aufgaben ?? []) as { komplexitaetsstufe?: number }[]
-    const stufen = aufgaben.map((a) => a.komplexitaetsstufe).filter((s): s is number => typeof s === 'number')
-    const avgStufe = stufen.length > 0
-      ? stufen.reduce((s, v) => s + v, 0) / stufen.length
-      : analyse?.komplexitaetsstufe ?? 4
-    return {
-      game_id: g.id as string,
-      komplexitaetsstufe: avgStufe,
-      denkhandlungen: analyse?.denkhandlungen as string[] | undefined,
-      game_engine: g.game_engine as string | null,
-    }
-  })
-  const sortiert = sortiereModule(sortierbar)
+  // Reihenfolge bestimmen. Im LernFlow ist die `reihenfolge` bei der Generierung
+  // didaktisch geplant (Sequenzposition) — die respektieren wir und sortieren
+  // NICHT nach Komplexität um (sonst würde z.B. der post_check nach vorne rutschen).
+  // Nur als Fallback für Alt-Flows ohne gesetzte Reihenfolge sortieren wir nach
+  // Komplexität.
+  const alleHabenReihenfolge = games.every((g) => typeof g.reihenfolge === 'number')
+  let sortiert: { game_id: string }[]
+  if (alleHabenReihenfolge) {
+    sortiert = [...games]
+      .sort((a, b) => (a.reihenfolge as number) - (b.reihenfolge as number))
+      .map((g) => ({ game_id: g.id as string }))
+  } else {
+    const sortierbar = games.map((g) => {
+      const analyse = Array.isArray(g.analyses) ? g.analyses[0] : g.analyses
+      const aufgaben = (g.aufgaben ?? []) as { komplexitaetsstufe?: number }[]
+      const stufen = aufgaben.map((a) => a.komplexitaetsstufe).filter((s): s is number => typeof s === 'number')
+      const avgStufe = stufen.length > 0
+        ? stufen.reduce((s, v) => s + v, 0) / stufen.length
+        : analyse?.komplexitaetsstufe ?? 4
+      return {
+        game_id: g.id as string,
+        komplexitaetsstufe: avgStufe,
+        denkhandlungen: analyse?.denkhandlungen as string[] | undefined,
+        game_engine: g.game_engine as string | null,
+      }
+    })
+    sortiert = sortiereModule(sortierbar)
+  }
 
   // Reihenfolge + Status sequenziell schreiben (RLS-sicher)
   for (let i = 0; i < sortiert.length; i++) {

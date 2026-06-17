@@ -13,7 +13,7 @@ export async function GET(
 
   const { data: ms } = await supabase
     .from('module_sessions')
-    .select('id, game_id, position, niveau, status, games(id, titel, game_skin, aufgaben, status)')
+    .select('id, game_id, position, niveau, status, games(id, titel, game_skin, aufgaben, status, baustein_typ, baustein_inhalt)')
     .eq('id', moduleSessionId)
     .maybeSingle()
 
@@ -30,6 +30,8 @@ export async function GET(
     titel: game.titel,
     gameSkin: game.game_skin,
     aufgaben: game.aufgaben ?? [],
+    bausteinTyp: game.baustein_typ ?? 'spiel',
+    bausteinInhalt: game.baustein_inhalt ?? null,
     niveau: ms.niveau,
     position: ms.position,
     status: ms.status,

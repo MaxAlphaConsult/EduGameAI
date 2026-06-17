@@ -2,17 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { GameEngine } from '@/components/game/GameEngine'
-
-interface Aufgabe {
-  aufgabe_id: string
-  text: string
-  antwortformat: string
-  loesungen: string[]
-  distraktoren?: string[]
-  hilfen?: string[]
-  teilkompetenz?: string
-}
+import { BausteinView } from '@/components/game/BausteinView'
+import type { Aufgabe, BausteinTyp, BausteinInhalt } from '@/types'
 
 interface ModulErgebnis {
   korrekt: number
@@ -26,10 +17,12 @@ interface Props {
   titel: string
   gameSkin: string
   aufgaben: Aufgabe[]
+  bausteinTyp: BausteinTyp
+  bausteinInhalt: BausteinInhalt | null
   flowId?: string | null
 }
 
-export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben, flowId }: Props) {
+export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben, bausteinTyp, bausteinInhalt, flowId }: Props) {
   const [ergebnis, setErgebnis] = useState<ModulErgebnis | null>(null)
   const [runKey, setRunKey] = useState(0) // erlaubt Neustart durch Remount
 
@@ -129,15 +122,19 @@ export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben, flowId
             </div>
           </div>
         ) : (
-          <GameEngine
-            key={runKey}
-            moduleSessionId="preview"
-            aufgaben={aufgaben}
-            niveau="standard"
-            gameSkin={gameSkin}
-            onModulFertig={setErgebnis}
-            preview
-          />
+          <div key={runKey}>
+            <BausteinView
+              moduleSessionId="preview"
+              titel={titel}
+              gameSkin={gameSkin}
+              niveau="standard"
+              aufgaben={aufgaben}
+              bausteinTyp={bausteinTyp}
+              bausteinInhalt={bausteinInhalt}
+              onModulFertig={setErgebnis}
+              preview
+            />
+          </div>
         )}
       </div>
     </div>

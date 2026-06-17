@@ -66,6 +66,15 @@ export type Antwortformat =
   | 'sprint_quiz'
   | 'escape_room'
   | 'lueckentext'
+  | 'memory'
+  | 'study_bird'
+  | 'millionaer'
+  | 'swipe'
+  | 'code_cracker'
+  | 'sortieren'
+  | 'quiz_tower'
+  | 'wort_schlange'
+  | 'detektiv'
 
 export type SpielbarkeitsAmpel = 'gruen' | 'gelb' | 'rot'
 
@@ -97,6 +106,25 @@ export type GameEngine =
 
 // Visuelle Spieloberfläche je Altersstufe
 export type GameSkin = 'unterstufe' | 'mittelstufe' | 'oberstufe'
+
+// --- LernFlow-Bausteine (Migration 014) ----------------------
+// Ein Modul ist ein typisierter Baustein. 'spiel' ist nur ein Typ unter mehreren.
+export type BausteinTyp =
+  | 'einstieg'
+  | 'vorwissen_check'
+  | 'input'
+  | 'erarbeitung'
+  | 'spiel'
+  | 'sicherung'
+  | 'transfer'
+  | 'post_check'
+
+// Inhalt für Nicht-Spiel-Bausteine (Erklär-/Input). Bei 'spiel' = null.
+export interface BausteinInhalt {
+  markdown: string
+  kernaussagen: string[]
+  didaktische_hinweise?: string[]
+}
 
 // --- Spielmapping Types --------------------------------------
 
@@ -222,6 +250,10 @@ export interface Spiel {
   spieltyp_didaktisch: string
   game_engine: GameEngine
   game_skin: GameSkin
+  // LernFlow-Baustein-Typ (Migration 014). Alt-Module ohne Wert = 'spiel'.
+  baustein_typ: BausteinTyp
+  // Erklär-/Input-Inhalt für Nicht-Spiel-Bausteine; bei 'spiel' = null.
+  baustein_inhalt: BausteinInhalt | null
   aufgaben: Aufgabe[]
   zeitregelung_sekunden: number | null
   zeitdruck_aktiv: boolean

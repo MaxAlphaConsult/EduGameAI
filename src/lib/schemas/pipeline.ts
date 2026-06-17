@@ -61,7 +61,7 @@ const KomplexitaetsstufeSchema = z.union([
   z.literal(5), z.literal(6), z.literal(7),
 ])
 
-// Alle implementierten Templates inkl. neuer Skins (boss_fight, sprint_quiz, escape_room, lueckentext)
+// Alle implementierten Templates inkl. neuer Skins (boss_fight, sprint_quiz, escape_room, lueckentext, memory)
 const AntwortformatSchema = z.enum([
   'single_choice',
   'multiple_choice',
@@ -73,6 +73,15 @@ const AntwortformatSchema = z.enum([
   'sprint_quiz',
   'escape_room',
   'lueckentext',
+  'memory',
+  'study_bird',
+  'millionaer',
+  'swipe',
+  'code_cracker',
+  'sortieren',
+  'quiz_tower',
+  'wort_schlange',
+  'detektiv',
 ])
 
 const AmpelSchema = z.enum(['gruen', 'gelb', 'rot'])
@@ -270,6 +279,67 @@ export const SpielmappingOutputSchema = z.object({
 })
 
 export type SpielmappingOutput = z.infer<typeof SpielmappingOutputSchema>
+
+// --- Schema 6: LernFlow-Bausteinsequenz (Prompt 11) ----------
+//
+// Plant aus dem Lernpfad-Archetyp die konkrete, didaktisch geordnete
+// Baustein-Sequenz. 'spiel' ist nur ein Typ unter mehreren — die KI entscheidet
+// nach Passung, wo (ob) ein Spiel sitzt.
+
+const BausteinTypSchema = z.enum([
+  'einstieg',
+  'vorwissen_check',
+  'input',
+  'erarbeitung',
+  'spiel',
+  'sicherung',
+  'transfer',
+  'post_check',
+])
+
+export const BausteinSequenzOutputSchema = z.object({
+  lernpfad_typ: LernpfadTypSchema,
+  begruendung_sequenz: z.string().min(1),
+  bausteine: z.array(z.object({
+    position: z.number().int().positive(),
+    baustein_typ: BausteinTypSchema,
+    titel: z.string().min(1),
+    thema: z.string().min(1),
+    didaktische_funktion: z.string().min(1),
+    bearbeitungszeit_minuten: z.number().positive(),
+    // Bei 'spiel': kurze Begründung der Passung; sonst Rolle im Lernbogen.
+    begruendung: z.string().min(1),
+  })).min(1),
+})
+
+export type BausteinSequenzOutput = z.infer<typeof BausteinSequenzOutputSchema>
+
+// --- Schema 7: Input-/Erklär-Baustein (Prompt 12) ------------
+//
+// Erklär-Häppchen streng aus dem Material + Kernaussagen + genau eine
+// Mini-Verständnisfrage (nutzt bestehende Aufgaben-/Answers-Logik).
+
+const MiniCheckAufgabeSchema = z.object({
+  aufgabe_id: z.string().min(1),
+  text: z.string().min(1),
+  antwortformat: z.enum(['single_choice', 'multiple_choice']),
+  loesungen: z.array(z.string()).min(1),
+  distraktoren: z.array(z.string()),
+  hilfen: z.array(z.string()),
+  abschnitt_ref: z.string().min(1),
+  teilkompetenz: z.string().min(1),
+  komplexitaetsstufe: KomplexitaetsstufeSchema,
+})
+
+export const InputBausteinOutputSchema = z.object({
+  titel: z.string().min(1),
+  markdown: z.string().min(1),
+  kernaussagen: z.array(z.string().min(1)).min(1),
+  didaktische_hinweise: z.array(z.string()),
+  mini_check: MiniCheckAufgabeSchema,
+})
+
+export type InputBausteinOutput = z.infer<typeof InputBausteinOutputSchema>
 
 // --- Schema 4: Spielgenerierung (Prompt 04, Schritte 11–16) --
 
@@ -574,4 +644,5 @@ export {
   SpielreihefunktionSchema,
   UrsprungSchema,
   DifferenzierungsniveauSchema,
+  BausteinTypSchema,
 }

@@ -1,16 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { ModulePreviewClient } from '@/components/modules/ModulePreviewClient'
-
-interface AufgabeRow {
-  aufgabe_id: string
-  text: string
-  antwortformat: string
-  loesungen: string[]
-  distraktoren?: string[]
-  hilfen?: string[]
-  teilkompetenz?: string
-}
+import type { Aufgabe, BausteinTyp, BausteinInhalt } from '@/types'
 
 export default async function ModulePreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -20,14 +11,14 @@ export default async function ModulePreviewPage({ params }: { params: Promise<{ 
 
   const { data: spiel } = await supabase
     .from('games')
-    .select('id, titel, game_skin, aufgaben, game_flow_id')
+    .select('id, titel, game_skin, aufgaben, game_flow_id, baustein_typ, baustein_inhalt')
     .eq('id', id)
     .eq('lehrer_id', user.id)
     .single()
 
   if (!spiel) notFound()
 
-  const aufgaben = (spiel.aufgaben ?? []) as AufgabeRow[]
+  const aufgaben = (spiel.aufgaben ?? []) as Aufgabe[]
 
   if (aufgaben.length === 0) {
     return (
@@ -48,6 +39,8 @@ export default async function ModulePreviewPage({ params }: { params: Promise<{ 
       titel={spiel.titel ?? 'Modul'}
       gameSkin={spiel.game_skin ?? 'mittelstufe'}
       aufgaben={aufgaben}
+      bausteinTyp={(spiel.baustein_typ ?? 'spiel') as BausteinTyp}
+      bausteinInhalt={(spiel.baustein_inhalt ?? null) as BausteinInhalt | null}
       flowId={spiel.game_flow_id ?? null}
     />
   )

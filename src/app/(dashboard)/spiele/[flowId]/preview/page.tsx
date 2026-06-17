@@ -2,23 +2,16 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { FlowPreviewClient, type PreviewModul } from '@/components/modules/FlowPreviewClient'
-
-interface AufgabeRow {
-  aufgabe_id: string
-  text: string
-  antwortformat: string
-  loesungen: string[]
-  distraktoren?: string[]
-  hilfen?: string[]
-  teilkompetenz?: string
-}
+import type { Aufgabe, BausteinTyp, BausteinInhalt } from '@/types'
 
 interface GameRow {
   id: string
   titel: string | null
   game_skin: string | null
   reihenfolge: number | null
-  aufgaben: AufgabeRow[] | null
+  aufgaben: Aufgabe[] | null
+  baustein_typ: string | null
+  baustein_inhalt: BausteinInhalt | null
 }
 
 export default async function FlowPreviewPage({ params }: { params: Promise<{ flowId: string }> }) {
@@ -37,7 +30,7 @@ export default async function FlowPreviewPage({ params }: { params: Promise<{ fl
 
   const { data: games } = await supabase
     .from('games')
-    .select('id, titel, game_skin, reihenfolge, aufgaben')
+    .select('id, titel, game_skin, reihenfolge, aufgaben, baustein_typ, baustein_inhalt')
     .eq('game_flow_id', flowId)
     .eq('lehrer_id', user.id)
 
@@ -50,6 +43,8 @@ export default async function FlowPreviewPage({ params }: { params: Promise<{ fl
       titel: g.titel ?? 'Modul',
       gameSkin: g.game_skin ?? 'mittelstufe',
       aufgaben: g.aufgaben ?? [],
+      bausteinTyp: (g.baustein_typ ?? 'spiel') as BausteinTyp,
+      bausteinInhalt: g.baustein_inhalt ?? null,
     }))
     .filter((m) => m.aufgaben.length > 0)
 

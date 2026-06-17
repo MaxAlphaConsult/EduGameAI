@@ -61,7 +61,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: spiel, error: spielError } = await supabase
     .from('games')
     .select(`
-      id, lehrer_id, spiel_output, analyse_id,
+      id, lehrer_id, spiel_output, analyse_id, baustein_typ,
       analyses(id, raw_output, materials(abschnitte))
     `)
     .eq('id', gameId)
@@ -69,6 +69,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .single()
 
   if (spielError || !spiel) return NextResponse.json({ error: 'Spiel nicht gefunden' }, { status: 404 })
+
+  // Nicht-Spiel-Bausteine (Erklär/Input/Check) durchlaufen keinen Spiel-Check.
+  if (spiel.baustein_typ && spiel.baustein_typ !== 'spiel') {
+    return NextResponse.json({ ok: true, status: 'skipped_non_spiel' })
+  }
   if (!spiel.spiel_output) {
     return NextResponse.json({
       error: 'Spiel hat keinen rohen Pipeline-Output. Wurde es vor Migration 011 erstellt?',

@@ -52,6 +52,34 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     updates.status = body.status
   }
 
+  // LernFlow: Lehrkraft darf den Baustein-Typ ändern (z.B. Spiel → Erklär-Baustein).
+  if (body.baustein_typ !== undefined) {
+    const erlaubt = ['einstieg', 'vorwissen_check', 'input', 'erarbeitung', 'spiel', 'sicherung', 'transfer', 'post_check']
+    if (!erlaubt.includes(body.baustein_typ)) {
+      return NextResponse.json({ error: `baustein_typ muss einer von ${erlaubt.join(', ')} sein` }, { status: 400 })
+    }
+    updates.baustein_typ = body.baustein_typ
+  }
+
+  // LernFlow: Erklär-/Input-Inhalt bearbeiten (markdown, kernaussagen, hinweise).
+  if (body.baustein_inhalt !== undefined) {
+    if (body.baustein_inhalt === null) {
+      updates.baustein_inhalt = null
+    } else if (typeof body.baustein_inhalt === 'object' && typeof body.baustein_inhalt.markdown === 'string') {
+      updates.baustein_inhalt = {
+        markdown: body.baustein_inhalt.markdown,
+        kernaussagen: Array.isArray(body.baustein_inhalt.kernaussagen)
+          ? body.baustein_inhalt.kernaussagen.map(String)
+          : [],
+        didaktische_hinweise: Array.isArray(body.baustein_inhalt.didaktische_hinweise)
+          ? body.baustein_inhalt.didaktische_hinweise.map(String)
+          : [],
+      }
+    } else {
+      return NextResponse.json({ error: 'baustein_inhalt muss null oder ein Objekt mit markdown sein' }, { status: 400 })
+    }
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Kein Feld zum Aktualisieren übergeben' }, { status: 400 })
   }
