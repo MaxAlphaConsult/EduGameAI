@@ -262,9 +262,10 @@ export default function GameErstellenPage() {
             </div>
 
             <div>
-              <label style={labelStyle}>Anzahl Spiele</label>
+              <label style={labelStyle}>Spiele im Lernspiel (Richtwert)</label>
               <p className="text-xs mb-3" style={{ color: '#7A6A94' }}>
-                Jedes Spiel hat 4 Aufgaben in einem anderen Format.
+                Die KI baut eine didaktische Lernsequenz (Erklären · Vorwissen · Üben · Sichern)
+                und setzt Spiele nur dort, wo sie passen. Dein Wert ist ein Richtwert, wie viele Spiele sie dabei anstrebt.
               </p>
               <div className="flex flex-wrap gap-2">
                 {(() => {
@@ -290,7 +291,7 @@ export default function GameErstellenPage() {
                 })()}
               </div>
               <p className="text-xs mt-2" style={{ color: '#7A6A94' }}>
-                ≈ {anzahlSpiele * 3}–{anzahlSpiele * 5} Min. Spielzeit
+                Die Gesamtdauer richtet sich nach dem Zeitrahmen oben — nicht nur nach den Spielen.
               </p>
             </div>
 

@@ -19,11 +19,17 @@ die in der angegebenen Zeit realistisch durchführbar ist und einem klaren Lernb
   "analyse": "<JSON aus Prompt 01 — Wissensform, Lernform, Komplexität, Denkhandlung>",
   "lernziel": "<JSON aus Prompt 02>",
   "lernpfad": "<Kurzfassung aus Prompt 03 — lernpfad_typ, phasen, balance, zeitstrukturplan>",
-  "kontext": { "fach": "...", "jahrgangsstufe": "...", "schulform": "...", "zeitrahmen_minuten": 30 }
+  "kontext": { "fach": "...", "jahrgangsstufe": "...", "schulform": "...", "zeitrahmen_minuten": 30, "gewuenschte_spielanzahl": 2 }
 }
 ```
 
 Wenn `zeitrahmen_minuten` fehlt: **30 Minuten** annehmen.
+
+`gewuenschte_spielanzahl` ist ein **Richtwert** der Lehrkraft, wie viele `spiel`-Bausteine
+gewünscht sind (kann `null` sein). Behandle ihn als Ziel, nicht als Pflicht:
+- Strebe ungefähr diese Anzahl `spiel`-Bausteine an — **aber nur dort, wo die Passungsregel (unten) JA sagt**.
+- Passt ein Spiel didaktisch nicht, setze trotzdem keins; die Passung hat immer Vorrang vor dem Richtwert.
+- Überschreite den Zeitrahmen nicht, nur um den Richtwert zu treffen.
 
 ---
 

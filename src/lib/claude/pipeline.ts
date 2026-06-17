@@ -205,6 +205,8 @@ export async function planBausteinSequenz(input: {
   lernziel: LernzielOutput
   lernpfad: LernpfadOutput
   kontext: { fach: string; jahrgangsstufe: string; schulform: string; zeitrahmenMinuten: number }
+  // Richtwert der Lehrkraft, wie viele Spiel-Bausteine angestrebt werden (soft).
+  gewuenschteSpiele?: number
 }): Promise<BausteinSequenzOutput> {
   return callClaude(
     'Bausteinsequenz planen (LernFlow)',
@@ -218,6 +220,7 @@ export async function planBausteinSequenz(input: {
         jahrgangsstufe: input.kontext.jahrgangsstufe,
         schulform: input.kontext.schulform,
         zeitrahmen_minuten: input.kontext.zeitrahmenMinuten,
+        gewuenschte_spielanzahl: input.gewuenschteSpiele ?? null,
       },
     }),
     BausteinSequenzOutputSchema

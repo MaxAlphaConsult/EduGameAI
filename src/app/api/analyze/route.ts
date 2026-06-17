@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         const erlaubteFormateArray: string[] | undefined = Array.isArray(erlaubteFormate) ? erlaubteFormate : undefined
 
         send({ type: 'progress', label: 'Lernsequenz wird geplant …', percent: 40, schrittIndex: 11 })
-        const sequenz = await planBausteinSequenz({ analyse, lernziel, lernpfad, kontext })
+        const sequenz = await planBausteinSequenz({ analyse, lernziel, lernpfad, kontext, gewuenschteSpiele: anzahlSpiele })
 
         const bausteine = [...sequenz.bausteine].sort((a, b) => a.position - b.position)
         const spielBausteine = bausteine.filter((b) => b.baustein_typ === 'spiel')
