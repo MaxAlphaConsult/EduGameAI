@@ -101,7 +101,7 @@ export function GenerationBanner() {
   // error
   return (
     <div className="px-6 pt-4">
-      <div className="rounded-2xl px-5 py-3 flex items-center gap-4"
+      <div className="rounded-2xl px-5 py-3 flex items-start gap-4"
         style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: '#FEE2E2' }}>
@@ -111,7 +111,7 @@ export function GenerationBanner() {
           <p className="text-sm font-bold" style={{ color: '#991B1B' }}>
             Erstellung fehlgeschlagen
           </p>
-          <p className="text-xs truncate" style={{ color: '#B91C1C' }}>{gen.error}</p>
+          <p className="text-xs break-words" style={{ color: '#B91C1C' }}>{gen.error}</p>
         </div>
         <Link href="/playground"
           className="text-xs font-bold px-3 py-1.5 rounded-xl flex-shrink-0"

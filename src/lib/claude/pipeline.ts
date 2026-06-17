@@ -74,15 +74,50 @@ function loadPrompt(filename: string): string {
   return readFileSync(promptPath, 'utf-8')
 }
 
-// JSON aus Claude-Antwort extrahieren
-function extractJson(text: string, schritt: string): unknown {
-  const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/(\{[\s\S]*\})/)
-  if (!jsonMatch) throw new PipelineJsonError(schritt, text)
-  try {
-    return JSON.parse(jsonMatch[1] || jsonMatch[0])
-  } catch {
-    throw new PipelineJsonError(schritt, text)
+// Findet das erste *balancierte* JSON-Objekt im Text — string-bewusst, damit
+// geschweifte Klammern INNERHALB von JSON-Strings (z.B. Markdown-Inhalt) nicht
+// mitzählen. Robuster als eine Greedy-Regex, die bis zur letzten "}" im ganzen
+// Text grabbt und bei nachgestelltem Fließtext mit "{…}" kaputtgeht.
+function findBalancedObject(s: string): string | null {
+  const start = s.indexOf('{')
+  if (start === -1) return null
+  let depth = 0, inStr = false, esc = false
+  for (let i = start; i < s.length; i++) {
+    const c = s[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (c === '\\') esc = true
+      else if (c === '"') inStr = false
+    } else {
+      if (c === '"') inStr = true
+      else if (c === '{') depth++
+      else if (c === '}') { depth--; if (depth === 0) return s.slice(start, i + 1) }
+    }
   }
+  return null
+}
+
+// JSON aus Claude-Antwort extrahieren. Probiert mehrere Strategien, weil das
+// Modell trotz Anweisung gelegentlich einen ```-Fence weglässt oder einen
+// Vor-/Nachsatz anhängt: 1) Inhalt eines ```json-Fence, 2) erstes balanciertes
+// Objekt, 3) Greedy als letzter Fallback. Erste parsebare Variante gewinnt.
+function extractJson(text: string, schritt: string): unknown {
+  const candidates: string[] = []
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fence && fence[1]) candidates.push(fence[1].trim())
+  const balanced = findBalancedObject(text)
+  if (balanced) candidates.push(balanced)
+  const greedy = text.match(/\{[\s\S]*\}/)
+  if (greedy) candidates.push(greedy[0])
+
+  for (const c of candidates) {
+    try {
+      return JSON.parse(c)
+    } catch {
+      // nächste Strategie probieren
+    }
+  }
+  throw new PipelineJsonError(schritt, text)
 }
 
 // Einzelner typisierter KI-Call mit Zod-Validierung
