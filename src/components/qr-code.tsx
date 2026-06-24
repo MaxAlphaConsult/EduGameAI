@@ -81,7 +81,7 @@ export function KlassenraumQr({ url, hinweis }: KlassenraumQrProps) {
           </style></head>
           <body>
             <h1>Mit dem Handy scannen</h1>
-            <p>So kommst du zum Lernspiel</p>
+            <p>So geht es los</p>
             <img src="${dataUrl}" alt="QR-Code" />
             <div class="url">${url}</div>
             <script>window.onload = () => setTimeout(() => window.print(), 200);</script>
@@ -173,7 +173,7 @@ export function KlassenraumQr({ url, hinweis }: KlassenraumQrProps) {
             Scanne den Code mit deinem Handy
           </p>
           <p style={{ color: '#C4B5FD', fontSize: 18, marginBottom: 32 }}>
-            So kommst du zum Lernspiel
+            So geht es los
           </p>
           <div style={{ background: 'white', padding: 24, borderRadius: 24 }}>
             <QrCode value={url} size={420} />

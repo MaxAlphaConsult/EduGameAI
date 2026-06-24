@@ -124,11 +124,11 @@ export function FlowLehrkraftCheckPanel({ flowId }: Props) {
     return (
       <div className="rounded-2xl p-5" style={{ background: '#FFFFFF', border: '1px solid #E9D5FF' }}>
         <p className="text-sm font-bold mb-1" style={{ color: '#1F1235' }}>
-          ✦ Lehrkraft-Check für das ganze Lernspiel
+          ✦ Lehrkraft-Check für den ganzen LernFlow
         </p>
         <p className="text-xs mb-4" style={{ color: '#7A6A94' }}>
-          Die KI prüft alle Module gemeinsam gegen das Lernziel — keine
-          isolierten Bewertungen, sondern: passen die Module als Einheit?
+          Die KI prüft alle Bausteine gemeinsam gegen das Lernziel — keine
+          isolierten Bewertungen, sondern: passen die Bausteine als Einheit?
         </p>
         <button onClick={() => startCheck(false)}
           disabled={starting}
@@ -156,7 +156,7 @@ export function FlowLehrkraftCheckPanel({ flowId }: Props) {
               Lehrkraft-Check läuft …
             </p>
             <p className="text-xs" style={{ color: '#5B21B6' }}>
-              Die KI sieht sich alle Module gemeinsam an. Das dauert 30–90 Sekunden.
+              Die KI sieht sich alle Bausteine gemeinsam an. Das dauert 30–90 Sekunden.
             </p>
           </div>
         </div>
@@ -220,7 +220,7 @@ export function FlowLehrkraftCheckPanel({ flowId }: Props) {
         {check.modulrollen.length > 0 && (
           <section>
             <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#7C3AED' }}>
-              Rolle jedes Moduls im Lernspiel
+              Rolle jedes Bausteins im LernFlow
             </p>
             <div className="flex flex-col gap-2">
               {check.modulrollen.map((m) => (
@@ -286,7 +286,7 @@ export function FlowLehrkraftCheckPanel({ flowId }: Props) {
                     <p className="text-xs" style={{ color: '#92400E' }}>
                       <strong>Empfehlung:</strong>{' '}
                       {empfohlenModul
-                        ? <>Ergänzen in <Link href={`/modules/${empfohlenModul.modul_id}`} className="underline" style={{ color: '#92400E', textDecoration: 'underline' }}>Modul {empfohlenModul.modul_position} — {empfohlenModul.titel}</Link>. {f.empfohlenes_modul_begruendung}</>
+                        ? <>Ergänzen in <Link href={`/modules/${empfohlenModul.modul_id}`} className="underline" style={{ color: '#92400E', textDecoration: 'underline' }}>Baustein {empfohlenModul.modul_position} — {empfohlenModul.titel}</Link>. {f.empfohlenes_modul_begruendung}</>
                         : f.empfohlenes_modul_begruendung}
                     </p>
                   </div>
@@ -320,7 +320,7 @@ export function FlowLehrkraftCheckPanel({ flowId }: Props) {
         {check.redundanzen.length > 0 && (
           <section>
             <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#7A6A94' }}>
-              Wiederholungen zwischen Modulen
+              Wiederholungen zwischen Bausteinen
             </p>
             <div className="flex flex-col gap-2">
               {check.redundanzen.map((r, i) => {
@@ -333,7 +333,7 @@ export function FlowLehrkraftCheckPanel({ flowId }: Props) {
                     }}>
                     <p className="text-sm" style={{ color: '#1F1235' }}>{r.beschreibung}</p>
                     <p className="text-xs mt-1" style={{ color: istSinnvoll ? '#059669' : '#92400E' }}>
-                      {istSinnvoll ? '✓ Sinnvolle Wiederholung — festigt das Wissen' : '⚠ Unnötig — könnte ein Modul anderes Lernziel adressieren'}
+                      {istSinnvoll ? '✓ Sinnvolle Wiederholung — festigt das Wissen' : '⚠ Unnötig — könnte ein Baustein anderes Lernziel adressieren'}
                     </p>
                   </div>
                 )

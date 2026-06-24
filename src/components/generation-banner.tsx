@@ -29,7 +29,7 @@ export function GenerationBanner() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate" style={{ color: '#1F1235' }}>
-              Lernspiel „{gen.spielname || 'wird gebaut'}" wird erstellt
+              LernFlow „{gen.spielname || 'wird gebaut'}" wird erstellt
             </p>
             <div className="flex items-center gap-2 mt-1">
               <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: '#E9D5FF' }}>
@@ -65,10 +65,10 @@ export function GenerationBanner() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold truncate" style={{ color: '#065F46' }}>
-              „{gen.spielname || 'Lernspiel'}" ist fertig
+              „{gen.spielname || 'LernFlow'}" ist fertig
             </p>
             <p className="text-xs" style={{ color: '#047857' }}>
-              {modulCount} {modulCount === 1 ? 'Modul' : 'Module'} bereit — spiel es einmal durch.
+              {modulCount} {modulCount === 1 ? 'Baustein' : 'Bausteine'} bereit — spiel es einmal durch.
             </p>
           </div>
           {flowId ? (

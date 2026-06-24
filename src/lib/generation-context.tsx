@@ -64,7 +64,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(async (params: GenerationStartParams) => {
     if (runningRef.current) {
-      throw new Error('Es läuft bereits eine Lernspiel-Erstellung — warte bis sie fertig ist.')
+      throw new Error('Es läuft bereits eine LernFlow-Erstellung — warte bis sie fertig ist.')
     }
     runningRef.current = true
 

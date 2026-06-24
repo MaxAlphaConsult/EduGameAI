@@ -167,9 +167,9 @@ export function FlowImprovePanel({ flowId, flowCheckFertig }: Props) {
           ✦ KI-Verbesserungen für den ganzen Flow
         </p>
         <p className="text-xs mb-4" style={{ color: '#7A6A94' }}>
-          Die KI sieht alle Module + den Lehrkraft-Check und schlägt vor,
-          welche Aufgaben in welchem Modul ergänzt oder ersetzt werden sollen —
-          aufeinander abgestimmt, nicht modulweise isoliert.
+          Die KI sieht alle Bausteine + den Lehrkraft-Check und schlägt vor,
+          welche Aufgaben in welchem Baustein ergänzt oder ersetzt werden sollen —
+          aufeinander abgestimmt, nicht bausteinweise isoliert.
         </p>
         {!flowCheckFertig && (
           <div className="rounded-lg px-3 py-2 mb-3 text-xs" style={{ background: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A' }}>
@@ -205,7 +205,7 @@ export function FlowImprovePanel({ flowId, flowCheckFertig }: Props) {
               KI bereitet Vorschläge vor …
             </p>
             <p className="text-xs" style={{ color: '#5B21B6' }}>
-              Sie liest alle Module + den Flow-Check. Das dauert 30–90 Sekunden.
+              Sie liest alle Bausteine + den Flow-Check. Das dauert 30–90 Sekunden.
             </p>
           </div>
         </div>
@@ -221,7 +221,7 @@ export function FlowImprovePanel({ flowId, flowCheckFertig }: Props) {
           ✅ {savedCount} {savedCount === 1 ? 'Vorschlag' : 'Vorschläge'} übernommen
         </p>
         <p className="text-xs mb-3" style={{ color: '#047857' }}>
-          Die Module sind aktualisiert. Der Flow-Lehrkraft-Check oben wurde
+          Die Bausteine sind aktualisiert. Der Flow-Lehrkraft-Check oben wurde
           zurückgesetzt — starte ihn neu, um zu sehen, was sich gebessert hat.
         </p>
         <button onClick={() => setSavedCount(null)}
@@ -266,7 +266,7 @@ export function FlowImprovePanel({ flowId, flowCheckFertig }: Props) {
         </p>
         <p className="text-xs" style={{ color: '#5B21B6' }}>{result.gesamtbegruendung}</p>
         <div className="rounded-lg px-3 py-2 mt-3 text-xs" style={{ background: '#FFFFFF', border: '1px solid #C4B5FD', color: '#5B21B6' }}>
-          <strong>So funktioniert&apos;s:</strong> {totalChanges} Vorschlag/Vorschläge auf {result.module_vorschlaege.length} Modul(e) verteilt. Hake an, was übernommen werden soll. Mit einem Klick werden alle ausgewählten Änderungen gespeichert.
+          <strong>So funktioniert&apos;s:</strong> {totalChanges} Vorschlag/Vorschläge auf {result.module_vorschlaege.length} Baustein(e) verteilt. Hake an, was übernommen werden soll. Mit einem Klick werden alle ausgewählten Änderungen gespeichert.
         </div>
       </div>
 
@@ -361,7 +361,7 @@ export function FlowImprovePanel({ flowId, flowCheckFertig }: Props) {
         ) : (
           <>
             <p className="text-xs text-center" style={{ color: '#7A6A94' }}>
-              {acceptedCount} {acceptedCount === 1 ? 'Vorschlag wird' : 'Vorschläge werden'} übernommen. Betroffene Module werden direkt aktualisiert.
+              {acceptedCount} {acceptedCount === 1 ? 'Vorschlag wird' : 'Vorschläge werden'} übernommen. Betroffene Bausteine werden direkt aktualisiert.
             </p>
             <button onClick={onApply} disabled={applying}
               className="w-full rounded-lg px-4 py-3 text-sm font-bold"

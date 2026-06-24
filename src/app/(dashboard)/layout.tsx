@@ -9,7 +9,7 @@ import { GenerationBanner } from '@/components/generation-banner'
 
 const navItems = [
   { href: '/dashboard', label: 'Start', icon: '🏠' },
-  { href: '/spiele', label: 'Lernspiele', icon: '📚' },
+  { href: '/spiele', label: 'LernFlows', icon: '📚' },
   { href: '/classes', label: 'Klassen', icon: '👥' },
 ]
 

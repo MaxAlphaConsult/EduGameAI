@@ -95,7 +95,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 // DELETE /api/games/:gameId
-// Löscht ein einzelnes Modul aus seinem Lernspiel. lehrkraft_checks +
+// Löscht ein einzelnes Modul aus seinem LernFlow. lehrkraft_checks +
 // module_sessions cascaden via FK. Aktualisiert anschließend
 // game_flows.anzahl_spiele, damit die Übersicht stimmt.
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {

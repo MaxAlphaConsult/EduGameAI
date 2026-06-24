@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 // DELETE /api/flows/:flowId
-// Löscht ein komplettes Lernspiel (Flow + alle Module-Games).
+// Löscht einen kompletten LernFlow (Flow + alle Module-Games).
 // flow_releases, student_sessions, module_sessions, answers werden via
 // ON DELETE CASCADE entlang der FK-Kette automatisch entsorgt. games.game_flow_id
 // ist ON DELETE SET NULL — die zugehörigen Module müssen daher explizit
@@ -24,7 +24,7 @@ export async function DELETE(
     .eq('lehrer_id', user.id)
     .maybeSingle()
   if (flowErr) return NextResponse.json({ error: flowErr.message }, { status: 500 })
-  if (!flow) return NextResponse.json({ error: 'Lernspiel nicht gefunden' }, { status: 404 })
+  if (!flow) return NextResponse.json({ error: 'LernFlow nicht gefunden' }, { status: 404 })
 
   // 1. Module-Games löschen (FK ist SET NULL, sonst bleiben sie als Waisen liegen)
   const { error: gamesErr } = await supabase
@@ -43,7 +43,7 @@ export async function DELETE(
     .eq('id', flowId)
     .eq('lehrer_id', user.id)
     .select('id')
-  if (flowDelErr) return NextResponse.json({ error: `Lernspiel löschen fehlgeschlagen: ${flowDelErr.message}` }, { status: 500 })
+  if (flowDelErr) return NextResponse.json({ error: `LernFlow löschen fehlgeschlagen: ${flowDelErr.message}` }, { status: 500 })
   if (!deleted || deleted.length === 0) {
     return NextResponse.json({
       error: 'Löschen wurde von der Datenbank blockiert. Wahrscheinlich fehlt die DELETE-Policy auf game_flows — bitte Migration 012_game_flows_delete_policy.sql in Supabase ausführen.',

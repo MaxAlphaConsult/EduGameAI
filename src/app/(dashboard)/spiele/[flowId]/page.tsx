@@ -59,7 +59,7 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
     <div className="p-4 md:p-6 lg:p-8 max-w-3xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/spiele" className="text-sm" style={{ color: '#7A6A94', textDecoration: 'none' }}>← Lernspiele</Link>
+        <Link href="/spiele" className="text-sm" style={{ color: '#7A6A94', textDecoration: 'none' }}>← LernFlows</Link>
         <span style={{ color: '#C4B5FD' }}>/</span>
         <span className="text-sm font-medium" style={{ color: '#1F1235' }}>{flow.titel}</span>
       </div>
@@ -68,11 +68,11 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: '#1F1235' }}>{flow.titel}</h1>
         <p className="text-sm" style={{ color: '#7A6A94' }}>
-          {module.length} {module.length === 1 ? 'Modul' : 'Module'} · {totalAufgaben} Aufgaben · erstellt {new Date(flow.created_at).toLocaleDateString('de-DE')}
+          {module.length} {module.length === 1 ? 'Baustein' : 'Bausteine'} · {totalAufgaben} Aufgaben · erstellt {new Date(flow.created_at).toLocaleDateString('de-DE')}
         </p>
       </div>
 
-      {/* Großer CTA: ganzes Lernspiel testen */}
+      {/* Großer CTA: ganzen LernFlow testen */}
       {module.length > 0 && (
         <Link
           href={`/spiele/${flowId}/preview`}
@@ -90,9 +90,9 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
               ▶▶
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-base">Ganzes Lernspiel testen</p>
+              <p className="font-bold text-base">Ganzen LernFlow testen</p>
               <p className="text-xs" style={{ color: '#E9D5FF' }}>
-                Alle {module.length} Module hintereinander, wie ein Schüler.
+                Alle {module.length} Bausteine hintereinander, wie ein Schüler.
               </p>
             </div>
             <span className="text-xl flex-shrink-0" style={{ color: '#E9D5FF' }}>↗</span>
@@ -113,7 +113,7 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
       {/* Module-Liste */}
       <div className="rounded-2xl p-4" style={{ background: '#FAFAFA', border: '1px solid #E9D5FF' }}>
         <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A6A94' }}>
-          Module (didaktische Reihenfolge: leicht → schwer)
+          Bausteine (didaktische Reihenfolge: leicht → schwer)
         </p>
         <div className="flex flex-col gap-2">
           {module.map((m) => {
@@ -128,7 +128,7 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: '#1F1235' }}>
-                      {m.titel || m.spieltyp_didaktisch || 'Modul'}
+                      {m.titel || m.spieltyp_didaktisch || 'Baustein'}
                     </p>
                     <p className="text-xs" style={{ color: '#7A6A94' }}>
                       {m.spieltyp_didaktisch || m.game_engine || '—'} · {m.aufgaben?.length ?? 0} Aufgaben

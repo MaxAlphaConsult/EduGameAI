@@ -26,7 +26,7 @@ export default async function ModulePreviewPage({ params }: { params: Promise<{ 
         <div className="rounded-2xl p-6" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
           <p className="text-sm font-bold mb-1" style={{ color: '#991B1B' }}>Keine Aufgaben vorhanden</p>
           <p className="text-xs" style={{ color: '#B91C1C' }}>
-            Dieses Modul enthält noch keine Aufgaben — kannst du also nicht testen.
+            Dieser Baustein enthält noch keine Aufgaben — kannst du also nicht testen.
           </p>
         </div>
       </div>
@@ -36,7 +36,7 @@ export default async function ModulePreviewPage({ params }: { params: Promise<{ 
   return (
     <ModulePreviewClient
       modulId={id}
-      titel={spiel.titel ?? 'Modul'}
+      titel={spiel.titel ?? 'Baustein'}
       gameSkin={spiel.game_skin ?? 'mittelstufe'}
       aufgaben={aufgaben}
       bausteinTyp={(spiel.baustein_typ ?? 'spiel') as BausteinTyp}

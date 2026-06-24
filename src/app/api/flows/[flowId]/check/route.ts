@@ -23,7 +23,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     .eq('lehrer_id', user.id)
     .maybeSingle()
 
-  if (error || !data) return NextResponse.json({ error: 'Lernspiel nicht gefunden' }, { status: 404 })
+  if (error || !data) return NextResponse.json({ error: 'LernFlow nicht gefunden' }, { status: 404 })
 
   return NextResponse.json({
     status: data.flow_check_status ?? 'idle',
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .eq('lehrer_id', user.id)
     .maybeSingle()
 
-  if (flowErr || !flow) return NextResponse.json({ error: 'Lernspiel nicht gefunden' }, { status: 404 })
+  if (flowErr || !flow) return NextResponse.json({ error: 'LernFlow nicht gefunden' }, { status: 404 })
 
   if (flow.flow_check_status === 'fertig' && !force) {
     return NextResponse.json({ status: 'fertig', already_exists: true })

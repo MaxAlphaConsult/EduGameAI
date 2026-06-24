@@ -155,7 +155,7 @@ export default function GameErstellenPage() {
     <div className="p-4 md:p-6 lg:p-8 max-w-3xl">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Neues Lernspiel</h1>
+        <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Neuer LernFlow</h1>
         <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Lade dein Material hoch — der Rest läuft automatisch</p>
       </div>
 
@@ -262,7 +262,7 @@ export default function GameErstellenPage() {
             </div>
 
             <div>
-              <label style={labelStyle}>Spiele im Lernspiel (Richtwert)</label>
+              <label style={labelStyle}>Spiele im LernFlow (Richtwert)</label>
               <p className="text-xs mb-3" style={{ color: '#7A6A94' }}>
                 Die KI baut eine didaktische Lernsequenz (Erklären · Vorwissen · Üben · Sichern)
                 und setzt Spiele nur dort, wo sie passen. Dein Wert ist ein Richtwert, wie viele Spiele sie dabei anstrebt.
@@ -341,7 +341,7 @@ export default function GameErstellenPage() {
             <button type="submit" disabled={isPending}
               className="w-full rounded-xl py-3 text-sm font-bold transition-all mt-2"
               style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', opacity: isPending ? 0.6 : 1 }}>
-              {isPending ? 'Wird gestartet…' : '✦ Lernspiel erstellen →'}
+              {isPending ? 'Wird gestartet…' : '✦ LernFlow erstellen →'}
             </button>
           </form>
         </div>
@@ -356,7 +356,7 @@ export default function GameErstellenPage() {
               🤖
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-bold" style={{ color: '#1F1235' }}>Dein Lernspiel wird gerade gebaut</h2>
+              <h2 className="text-base font-bold" style={{ color: '#1F1235' }}>Dein LernFlow wird gerade gebaut</h2>
               <p className="text-xs" style={{ color: '#7A6A94' }}>{progressLabel || 'Wird vorbereitet …'}</p>
             </div>
             <span className="text-sm font-bold tabular-nums" style={{ color: '#7C3AED' }}>
@@ -396,9 +396,9 @@ export default function GameErstellenPage() {
             <div className="flex items-center gap-3 mb-4">
               <span className="text-3xl">🎉</span>
               <div>
-                <p className="text-lg font-bold" style={{ color: '#065F46' }}>Dein Lernspiel ist fertig!</p>
+                <p className="text-lg font-bold" style={{ color: '#065F46' }}>Dein LernFlow ist fertig!</p>
                 <p className="text-xs" style={{ color: '#047857' }}>
-                  {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Modul' : 'Module'}, didaktisch sortiert. Spiel es einmal durch — wie ein Schüler.
+                  {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Baustein' : 'Bausteine'}, didaktisch sortiert. Spiel es einmal durch — wie ein Schüler.
                 </p>
               </div>
             </div>
@@ -413,7 +413,7 @@ export default function GameErstellenPage() {
                 boxShadow: '0 6px 24px rgba(124,58,237,0.3)',
                 textDecoration: 'none',
               }}>
-              ▶▶ Lernspiel jetzt testen ↗
+              ▶▶ LernFlow jetzt testen ↗
             </a>
 
             {/* Sekundäre Optionen */}
@@ -434,7 +434,7 @@ export default function GameErstellenPage() {
           {/* Module-Vorschauliste */}
           <div style={{ ...cardStyle, padding: '16px 20px' }}>
             <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A6A94' }}>
-              Module in didaktischer Reihenfolge (leicht → schwer)
+              Bausteine in didaktischer Reihenfolge (leicht → schwer)
             </p>
             <div className="flex flex-col gap-2">
               {analyseResult.spielIds.map((id, i) => (
@@ -449,7 +449,7 @@ export default function GameErstellenPage() {
                     {i + 1}
                   </span>
                   <span className="text-sm font-medium flex-1" style={{ color: '#1F1235' }}>
-                    Modul {i + 1}
+                    Baustein {i + 1}
                   </span>
                   <span className="text-xs" style={{ color: '#7C3AED' }}>→ Vorschau</span>
                 </a>
@@ -459,12 +459,12 @@ export default function GameErstellenPage() {
 
           <LehrkraftCheckPanel spielId={analyseResult.spielIds[0]} />
 
-          {/* Noch ein Lernspiel erstellen */}
+          {/* Noch einen LernFlow erstellen */}
           <div className="flex justify-center">
             <button onClick={weiter}
               className="text-sm font-semibold px-5 py-2 rounded-xl"
               style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', cursor: 'pointer' }}>
-              ✦ Noch ein Lernspiel erstellen
+              ✦ Noch einen LernFlow erstellen
             </button>
           </div>
         </div>

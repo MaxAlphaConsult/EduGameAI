@@ -20,7 +20,7 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     .eq('id', flowId)
     .eq('lehrer_id', user.id)
     .maybeSingle()
-  if (flowErr || !flow) return NextResponse.json({ error: 'Lernspiel nicht gefunden' }, { status: 404 })
+  if (flowErr || !flow) return NextResponse.json({ error: 'LernFlow nicht gefunden' }, { status: 404 })
 
   if (flow.flow_check_status !== 'fertig' || !flow.flow_check) {
     return NextResponse.json({
@@ -107,7 +107,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .eq('id', flowId)
     .eq('lehrer_id', user.id)
     .maybeSingle()
-  if (!flow) return NextResponse.json({ error: 'Lernspiel nicht gefunden' }, { status: 404 })
+  if (!flow) return NextResponse.json({ error: 'LernFlow nicht gefunden' }, { status: 404 })
 
   // Pro Modul-Update: RLS-geschützt schreiben
   const updated: string[] = []

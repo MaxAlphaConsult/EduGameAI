@@ -91,12 +91,12 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/spiele" className="text-sm text-muted-foreground hover:text-foreground">← Lernspiele</Link>
+        <Link href="/spiele" className="text-sm text-muted-foreground hover:text-foreground">← LernFlows</Link>
         <span className="text-muted-foreground">/</span>
         <span className="text-sm font-medium">{spiel.titel}</span>
       </div>
 
-      {/* Großer CTA: ganzes Lernspiel testen */}
+      {/* Großer CTA: ganzen LernFlow testen */}
       {aufgaben.length > 0 && spiel.game_flow_id && (
         <Link
           href={`/spiele/${spiel.game_flow_id}/preview`}
@@ -114,9 +114,9 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
               ▶▶
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-base">Ganzes Lernspiel testen</p>
+              <p className="font-bold text-base">Ganzen LernFlow testen</p>
               <p className="text-xs" style={{ color: '#E9D5FF' }}>
-                Alle Module hintereinander, wie ein Schüler.
+                Alle Bausteine hintereinander, wie ein Schüler.
               </p>
             </div>
             <span className="text-xl flex-shrink-0" style={{ color: '#E9D5FF' }}>↗</span>
@@ -128,7 +128,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
       {alleModule.length > 0 && (
         <div className="mb-6 rounded-2xl p-4" style={{ background: '#FAFAFA', border: '1px solid #E9D5FF' }}>
           <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A6A94' }}>
-            Module einzeln testen
+            Bausteine einzeln testen
           </p>
           <div className="flex flex-col gap-2">
             {alleModule.map((m) => {
@@ -144,7 +144,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
                     {m.reihenfolge ?? '·'}
                   </span>
                   <span className="text-xs font-medium flex-1 truncate" style={{ color: '#1F1235' }}>
-                    {m.titel || m.spieltyp_didaktisch || m.game_engine || 'Modul'}
+                    {m.titel || m.spieltyp_didaktisch || m.game_engine || 'Baustein'}
                   </span>
                   {istAktuell && (
                     <span className="text-xs font-bold flex-shrink-0" style={{ color: '#7C3AED' }}>
@@ -174,7 +174,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
         {/* Meta-Info */}
         <div className="border rounded-xl p-5">
           <div className="flex items-start justify-between gap-4 mb-3">
-            <h2 className="font-semibold">Modul-Info</h2>
+            <h2 className="font-semibold">Baustein-Info</h2>
             <ModulInfoEdit
               spielId={id}
               titel={spiel.titel ?? ''}
@@ -199,7 +199,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
           {spiel.status === 'freigegeben' && (
             <div className="mt-4 pt-4 border-t">
               <p className="text-xs text-muted-foreground">
-                Dieses Modul wird Teil eines Lernspiels. Du gibst es unter <Link href="/classes" className="text-primary hover:underline">Klassen</Link> für eine Klasse frei.
+                Dieser Baustein wird Teil eines LernFlows. Du gibst ihn unter <Link href="/classes" className="text-primary hover:underline">Klassen</Link> für eine Klasse frei.
               </p>
             </div>
           )}
@@ -230,7 +230,7 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
               ℹ️ Lehrkraft-Check läuft auf Flow-Ebene
             </p>
             <p className="text-xs leading-relaxed" style={{ color: '#5B21B6' }}>
-              Die didaktische Bewertung erfolgt für das ganze Lernspiel — Module
+              Die didaktische Bewertung erfolgt für den ganzen LernFlow — Bausteine
               werden zusammen gedacht, nicht isoliert.{' '}
               <Link href={`/spiele/${spiel.game_flow_id}`} className="underline font-semibold" style={{ color: '#5B21B6' }}>
                 Zum Flow-Check →

@@ -40,7 +40,7 @@ export default async function FlowPreviewPage({ params }: { params: Promise<{ fl
   const module: PreviewModul[] = sortiert
     .map((g) => ({
       id: g.id,
-      titel: g.titel ?? 'Modul',
+      titel: g.titel ?? 'Baustein',
       gameSkin: g.game_skin ?? 'mittelstufe',
       aufgaben: g.aufgaben ?? [],
       bausteinTyp: (g.baustein_typ ?? 'spiel') as BausteinTyp,
@@ -52,9 +52,9 @@ export default async function FlowPreviewPage({ params }: { params: Promise<{ fl
     return (
       <div className="p-8 max-w-2xl mx-auto">
         <div className="rounded-2xl p-6" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
-          <p className="text-sm font-bold mb-1" style={{ color: '#991B1B' }}>Keine spielbaren Module</p>
+          <p className="text-sm font-bold mb-1" style={{ color: '#991B1B' }}>Keine spielbaren Bausteine</p>
           <p className="text-xs mb-3" style={{ color: '#B91C1C' }}>
-            Dieses Lernspiel enthält noch keine Module mit Aufgaben.
+            Dieser LernFlow enthält noch keine Bausteine mit Aufgaben.
           </p>
           <Link href="/spiele" className="text-xs font-semibold underline" style={{ color: '#991B1B' }}>
             ← Zurück zur Übersicht
@@ -67,7 +67,7 @@ export default async function FlowPreviewPage({ params }: { params: Promise<{ fl
   return (
     <FlowPreviewClient
       flowId={flowId}
-      flowTitel={flow.titel ?? 'Lernspiel'}
+      flowTitel={flow.titel ?? 'LernFlow'}
       module={module}
     />
   )

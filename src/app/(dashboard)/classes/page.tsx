@@ -274,7 +274,7 @@ export default function ClassesPage() {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 md:mb-8">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Klassen</h1>
-          <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Schüler-Codes drucken · Lernspiele freigeben · Ergebnisse ansehen</p>
+          <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>Schüler-Codes drucken · LernFlows freigeben · Ergebnisse ansehen</p>
         </div>
         <button onClick={() => { setShowForm(!showForm); setFormError(null) }} style={btnPrimary}>
           + Klasse anlegen
@@ -384,7 +384,7 @@ export default function ClassesPage() {
             <div className="flex gap-1 mb-5 p-1 rounded-xl" style={{ background: '#F3EEFF' }}>
               {([
                 { key: 'codes', label: '🔑 Schüler-Codes' },
-                { key: 'flows', label: '📚 Lernspiele & Ergebnisse' },
+                { key: 'flows', label: '📚 LernFlows & Ergebnisse' },
               ] as { key: Tab; label: string }[]).map((t) => (
                 <button key={t.key} onClick={() => setActiveTab(t.key)}
                   className="flex-1 py-2 text-sm font-semibold rounded-lg transition-all"
@@ -475,13 +475,13 @@ export default function ClassesPage() {
               </div>
             )}
 
-            {/* ── Tab: Lernspiele & Ergebnisse ── */}
+            {/* ── Tab: LernFlows & Ergebnisse ── */}
             {activeTab === 'flows' && (
               <div style={cardStyle} className="p-6">
                 <div className="mb-5">
-                  <p className="font-bold text-sm" style={{ color: '#1F1235' }}>Lernspiele für diese Klasse</p>
+                  <p className="font-bold text-sm" style={{ color: '#1F1235' }}>LernFlows für diese Klasse</p>
                   <p className="text-xs mt-0.5" style={{ color: '#7A6A94' }}>
-                    Gib ein Lernspiel frei und sieh dir die Ergebnisse direkt darunter an.
+                    Gib einen LernFlow frei und sieh dir die Ergebnisse direkt darunter an.
                   </p>
                 </div>
 
@@ -496,8 +496,8 @@ export default function ClassesPage() {
                 ) : flows.length === 0 ? (
                   <div className="text-center py-10" style={{ border: '2px dashed #E9D5FF', borderRadius: 14 }}>
                     <span className="text-3xl block mb-2">📚</span>
-                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch kein Lernspiel erstellt</p>
-                    <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Lade ein Arbeitsblatt hoch — wir bauen daraus dein erstes Lernspiel.</p>
+                    <p className="text-sm" style={{ color: '#7A6A94' }}>Noch kein LernFlow erstellt</p>
+                    <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Lade ein Arbeitsblatt hoch — wir bauen daraus deinen ersten LernFlow.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
@@ -518,11 +518,11 @@ export default function ClassesPage() {
                                 <p className="font-bold text-sm truncate" style={{ color: '#1F1235' }}>{flow.titel}</p>
                                 {!flow.alle_module_freigegeben && (
                                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                                    style={{ background: '#FEF3C7', color: '#92400E' }}>Module noch im Entwurf</span>
+                                    style={{ background: '#FEF3C7', color: '#92400E' }}>Bausteine noch im Entwurf</span>
                                 )}
                               </div>
                               <p className="text-xs" style={{ color: '#7A6A94' }}>
-                                {flow.modul_anzahl} {flow.modul_anzahl === 1 ? 'Modul' : 'Module'} · erstellt am {new Date(flow.created_at).toLocaleDateString('de-DE')}
+                                {flow.modul_anzahl} {flow.modul_anzahl === 1 ? 'Baustein' : 'Bausteine'} · erstellt am {new Date(flow.created_at).toLocaleDateString('de-DE')}
                               </p>
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {flow.module.slice(0, 6).map((m, idx) => (
@@ -685,7 +685,7 @@ export default function ClassesPage() {
                               <button onClick={() => onReleaseFlow(flow.id)}
                                 disabled={istReleasing || flow.modul_anzahl === 0}
                                 style={{ ...btnPrimary, padding: '8px 16px', fontSize: 13, opacity: (istReleasing || flow.modul_anzahl === 0) ? 0.6 : 1 }}>
-                                {istReleasing ? 'Generiere Code…' : 'Lernspiel freigeben →'}
+                                {istReleasing ? 'Generiere Code…' : 'LernFlow freigeben →'}
                               </button>
                             </div>
                           )}

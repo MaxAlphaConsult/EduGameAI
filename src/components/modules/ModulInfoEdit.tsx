@@ -49,7 +49,7 @@ export function ModulInfoEdit({ spielId, titel, status, flowId }: Props) {
   }
 
   async function onStatusZurueck() {
-    if (!confirm('Status auf „Entwurf" zurücksetzen? Das Modul muss dann erneut freigegeben werden.')) return
+    if (!confirm('Status auf „Entwurf" zurücksetzen? Der Baustein muss dann erneut freigegeben werden.')) return
     setBusy(true)
     setError(null)
     try {
@@ -70,7 +70,7 @@ export function ModulInfoEdit({ spielId, titel, status, flowId }: Props) {
   }
 
   async function onLoeschen() {
-    if (!confirm(`Modul „${titel}" wirklich löschen?\n\nSchüler-Antworten zu diesem Modul werden mitgelöscht.`)) return
+    if (!confirm(`Baustein „${titel}" wirklich löschen?\n\nSchüler-Antworten zu diesem Baustein werden mitgelöscht.`)) return
     setBusy(true)
     setError(null)
     try {
@@ -80,7 +80,7 @@ export function ModulInfoEdit({ spielId, titel, status, flowId }: Props) {
         setError(b.error ?? 'Löschen fehlgeschlagen')
         return
       }
-      // Zurück zum Lernspiel oder zur Liste
+      // Zurück zum LernFlow oder zur Liste
       router.push(flowId ? '/spiele' : '/spiele')
     } finally {
       setBusy(false)
@@ -157,7 +157,7 @@ export function ModulInfoEdit({ spielId, titel, status, flowId }: Props) {
           disabled={busy}
           className="text-xs font-semibold px-3 py-1.5 rounded-xl ml-auto"
           style={{ background: '#FFFFFF', color: '#DC2626', border: '1px solid #FECACA', cursor: 'pointer' }}>
-          🗑 Modul löschen
+          🗑 Baustein löschen
         </button>
       </div>
 

@@ -9,7 +9,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "EduGame AI",
-  description: "KI-gestützte Lernspiele für den Unterricht",
+  description: "KI-gestützte LernFlows für den Unterricht",
 };
 
 export const viewport: Viewport = {

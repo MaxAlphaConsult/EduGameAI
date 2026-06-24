@@ -80,7 +80,7 @@ export function FlowPreviewClient({ flowId, flowTitel, module }: Props) {
               Vorschau: „{flowTitel}" — kompletter Durchlauf
             </p>
             <p className="text-xs" style={{ color: '#B45309' }}>
-              Du spielst alle {module.length} Module wie ein Schüler. Antworten fließen NICHT in die Diagnostik.
+              Du spielst alle {module.length} Bausteine wie ein Schüler. Antworten fließen NICHT in die Diagnostik.
             </p>
           </div>
           <Link href="/spiele"
@@ -266,7 +266,7 @@ function FertigScreen({
         <Link href={`/spiele`}
           className="text-sm font-bold px-5 py-3 rounded-2xl"
           style={{ background: '#FFFFFF', color: '#1F1235', border: '1px solid #E9D5FF', textDecoration: 'none' }}>
-          ← Zurück zu den Lernspielen
+          ← Zurück zu den LernFlows
         </Link>
       </div>
       <p className="text-xs" style={{ color: '#C4B5FD' }}>Flow-ID: {flowId}</p>

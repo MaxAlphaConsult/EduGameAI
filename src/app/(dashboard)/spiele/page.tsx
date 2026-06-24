@@ -77,7 +77,7 @@ export default function SpielePage() {
 
   async function onDelete(flow: Flow) {
     const bestätigung = confirm(
-      `„${flow.titel}" wirklich löschen?\n\nDamit verschwinden auch alle Module und bisherige Schüler-Antworten zu diesem Lernspiel.`
+      `„${flow.titel}" wirklich löschen?\n\nDamit verschwinden auch alle Bausteine und bisherige Schüler-Antworten zu diesem LernFlow.`
     )
     if (!bestätigung) return
     setDeletingId(flow.id)
@@ -99,15 +99,15 @@ export default function SpielePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>Lernspiele</h1>
+          <h1 className="text-2xl font-bold" style={{ color: '#1F1235' }}>LernFlows</h1>
           <p className="text-sm mt-1" style={{ color: '#7A6A94' }}>
-            Jedes Lernspiel ist eine Reihe von Modulen, didaktisch von leicht nach schwer sortiert.
+            Jeder LernFlow ist eine Reihe von Bausteinen, didaktisch von leicht nach schwer sortiert.
           </p>
         </div>
         <Link href="/playground"
           className="rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
           style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', boxShadow: '0 4px 16px rgba(124,58,237,0.3)', textDecoration: 'none' }}>
-          ✦ Neues Lernspiel
+          ✦ Neuer LernFlow
         </Link>
       </div>
 
@@ -120,8 +120,8 @@ export default function SpielePage() {
       ) : flows.length === 0 ? (
         <div style={{ border: '2px dashed #E9D5FF', borderRadius: 20 }} className="p-16 text-center">
           <span className="text-4xl mb-3 block">🎮</span>
-          <p className="text-sm font-medium" style={{ color: '#7A6A94' }}>Noch kein Lernspiel</p>
-          <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Lade ein Arbeitsblatt hoch — wir bauen daraus dein erstes Lernspiel.</p>
+          <p className="text-sm font-medium" style={{ color: '#7A6A94' }}>Noch kein LernFlow</p>
+          <p className="text-xs mt-1" style={{ color: '#C4B5FD' }}>Lade ein Arbeitsblatt hoch — wir bauen daraus deinen ersten LernFlow.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -143,11 +143,11 @@ export default function SpielePage() {
                       </Link>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
                         style={{ background: '#F3EEFF', color: '#7C3AED' }}>
-                        {flow.module.length} {flow.module.length === 1 ? 'Modul' : 'Module'}
+                        {flow.module.length} {flow.module.length === 1 ? 'Baustein' : 'Bausteine'}
                       </span>
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: '#7A6A94' }}>
-                      Erstellt {new Date(flow.created_at).toLocaleDateString('de-DE')} · {moduleBereit}/{flow.module.length} Module bereit
+                      Erstellt {new Date(flow.created_at).toLocaleDateString('de-DE')} · {moduleBereit}/{flow.module.length} Bausteine bereit
                     </p>
                   </div>
                 </div>
@@ -162,7 +162,7 @@ export default function SpielePage() {
                           className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-all"
                           style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, textDecoration: 'none' }}>
                           <span className="font-bold">{idx + 1}.</span>
-                          <span>{m.spieltyp_didaktisch || m.game_engine || 'Modul'}</span>
+                          <span>{m.spieltyp_didaktisch || m.game_engine || 'Baustein'}</span>
                         </Link>
                       )
                     })}

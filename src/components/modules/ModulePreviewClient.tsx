@@ -63,7 +63,7 @@ export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben, bauste
             border: '1px solid #6EE7B7',
           }}>
             <h2 className="text-2xl font-bold mb-2" style={{ color: '#065F46' }}>
-              🎉 Modul gespielt!
+              🎉 Baustein gespielt!
             </h2>
             <p className="text-sm mb-6" style={{ color: '#047857' }}>
               {ergebnis.korrekt} von {ergebnis.gesamt} Aufgaben richtig.
@@ -111,13 +111,13 @@ export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben, bauste
                     border: '1.5px solid #C4B5FD',
                     textDecoration: 'none',
                   }}>
-                  ▶▶ Alle Module hintereinander testen
+                  ▶▶ Alle Bausteine hintereinander testen
                 </Link>
               )}
               <Link href={`/modules/${modulId}`}
                 className="text-sm font-bold px-5 py-3 rounded-2xl"
                 style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>
-                ← Zurück zum Modul
+                ← Zurück zum Baustein
               </Link>
             </div>
           </div>
