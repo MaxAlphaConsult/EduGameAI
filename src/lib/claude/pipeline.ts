@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { ZodSchema, ZodError } from 'zod'
+import { ZodSchema, ZodError, type ZodType } from 'zod'
 import {
   AnalyseOutputSchema,
   LernzielOutputSchema,
@@ -41,6 +42,9 @@ function getClient() {
   return _client
 }
 
+// Einheitliches Modell für alle Pipeline-Calls.
+const MODEL = 'claude-sonnet-4-6'
+
 // Fehlertypen für die Pipeline
 export class PipelineValidationError extends Error {
   constructor(
@@ -57,6 +61,15 @@ export class PipelineJsonError extends Error {
   constructor(public readonly schritt: string, public readonly rawText: string) {
     super(`Pipeline-Schritt "${schritt}" hat kein JSON zurückgegeben`)
     this.name = 'PipelineJsonError'
+  }
+}
+
+// KI-Antwort wurde am Token-Limit (max_tokens) abgeschnitten → JSON ist unvollständig.
+// Eigener Typ, damit die UI eine klare Meldung statt "kein JSON" zeigt.
+export class PipelineTruncationError extends Error {
+  constructor(public readonly schritt: string, public readonly maxTokens: number) {
+    super(`Pipeline-Schritt "${schritt}" wurde am Token-Limit abgeschnitten (max_tokens=${maxTokens})`)
+    this.name = 'PipelineTruncationError'
   }
 }
 
@@ -97,10 +110,40 @@ function findBalancedObject(s: string): string | null {
   return null
 }
 
+// Escapt rohe Steuerzeichen INNERHALB von JSON-Strings (literale Zeilenumbrüche,
+// Tabs, CR). Modelle geben sie bei Markdown-Inhalten gelegentlich unescaped aus,
+// was JSON.parse strikt ablehnt — der häufigste Grund für "kein JSON" beim
+// Input-Baustein (Markdown-Feld mit Absätzen/Listen). String-bewusst, damit das
+// JSON-Gerüst selbst (Einrückung außerhalb von Strings) unberührt bleibt.
+function escapeRawControlCharsInStrings(s: string): string {
+  let out = ''
+  let inStr = false
+  let esc = false
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (inStr) {
+      if (esc) { out += c; esc = false; continue }
+      if (c === '\\') { out += c; esc = true; continue }
+      if (c === '"') { out += c; inStr = false; continue }
+      if (c === '\n') { out += '\\n'; continue }
+      if (c === '\r') { out += '\\r'; continue }
+      if (c === '\t') { out += '\\t'; continue }
+      const code = c.charCodeAt(0)
+      if (code < 0x20) { out += '\\u' + code.toString(16).padStart(4, '0'); continue }
+      out += c
+    } else {
+      out += c
+      if (c === '"') inStr = true
+    }
+  }
+  return out
+}
+
 // JSON aus Claude-Antwort extrahieren. Probiert mehrere Strategien, weil das
 // Modell trotz Anweisung gelegentlich einen ```-Fence weglässt oder einen
 // Vor-/Nachsatz anhängt: 1) Inhalt eines ```json-Fence, 2) erstes balanciertes
-// Objekt, 3) Greedy als letzter Fallback. Erste parsebare Variante gewinnt.
+// Objekt, 3) Greedy als letzter Fallback. Jede Variante wird zusätzlich mit
+// escapten Steuerzeichen erneut geparst. Erste parsebare Variante gewinnt.
 function extractJson(text: string, schritt: string): unknown {
   const candidates: string[] = []
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
@@ -114,44 +157,91 @@ function extractJson(text: string, schritt: string): unknown {
     try {
       return JSON.parse(c)
     } catch {
-      // nächste Strategie probieren
+      // Zweiter Versuch: rohe Steuerzeichen in Strings escapen (Markdown-Inhalte).
+      try {
+        return JSON.parse(escapeRawControlCharsInStrings(c))
+      } catch {
+        // nächste Strategie probieren
+      }
     }
   }
   throw new PipelineJsonError(schritt, text)
 }
 
-// Einzelner typisierter KI-Call mit Zod-Validierung
+// Validiert rohes JSON gegen das Zod-Schema; einheitlicher Fehler bei Mismatch.
+function validiere<T>(schritt: string, raw: unknown, schema: ZodSchema<T>): T {
+  const result = schema.safeParse(raw)
+  if (!result.success) {
+    throw new PipelineValidationError(schritt, result.error, raw)
+  }
+  return result.data
+}
+
+// Einzelner typisierter KI-Call mit Zod-Validierung.
+//
+// strukturierteAusgabe=true erzwingt über die Structured-Outputs-API (messages.parse)
+// schema-konformes JSON — das eliminiert die "kein JSON"-Fehlerklasse an der Wurzel
+// (kein Fence-/Escaping-/Präambel-Problem mehr). Nur für Schemas OHNE z.unknown()/
+// rekursive Typen geeignet (z.B. SpielOutput nutzt z.array(z.unknown()) → dort aus).
 async function callClaude<T>(
   schritt: string,
   systemPrompt: string,
   userMessage: string,
   schema: ZodSchema<T>,
-  maxTokens = 8192
+  maxTokens = 8192,
+  strukturierteAusgabe = false
 ): Promise<T> {
+  // System-Prompt cachen: parallele/Folgegenerierungen innerhalb 5 min nutzen denselben
+  // Prompt — Cache-Hit spart ~85% Input-Tokens und reduziert TTFT um 1-3s pro Call.
+  const system = [{ type: 'text' as const, text: systemPrompt, cache_control: { type: 'ephemeral' as const } }]
+  const messages = [{ role: 'user' as const, content: userMessage }]
+
+  if (strukturierteAusgabe) {
+    let parsed
+    try {
+      parsed = await getClient().messages.parse({
+        model: MODEL,
+        max_tokens: maxTokens,
+        system,
+        messages,
+        output_config: { format: zodOutputFormat(schema as ZodType) },
+      })
+    } catch (err) {
+      throw new PipelineApiError(schritt, err)
+    }
+    if (parsed.parsed_output != null) return parsed.parsed_output as T
+    // Kein geparstes Ergebnis: meist am Token-Limit abgeschnitten.
+    if (parsed.stop_reason === 'max_tokens') throw new PipelineTruncationError(schritt, maxTokens)
+    // Sonst klassisch aus dem Text bergen (seltene Edge-Fälle).
+    let text = ''
+    for (const block of parsed.content) if (block.type === 'text') text += block.text
+    return validiere(schritt, extractJson(text, schritt), schema)
+  }
+
   let response
   try {
     response = await getClient().messages.create({
-      model: 'claude-sonnet-4-6',
+      model: MODEL,
       max_tokens: maxTokens,
-      // System-Prompt cachen: alle parallelen generateGame-Calls und Folgegenerierungen
-      // innerhalb von 5 min nutzen denselben Prompt — Cache-Hit spart ~85% Input-Tokens
-      // und reduziert TTFT um 1-3s pro Call.
-      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: userMessage }],
+      system,
+      messages,
     })
   } catch (err) {
     throw new PipelineApiError(schritt, err)
   }
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  const raw = extractJson(text, schritt)
-
-  const result = schema.safeParse(raw)
-  if (!result.success) {
-    throw new PipelineValidationError(schritt, result.error, raw)
+  let raw: unknown
+  try {
+    raw = extractJson(text, schritt)
+  } catch (err) {
+    // Kein JSON gefunden UND am Token-Limit gestoppt → Abschneiden ist die Ursache.
+    if (err instanceof PipelineJsonError && response.stop_reason === 'max_tokens') {
+      throw new PipelineTruncationError(schritt, maxTokens)
+    }
+    throw err
   }
-
-  return result.data
+  return validiere(schritt, raw, schema)
 }
 
 // --- Schritt 1–6: Materialanalyse ---------------------------
@@ -286,7 +376,11 @@ export async function generateInputBaustein(input: {
       baustein: input.baustein,
       kontext: input.kontext,
     }),
-    InputBausteinOutputSchema
+    InputBausteinOutputSchema,
+    // Erklär-Markdown kann lang werden → mehr Token-Spielraum; structured outputs
+    // garantiert schema-konformes JSON (behebt "kein JSON" an dieser Stelle).
+    16384,
+    true
   )
 }
 

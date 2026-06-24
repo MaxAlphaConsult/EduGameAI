@@ -9,6 +9,7 @@ import {
   generateGame,
   PipelineValidationError,
   PipelineJsonError,
+  PipelineTruncationError,
   PipelineApiError,
 } from '@/lib/claude/pipeline'
 import { createClient } from '@/lib/supabase/server'
@@ -251,6 +252,9 @@ export async function POST(request: NextRequest) {
         } else if (err instanceof PipelineJsonError) {
           message = `KI hat kein JSON zurückgegeben: ${err.schritt}`
           console.error('[analyze] PipelineJsonError', { schritt: err.schritt, rawText: err.rawText?.slice(0, 2000) })
+        } else if (err instanceof PipelineTruncationError) {
+          message = `KI-Antwort wurde abgeschnitten (Token-Limit) bei: ${err.schritt} — bitte erneut versuchen`
+          console.error('[analyze] PipelineTruncationError', { schritt: err.schritt, maxTokens: err.maxTokens })
         } else if (err instanceof PipelineApiError) {
           const cause = err.cause
           const causeMessage = cause instanceof Error ? cause.message : (typeof cause === 'string' ? cause : JSON.stringify(cause))
