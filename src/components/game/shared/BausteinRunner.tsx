@@ -41,6 +41,13 @@ export function BausteinRunner({
   moduleSessionId, titel, inhalt, aufgaben, modus, preview, onModulFertig, startLabel, intro,
 }: BausteinRunnerProps) {
   const [screen, setScreen] = useState<'inhalt' | 'fragen'>(inhalt ? 'inhalt' : 'fragen')
+
+  // Inhalts-Text: Alt-Form nutzt `markdown`; neue Bausteine (Block D) tragen eine
+  // Segment-Sequenz — hier ziehen wir die Text-Segmente zusammen (dieser Runner
+  // wird nur noch für die neutralen Checks vorwissen_check/post_check verwendet).
+  const inhaltMarkdown =
+    inhalt?.markdown ??
+    (inhalt?.segmente ?? []).map((s) => s.markdown).filter((m): m is string => !!m).join('\n\n')
   const [index, setIndex] = useState(0)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [submitted, setSubmitted] = useState(false)
@@ -132,7 +139,7 @@ export function BausteinRunner({
         <div className="w-full max-w-xl flex flex-col gap-5">
           {intro && <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">{intro}</p>}
           <h1 className="text-2xl font-black">{titel}</h1>
-          <SimpleMarkdown markdown={inhalt.markdown} />
+          {inhaltMarkdown && <SimpleMarkdown markdown={inhaltMarkdown} />}
           {inhalt.kernaussagen.length > 0 && (
             <div className="rounded-2xl border border-violet-200 bg-violet-50 px-5 py-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-violet-800 mb-2">Das Wichtigste</p>

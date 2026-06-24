@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useGameTheme } from './shared/GameTheme'
 import { ResultBanner } from './shared/FeedbackBurst'
 import { burstKorrekt } from '@/lib/game/feedback'
+import { sanitizeSvg } from '@/lib/game/inline-check'
 
 interface Option {
   text: string
@@ -177,10 +178,15 @@ export function Detektiv({
           aspectRatio: '4 / 3',
         }}>
         {szene.svg ? (
-          <div
-            className="absolute inset-0"
-            dangerouslySetInnerHTML={{ __html: szene.svg }}
+          // SVG sandboxed als <img> (Data-URI): Browser führen darin keine Skripte
+          // aus und laden keine externen Ressourcen → kein XSS über modell-/material-
+          // generiertes SVG (vgl. Schaubild-Check). sanitizeSvg zusätzlich als Schutz.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`data:image/svg+xml;utf8,${encodeURIComponent(sanitizeSvg(szene.svg))}`}
+            alt=""
             aria-hidden
+            className="absolute inset-0 w-full h-full object-contain"
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-50">

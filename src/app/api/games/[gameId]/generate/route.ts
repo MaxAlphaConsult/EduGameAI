@@ -3,12 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 import {
   generateInputBaustein,
   generateGame,
+  groundingCheck,
   PipelineValidationError,
   PipelineJsonError,
   PipelineTruncationError,
   PipelineApiError,
 } from '@/lib/claude/pipeline'
-import { buildSpielRow, buildBausteinRow } from '@/lib/claude/build-rows'
+import { buildSpielRow, buildBausteinRow, flacheCheckAufgaben } from '@/lib/claude/build-rows'
+import { applyGrounding, type GroundingReport } from '@/lib/claude/grounding'
 import type {
   AnalyseOutput,
   LernzielOutput,
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .from('games')
     .select(`
       id, lehrer_id, baustein_typ, reihenfolge, gen_status, analyse_id,
-      analyses ( raw_output, materials ( fach, jahrgangsstufe, schulform ) ),
+      analyses ( raw_output, materials ( fach, jahrgangsstufe, schulform, abschnitte ) ),
       game_flows ( zeitrahmen_minuten )
     `)
     .eq('id', gameId)
@@ -102,6 +104,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     zeitrahmenMinuten: (flow?.zeitrahmen_minuten ?? 15) as number,
   }
 
+  // C1-Grounding-Quelle: die analysierten Abschnitte (Text gekürzt, damit der
+  // Prompt schlank bleibt). Fehlen sie (Alt-Material ohne abschnitte), wird der
+  // Grounding-Pass übersprungen.
+  const abschnitte = Array.isArray(material?.abschnitte)
+    ? (material.abschnitte as Array<{ id?: unknown; text?: unknown }>)
+        .filter((a) => a && typeof a.id === 'string' && typeof a.text === 'string')
+        .map((a) => ({ id: a.id as string, text: (a.text as string).slice(0, 600) }))
+    : []
+
+  // C2-Grounding-Gate: prüft die Aufgaben gegen die Quelle, verwirft nicht
+  // gegründete (mind. `minKeep` bleiben) und liefert einen Report zum Markieren.
+  async function groundeAufgaben<T extends { aufgabe_id: string; text: string; loesungen: string[]; distraktoren: string[]; hilfen: string[]; abschnitt_ref: string }>(
+    liste: T[],
+    minKeep: number,
+  ): Promise<{ aufgaben: T[]; grounding: GroundingReport | null }> {
+    if (abschnitte.length === 0 || liste.length === 0) return { aufgaben: liste, grounding: null }
+    const check = await groundingCheck({
+      aufgaben: liste.map((a) => ({
+        aufgabe_id: a.aufgabe_id, text: a.text, loesungen: a.loesungen,
+        distraktoren: a.distraktoren, hilfen: a.hilfen, abschnitt_ref: a.abschnitt_ref,
+      })),
+      abschnitte,
+      kontext: { fach: kontext.fach, jahrgangsstufe: kontext.jahrgangsstufe },
+    })
+    const { aufgaben, report } = applyGrounding(liste, check, minKeep)
+    return { aufgaben, grounding: report }
+  }
+
   // 'generating' markieren (optimistisch), damit parallele Aufrufe 202 bekommen.
   await supabase.from('games').update({ gen_status: 'generating', gen_error: null }).eq('id', gameId)
 
@@ -117,7 +147,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           didaktische_funktion: descriptor.didaktische_funktion,
         },
         kontext: { fach: kontext.fach, jahrgangsstufe: kontext.jahrgangsstufe, schulform: kontext.schulform },
+        abschnitte,
       })
+      // C2: Alle Inline-Checks gegen die Quelle prüfen. minKeep = Anzahl Checks,
+      // d.h. im Lerntext wird nur MARKIERT — Verwerfen würde die Text/Check-
+      // Sequenz zerreißen. Die Markierungen erscheinen im Grounding-Banner.
+      const checkAufgaben = flacheCheckAufgaben(inhalt)
+      const { grounding } = await groundeAufgaben(checkAufgaben, checkAufgaben.length)
       const row = buildBausteinRow(game.analyse_id as string, user.id, descriptor, inhalt)
       const { error: upErr } = await supabase
         .from('games')
@@ -128,6 +164,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           game_skin: row.game_skin,
           baustein_inhalt: row.baustein_inhalt,
           aufgaben: row.aufgaben,
+          grounding,
           gen_status: 'ready',
           gen_error: null,
         })
@@ -163,8 +200,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         spielmapping,
         kontext: { jahrgangsstufe: kontext.jahrgangsstufe, fach: kontext.fach, zeitrahmenMinuten: kontext.zeitrahmenMinuten },
         erlaubteFormate: raw.erlaubteFormate ?? undefined,
+        abschnitte,
       })
-      const row = buildSpielRow(game.analyse_id as string, user.id, spiel, spielmapping, descriptor.titel)
+      // C2: Aufgaben gegen die Quelle prüfen — nicht gegründete verwerfen
+      // (mind. 1 Aufgabe bleibt, sonst nur markieren).
+      const { aufgaben: gegruendeteAufgaben, grounding } = await groundeAufgaben(spiel.schritt_14_aufgaben, 1)
+      const spielFinal: SpielOutput = { ...spiel, schritt_14_aufgaben: gegruendeteAufgaben }
+      const row = buildSpielRow(game.analyse_id as string, user.id, spielFinal, spielmapping, descriptor.titel)
       const { error: upErr } = await supabase
         .from('games')
         .update({
@@ -173,7 +215,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           game_engine: row.game_engine,
           game_skin: row.game_skin,
           aufgaben: row.aufgaben,
-          spiel_output: spiel,
+          spiel_output: spielFinal,
+          grounding,
           gen_status: 'ready',
           gen_error: null,
         })

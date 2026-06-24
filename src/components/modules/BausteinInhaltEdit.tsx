@@ -31,20 +31,25 @@ export function BausteinInhaltEdit({ spielId, bausteinTyp, bausteinInhalt }: Pro
   const [fehler, setFehler] = useState<string | null>(null)
   const [gespeichert, setGespeichert] = useState(false)
 
+  // Block D: neue Bausteine sind interleaved Segment-Sequenzen. Dann KEIN
+  // Markdown-Editor (würde die Segmente überschreiben) — die Segmente werden beim
+  // Speichern unverändert mitgeschickt; editierbar sind hier nur Typ + Kernaussagen.
+  const segmente = bausteinInhalt?.segmente ?? null
+  const istSegmentEinheit = !!(segmente && segmente.length > 0)
+  const textAnzahl = segmente?.filter((s) => s.typ === 'text').length ?? 0
+  const checkAnzahl = segmente?.filter((s) => s.typ === 'check').length ?? 0
+
   async function speichern() {
     setSaving(true); setFehler(null); setGespeichert(false)
     try {
+      const kernaussagenArr = kernaussagen.split('\n').map((s) => s.trim()).filter(Boolean)
+      const inhalt = istSegmentEinheit
+        ? { segmente, kernaussagen: kernaussagenArr, didaktische_hinweise: bausteinInhalt?.didaktische_hinweise ?? [] }
+        : { markdown, kernaussagen: kernaussagenArr, didaktische_hinweise: bausteinInhalt?.didaktische_hinweise ?? [] }
       const res = await fetch(`/api/games/${spielId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          baustein_typ: typ,
-          baustein_inhalt: {
-            markdown,
-            kernaussagen: kernaussagen.split('\n').map((s) => s.trim()).filter(Boolean),
-            didaktische_hinweise: bausteinInhalt?.didaktische_hinweise ?? [],
-          },
-        }),
+        body: JSON.stringify({ baustein_typ: typ, baustein_inhalt: inhalt }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -72,16 +77,27 @@ export function BausteinInhaltEdit({ spielId, bausteinTyp, bausteinInhalt }: Pro
         </select>
       </div>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium text-muted-foreground">Erklärtext (Markdown)</span>
-        <textarea
-          value={markdown}
-          onChange={(e) => setMarkdown(e.target.value)}
-          rows={10}
-          className="w-full rounded-xl border px-3 py-2 text-sm font-mono leading-relaxed bg-background"
-          placeholder="Erklärinhalt in kleinen Häppchen …"
-        />
-      </label>
+      {istSegmentEinheit ? (
+        <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#F6F1FF', border: '1px solid #E9D5FF', color: '#5B21B6' }}>
+          <p className="font-semibold mb-1">📚 Interleaved Lern-Einheit</p>
+          <p className="text-xs leading-relaxed">
+            {textAnzahl} {textAnzahl === 1 ? 'Textblock' : 'Textblöcke'} · {checkAnzahl} eingebettete {checkAnzahl === 1 ? 'Check' : 'Checks'}.
+            Sieh dir die Sequenz im <strong>Schüler-Preview</strong> an. Die einzelnen Checks bearbeitest du unten bei den Aufgaben;
+            segment-genaues Text-Editing folgt.
+          </p>
+        </div>
+      ) : (
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">Erklärtext (Markdown)</span>
+          <textarea
+            value={markdown}
+            onChange={(e) => setMarkdown(e.target.value)}
+            rows={10}
+            className="w-full rounded-xl border px-3 py-2 text-sm font-mono leading-relaxed bg-background"
+            placeholder="Erklärinhalt in kleinen Häppchen …"
+          />
+        </label>
+      )}
 
       <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Kernaussagen (eine pro Zeile)</span>
@@ -94,9 +110,11 @@ export function BausteinInhaltEdit({ spielId, bausteinTyp, bausteinInhalt }: Pro
         />
       </label>
 
-      <p className="text-xs text-muted-foreground">
-        Die Mini-Verständnisfrage bearbeitest du unten bei den Aufgaben.
-      </p>
+      {!istSegmentEinheit && (
+        <p className="text-xs text-muted-foreground">
+          Die Mini-Verständnisfrage bearbeitest du unten bei den Aufgaben.
+        </p>
+      )}
 
       <div className="flex items-center gap-3">
         <button

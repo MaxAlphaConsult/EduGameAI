@@ -8,8 +8,35 @@ import type {
   SpielmappingOutput,
   SpielOutput,
   BausteinSequenzOutput,
-  InputBausteinOutput,
+  LernEinheitOutput,
 } from '@/lib/schemas/pipeline'
+
+// Flacht die Inline-Checks einer Lern-Einheit zu Aufgaben-Zeilen ab. Liegt
+// bewusst zentral, damit /api/answers, Diagnose UND der Grounding-Pass exakt
+// dieselben aufgabe_ids/Felder sehen.
+export function flacheCheckAufgaben(inhalt: LernEinheitOutput) {
+  return inhalt.segmente
+    .filter((s) => s.typ === 'check' && s.check)
+    .map((s) => {
+      const c = s.check!
+      const antwortformat =
+        c.typ === 'quiz' || c.typ === 'schaubild' ? (c.quiz_format ?? 'single_choice')
+        : c.typ === 'lueckentext' ? 'lueckentext'
+        : c.typ === 'zuordnen' ? 'zuordnung'
+        : 'unterstreichen'
+      return {
+        aufgabe_id: c.check_id,
+        text: c.frage,
+        antwortformat,
+        loesungen: c.loesungen,
+        distraktoren: c.distraktoren,
+        hilfen: c.hilfen,
+        abschnitt_ref: c.abschnitt_ref,
+        teilkompetenz: c.teilkompetenz,
+        komplexitaetsstufe: c.komplexitaetsstufe,
+      }
+    })
+}
 
 export function buildSpielRow(
   analyseId: string,
@@ -56,7 +83,7 @@ export function buildBausteinRow(
   analyseId: string,
   lehrerId: string,
   b: BausteinSequenzOutput['bausteine'][number],
-  inhalt: InputBausteinOutput,
+  inhalt: LernEinheitOutput,
 ) {
   return {
     analyse_id: analyseId,
@@ -66,12 +93,14 @@ export function buildBausteinRow(
     game_engine: null,
     game_skin: 'analytics',
     baustein_typ: b.baustein_typ,
+    // Block D: interleaved Sequenz (Text + Checks). `aufgaben` enthält die Checks
+    // flach für Answers/Diagnose/Grounding — dieselben aufgabe_ids wie in segmente.
     baustein_inhalt: {
-      markdown: inhalt.markdown,
+      segmente: inhalt.segmente,
       kernaussagen: inhalt.kernaussagen,
       didaktische_hinweise: inhalt.didaktische_hinweise,
     },
-    aufgaben: [inhalt.mini_check],
+    aufgaben: flacheCheckAufgaben(inhalt),
     zeitregelung_sekunden: null,
     zeitdruck_aktiv: false,
     status: 'entwurf',

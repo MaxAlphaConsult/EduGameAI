@@ -118,7 +118,9 @@ export async function POST(
   // Bei archiviertem Release: re-aktivieren mit neuem Code
   // Sonst: neu anlegen, max. 5 Retries bei Code-Kollision
   for (let attempt = 0; attempt < 5; attempt++) {
-    const access_code = generateAccessCode({ flowTitel: flow.titel, klassenName: klasse.name })
+    // 8-stelliger Zufallscode (datensparsam: kein Thema/Klassenname). Bei
+    // Kollision der UNIQUE-Spalte zieht der Loop einen neuen Code.
+    const access_code = generateAccessCode()
     if (existing) {
       const { data: updated, error } = await supabase
         .from('flow_releases')

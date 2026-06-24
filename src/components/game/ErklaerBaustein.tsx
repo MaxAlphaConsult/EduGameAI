@@ -1,6 +1,7 @@
 'use client'
 
 import { BausteinRunner, type ModulErgebnis } from './shared/BausteinRunner'
+import { LernEinheitRunner } from './LernEinheitRunner'
 import type { Aufgabe, BausteinInhalt, BausteinTyp } from '@/types'
 
 // Renderer für vermittelnde Bausteine (einstieg, input, erarbeitung, sicherung,
@@ -25,6 +26,20 @@ const INTRO: Partial<Record<BausteinTyp, string>> = {
 }
 
 export function ErklaerBaustein({ moduleSessionId, titel, bausteinTyp, bausteinInhalt, aufgaben, preview, onModulFertig }: Props) {
+  // Block D: Neue Bausteine tragen eine interleaved Segment-Sequenz → InteractiveRunner.
+  if (bausteinInhalt?.segmente && bausteinInhalt.segmente.length > 0) {
+    return (
+      <LernEinheitRunner
+        moduleSessionId={moduleSessionId}
+        titel={titel}
+        inhalt={bausteinInhalt}
+        intro={INTRO[bausteinTyp]}
+        preview={preview}
+        onModulFertig={onModulFertig}
+      />
+    )
+  }
+  // Alt-Bausteine (Erklärtext am Stück + getrennte Aufgaben) → bestehender Runner.
   return (
     <BausteinRunner
       moduleSessionId={moduleSessionId}

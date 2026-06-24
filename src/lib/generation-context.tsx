@@ -12,6 +12,10 @@ export interface GenerationResult {
   gameFlowId: string
   spielIds: string[]
   analyseId: string
+  // Block B: Der Flow wird im selben Lauf für die gewählte Klasse freigegeben.
+  accessCode: string | null
+  releaseError: string | null
+  fehlerAnzahl: number
 }
 
 export interface GenerationStartParams {
@@ -24,6 +28,8 @@ export interface GenerationStartParams {
   zeitrahmenMinuten: number
   erlaubteFormate: string[]
   anzahlSpiele: number
+  // Klasse, für die der fertige LernFlow direkt freigegeben wird (ein Launch).
+  classId?: string
 }
 
 interface GenerationState {
@@ -200,12 +206,37 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       if (fehler >= total) throw new Error('Keiner der Bausteine konnte erzeugt werden')
 
       const spielIds = mods.map((m) => m.id)
+
+      // ── Phase 3: EIN Launch — Flow direkt für die gewählte Klasse freigeben ──
+      // Nur wenn ALLE Bausteine fehlerfrei generiert wurden — sonst würden defekte
+      // Module veröffentlicht. Bei Teilfehlern wird NICHT freigegeben; das Ergebnis
+      // meldet es, die Lehrkraft kann betroffene Module neu erzeugen und dann freigeben.
+      let accessCode: string | null = null
+      let releaseError: string | null = null
+      if (params.classId && fehler === 0) {
+        setState((s) => ({ ...s, label: 'Für die Klasse freigeben …', percent: 100 }))
+        try {
+          const relRes = await fetch(`/api/flows/${p.gameFlowId}/release`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classId: params.classId }),
+          })
+          const relBody = await relRes.json().catch(() => ({}))
+          if (relRes.ok) accessCode = relBody.release?.access_code ?? null
+          else releaseError = relBody.error ?? 'Freigabe fehlgeschlagen'
+        } catch (err) {
+          releaseError = err instanceof Error ? err.message : 'Freigabe fehlgeschlagen'
+        }
+      } else if (params.classId && fehler > 0) {
+        releaseError = `${fehler} von ${total} Bausteinen konnten nicht erzeugt werden — Freigabe pausiert.`
+      }
+
       setState((s) => ({
         ...s,
         status: 'done',
         percent: 100,
         schrittIndex: ANALYSE_SCHRITTE_COUNT,
-        result: { gameFlowId: p.gameFlowId, spielIds, analyseId: p.analyseId },
+        result: { gameFlowId: p.gameFlowId, spielIds, analyseId: p.analyseId, accessCode, releaseError, fehlerAnzahl: fehler },
       }))
 
       // Fire-and-forget Lehrkraft-Validierung pro Modul (Check überspringt Nicht-Spiele).

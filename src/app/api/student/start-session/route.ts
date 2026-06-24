@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { niveauFuerPosition } from '@/lib/flow/ordering'
+import { rateLimit } from '@/lib/rate-limit'
 
 // POST /api/student/start-session  body { flowReleaseId, studentCode }
 // Stufe 2 des Schüler-Logins: validiert den persönlichen Tier-Code gegen die
@@ -11,11 +12,22 @@ import { niveauFuerPosition } from '@/lib/flow/ordering'
 // Idempotent für denselben (flowReleaseId, studentCode): falls bereits eine
 // Session läuft, wird sie zurückgegeben — die Schüler:in landet automatisch
 // im aktuellen Modul (keine doppelten Sessions).
+// IP-Rate-Limiting läuft zentral im Proxy (src/proxy.ts). Zusätzlich hier eine
+// per-Release-Grenze gegen Schülercode-Brute-Force — diese Dimension ist NICHT
+// client-kontrollierbar und greift daher auch bei IP-Rotation.
 export async function POST(request: NextRequest) {
   try {
     const { flowReleaseId, studentCode } = await request.json()
     if (!flowReleaseId || !studentCode) {
       return NextResponse.json({ error: 'flowReleaseId und studentCode erforderlich' }, { status: 400 })
+    }
+
+    const perRelease = rateLimit(`session-release:${flowReleaseId}`, 120, 60_000)
+    if (!perRelease.ok) {
+      return NextResponse.json(
+        { error: 'Zu viele Versuche für diesen Code. Bitte einen Moment warten.' },
+        { status: 429, headers: { 'Retry-After': String(perRelease.retryAfterSec) } },
+      )
     }
 
     const supabase = await createClient()
@@ -32,13 +44,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Flow ist nicht mehr aktiv.' }, { status: 404 })
     }
 
-    // Schüler:in muss zur Klasse des FlowReleases gehören
-    const { data: student } = await supabase
-      .from('students')
-      .select('id, code, class_id')
-      .eq('code', code)
-      .eq('class_id', release.class_id)
-      .maybeSingle()
+    // Schülercode über SECURITY-DEFINER-Funktion validieren. Die students-Tabelle
+    // ist für anon NICHT lesbar (Migration 019) — die Funktion gibt nur bei
+    // korrektem Code eines aktiven Releases ein Ergebnis zurück, kein Tabellen-Abgriff.
+    const { data: rows } = await supabase.rpc('validate_student_code', {
+      p_flow_release_id: release.id,
+      p_code: code,
+    })
+    const student = Array.isArray(rows) && rows.length > 0
+      ? (rows[0] as { student_id: string; student_code: string })
+      : null
 
     if (!student) {
       return NextResponse.json({
@@ -63,7 +78,7 @@ export async function POST(request: NextRequest) {
       .from('student_sessions')
       .select('id, aktuelles_modul_index, modul_anzahl, lernpfad_abgeschlossen')
       .eq('flow_release_id', release.id)
-      .eq('student_id', student.id)
+      .eq('student_id', student.student_id)
       .maybeSingle()
 
     if (existing) {
@@ -82,7 +97,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         studentSessionId: existing.id,
-        student: { id: student.id, code: student.code },
+        student: { id: student.student_id, code: student.student_code },
         flow: { releaseId: release.id, modul_anzahl: existing.modul_anzahl },
         aktuelles_modul: existing.lernpfad_abgeschlossen ? null : {
           moduleSessionId: ms?.id,
@@ -101,8 +116,8 @@ export async function POST(request: NextRequest) {
       .from('student_sessions')
       .insert({
         flow_release_id: release.id,
-        student_id: student.id,
-        code: student.code,
+        student_id: student.student_id,
+        code: student.student_code,
         aktuelles_modul_index: 0,
         modul_anzahl: module.length,
       })
@@ -134,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       studentSessionId: session.id,
-      student: { id: student.id, code: student.code },
+      student: { id: student.student_id, code: student.student_code },
       flow: { releaseId: release.id, modul_anzahl: module.length },
       aktuelles_modul: {
         moduleSessionId: ms.id,

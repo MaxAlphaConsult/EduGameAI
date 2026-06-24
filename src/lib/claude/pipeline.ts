@@ -16,7 +16,8 @@ import {
   FlowCheckOutputSchema,
   FlowImproveOutputSchema,
   BausteinSequenzOutputSchema,
-  InputBausteinOutputSchema,
+  LernEinheitOutputSchema,
+  GroundingCheckOutputSchema,
   type AnalyseOutput,
   type LernzielOutput,
   type LernpfadOutput,
@@ -29,7 +30,8 @@ import {
   type FlowCheckOutput,
   type FlowImproveOutput,
   type BausteinSequenzOutput,
-  type InputBausteinOutput,
+  type LernEinheitOutput,
+  type GroundingCheckOutput,
 } from '../schemas/pipeline'
 
 let _client: Anthropic | null = null
@@ -366,19 +368,22 @@ export async function generateInputBaustein(input: {
     didaktische_funktion: string
   }
   kontext: { fach: string; jahrgangsstufe: string; schulform: string }
-}): Promise<InputBausteinOutput> {
+  // C1-Grounding: die Quell-Abschnitte, an denen Texte + Checks zu erden sind.
+  abschnitte?: { id: string; text: string }[]
+}): Promise<LernEinheitOutput> {
   return callClaude(
-    'Input-Baustein generieren (LernFlow)',
+    'Lern-Einheit generieren (interleaved Inline-Checks)',
     loadPrompt('12_input_baustein.md'),
     JSON.stringify({
       analyse: input.analyse,
       lernziel: input.lernziel,
       baustein: input.baustein,
       kontext: input.kontext,
+      material_abschnitte: input.abschnitte ?? null,
     }),
-    InputBausteinOutputSchema,
-    // Erklär-Markdown kann lang werden → mehr Token-Spielraum; structured outputs
-    // garantiert schema-konformes JSON (behebt "kein JSON" an dieser Stelle).
+    LernEinheitOutputSchema,
+    // Interleaved Text + mehrere Checks → mehr Token-Spielraum; structured outputs
+    // garantiert schema-konformes JSON.
     16384,
     true
   )
@@ -419,6 +424,8 @@ export async function generateGame(input: {
   spielmapping: SpielmappingOutput
   kontext: { jahrgangsstufe: string; fach: string; zeitrahmenMinuten: number }
   erlaubteFormate?: string[]
+  // C1-Grounding: die Quell-Abschnitte, an denen Aufgaben/Hilfen zu erden sind.
+  abschnitte?: { id: string; text: string }[]
 }): Promise<SpielOutput> {
   return callClaude(
     'Spielgenerierung (Schritte 11–16)',
@@ -434,8 +441,34 @@ export async function generateGame(input: {
         zeitrahmen_minuten: input.kontext.zeitrahmenMinuten,
       },
       erlaubte_formate: input.erlaubteFormate ?? null,
+      material_abschnitte: input.abschnitte ?? null,
     }),
     SpielOutputSchema
+  )
+}
+
+// --- Grounding-Check: Aufgaben gegen die Quelle prüfen (Prompt 13, Block C) ---
+//
+// Zweiter Pass über die generierten Aufgaben: prüft je Aufgabe (inkl. Hilfen!),
+// ob sie aus dem Quellmaterial ableitbar ist. Structured Outputs garantiert
+// schema-konformes JSON. Der Aufrufer verwirft/markiert anhand der Verdikte
+// (siehe lib/claude/grounding.ts).
+export async function groundingCheck(input: {
+  aufgaben: { aufgabe_id: string; text: string; loesungen: string[]; distraktoren: string[]; hilfen: string[]; abschnitt_ref: string }[]
+  abschnitte: { id: string; text: string }[]
+  kontext: { fach: string; jahrgangsstufe: string }
+}): Promise<GroundingCheckOutput> {
+  return callClaude(
+    'Grounding-Check (fachliche Korrektheit)',
+    loadPrompt('13_grounding_check.md'),
+    JSON.stringify({
+      aufgaben: input.aufgaben,
+      material_abschnitte: input.abschnitte,
+      kontext: input.kontext,
+    }),
+    GroundingCheckOutputSchema,
+    8192,
+    true,
   )
 }
 
