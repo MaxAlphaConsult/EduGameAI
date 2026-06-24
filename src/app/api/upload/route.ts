@@ -9,51 +9,64 @@ import { createClient } from '@/lib/supabase/server'
 
 const MAX_DATEIGROESSE_BYTES = 20 * 1024 * 1024 // 20 MB
 const MIN_DATEIGROESSE_BYTES = 16
+const BUCKET = 'materials'
 
+// Der Browser lädt die Datei direkt in den Storage-Bucket (am Vercel-Body-Limit von
+// ~4,5 MB vorbei) und schickt hier nur noch den Pfad als JSON. Wir laden die Datei
+// serverseitig, extrahieren den Text und löschen die Datei danach wieder.
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
-    const fach = formData.get('fach') as string
-    const jahrgangsstufe = formData.get('jahrgangsstufe') as string
-    const schulform = formData.get('schulform') as string
+    const { path, dateiname, fach, jahrgangsstufe, schulform } = await request.json()
 
-    if (!file) {
-      return NextResponse.json({ error: 'Keine Datei ausgewählt' }, { status: 400 })
+    if (!path || typeof path !== 'string') {
+      return NextResponse.json({ error: 'Kein Upload-Pfad übergeben' }, { status: 400 })
     }
-
-    if (file.size < MIN_DATEIGROESSE_BYTES) {
-      return NextResponse.json({ error: 'Die Datei ist leer oder zu klein' }, { status: 400 })
+    // Defense-in-Depth: Pfad muss im eigenen Ordner liegen (RLS erzwingt das zusätzlich).
+    if (!path.startsWith(`${user.id}/`)) {
+      return NextResponse.json({ error: 'Ungültiger Upload-Pfad' }, { status: 403 })
     }
-
-    if (file.size > MAX_DATEIGROESSE_BYTES) {
-      const mb = (file.size / 1024 / 1024).toFixed(1)
-      return NextResponse.json(
-        { error: `Datei zu groß (${mb} MB). Maximal 20 MB erlaubt.` },
-        { status: 413 }
-      )
-    }
-
-    if (!formatAusDateiname(file.name)) {
+    if (!dateiname || typeof dateiname !== 'string' || !formatAusDateiname(dateiname)) {
       return NextResponse.json(
         { error: 'Format nicht unterstützt. Erlaubt: PDF, DOCX, TXT.' },
         { status: 415 }
       )
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
+    // Datei aus dem Storage laden (Server↔Supabase, kein Vercel-Body-Limit).
+    const { data: blob, error: downloadError } = await supabase.storage.from(BUCKET).download(path)
+    if (downloadError || !blob) {
+      return NextResponse.json({ error: 'Hochgeladene Datei nicht gefunden' }, { status: 404 })
+    }
+    const buffer = Buffer.from(await blob.arrayBuffer())
+
+    // Datei wird nur zur Extraktion gebraucht — danach (auch bei Fehlern) wieder entfernen.
+    const cleanup = () => supabase.storage.from(BUCKET).remove([path]).then(() => {}, () => {})
+
+    if (buffer.length < MIN_DATEIGROESSE_BYTES) {
+      await cleanup()
+      return NextResponse.json({ error: 'Die Datei ist leer oder zu klein' }, { status: 400 })
+    }
+    if (buffer.length > MAX_DATEIGROESSE_BYTES) {
+      await cleanup()
+      const mb = (buffer.length / 1024 / 1024).toFixed(1)
+      return NextResponse.json(
+        { error: `Datei zu groß (${mb} MB). Maximal 20 MB erlaubt.` },
+        { status: 413 }
+      )
+    }
 
     let fullText: string
     let abschnitte
     try {
-      const ergebnis = await extractTextFromFile(buffer, file.name)
+      const ergebnis = await extractTextFromFile(buffer, dateiname)
       fullText = ergebnis.fullText
       abschnitte = ergebnis.abschnitte
     } catch (err) {
+      await cleanup()
       if (err instanceof LeererInhaltError) {
         return NextResponse.json(
           { error: 'Aus der Datei konnte kein Text gelesen werden. Ist es eine gescannte PDF ohne Text-Layer?' },
@@ -73,7 +86,7 @@ export async function POST(request: NextRequest) {
       .from('materials')
       .insert({
         lehrer_id: user.id,
-        dateiname: file.name,
+        dateiname,
         extrahierter_text: fullText,
         abschnitte,
         fach,
@@ -82,6 +95,9 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single()
+
+    // Storage-Datei wird nicht mehr gebraucht — unabhängig vom DB-Ergebnis aufräumen.
+    await cleanup()
 
     if (error) throw error
 

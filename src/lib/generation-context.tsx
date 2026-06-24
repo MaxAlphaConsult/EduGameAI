@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useContext, useRef, useState, ReactNode } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 const ANALYSE_SCHRITTE_COUNT = 21
 
@@ -79,13 +80,39 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     })
 
     try {
-      const formData = new FormData()
-      formData.append('file', params.file)
-      formData.append('fach', params.fach)
-      formData.append('jahrgangsstufe', params.jahrgangsstufe)
-      formData.append('schulform', params.schulform)
+      // Datei zu groß? Früh und freundlich abfangen (Bucket-Limit liegt bei 25 MB).
+      const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+      if (params.file.size > MAX_UPLOAD_BYTES) {
+        const mb = (params.file.size / 1024 / 1024).toFixed(1)
+        throw new Error(`Datei zu groß (${mb} MB). Maximal 20 MB erlaubt.`)
+      }
 
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
+      // Direkt in Supabase Storage laden — am Vercel-Body-Limit (~4,5 MB) vorbei.
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Nicht angemeldet')
+
+      const safeName = params.file.name.replace(/[^\w.\-]+/g, '_')
+      const path = `${user.id}/${crypto.randomUUID()}-${safeName}`
+      const { error: uploadError } = await supabase.storage
+        .from('materials')
+        .upload(path, params.file, { upsert: false })
+      if (uploadError) {
+        throw new Error(`Upload fehlgeschlagen: ${uploadError.message}`)
+      }
+
+      // Nur noch den Pfad + Metadaten an die Route schicken; sie extrahiert den Text.
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path,
+          dateiname: params.file.name,
+          fach: params.fach,
+          jahrgangsstufe: params.jahrgangsstufe,
+          schulform: params.schulform,
+        }),
+      })
       if (!uploadRes.ok) {
         const body = await uploadRes.json().catch(() => ({}))
         throw new Error(body.error ?? 'Upload fehlgeschlagen')
