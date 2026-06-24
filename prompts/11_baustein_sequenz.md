@@ -25,11 +25,14 @@ die in der angegebenen Zeit realistisch durchführbar ist und einem klaren Lernb
 
 Wenn `zeitrahmen_minuten` fehlt: **30 Minuten** annehmen.
 
-`gewuenschte_spielanzahl` ist ein **Richtwert** der Lehrkraft, wie viele `spiel`-Bausteine
-gewünscht sind (kann `null` sein). Behandle ihn als Ziel, nicht als Pflicht:
-- Strebe ungefähr diese Anzahl `spiel`-Bausteine an — **aber nur dort, wo die Passungsregel (unten) JA sagt**.
-- Passt ein Spiel didaktisch nicht, setze trotzdem keins; die Passung hat immer Vorrang vor dem Richtwert.
-- Überschreite den Zeitrahmen nicht, nur um den Richtwert zu treffen.
+`gewuenschte_spielanzahl` ist die von der Lehrkraft gewünschte Anzahl an Abschluss-**Spielen**.
+**Wichtig:** Die `spiel`-Bausteine hängt das **System** als motivierenden Abschluss automatisch
+nach deiner Sequenz an (genau diese Anzahl) — **du musst keine `spiel`-Bausteine einplanen**.
+- Konzentriere dich auf eine tragfähige **Lern-Einheit** (Einstieg, Checks, Input, Erarbeitung,
+  Sicherung, Transfer), die das Lernziel auch OHNE Spiele erreicht.
+- Du darfst `spiel`-Bausteine ganz weglassen. Falls du dennoch eines einplanst, achte auf die
+  Passungsregel unten — das System nutzt es höchstens als Vorlage.
+- Plane die Lern-Einheit so, dass sie im Zeitrahmen bleibt (Spiele kommen als kurze Zugabe obendrauf).
 
 ---
 

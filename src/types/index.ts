@@ -75,6 +75,8 @@ export type Antwortformat =
   | 'quiz_tower'
   | 'wort_schlange'
   | 'detektiv'
+  // Tier-1-Inline-Check (Block D) — kein Spiel-Template, reines React-Widget.
+  | 'unterstreichen'
 
 export type SpielbarkeitsAmpel = 'gruen' | 'gelb' | 'rot'
 
@@ -119,9 +121,49 @@ export type BausteinTyp =
   | 'transfer'
   | 'post_check'
 
+// --- Tier-1-Inline-Checks (Block D) --------------------------
+// Reine React-Widgets (KEINE Game-Engine). Werden interleaved IN die Lern-
+// Einheit eingebettet. Einheitliche Aufgaben-Felder (loesungen/distraktoren/
+// hilfen/abschnitt_ref), damit Checks 1:1 in `aufgaben` (für /api/answers +
+// Diagnose) und in den Grounding-Pass übernommen werden können.
+export type InlineCheckTyp = 'quiz' | 'lueckentext' | 'zuordnen' | 'unterstreichen' | 'schaubild'
+
+// 'Text mit Schaubild': ein Diagramm — bewusst als Mermaid (deklarativ, verlässlich)
+// oder sanitisiertes SVG, NIE als KI-Rastergrafik (vermeidet fachlich falsche Bilder).
+export interface SchaubildQuelle {
+  format: 'mermaid' | 'svg'
+  quelle: string
+}
+
+export interface InlineCheck {
+  check_id: string
+  typ: InlineCheckTyp
+  frage: string
+  // 'quiz' und 'schaubild' → single/multiple_choice; sonst null.
+  quiz_format: 'single_choice' | 'multiple_choice' | null
+  // 'lueckentext' → Satz mit ___-Lücken; 'unterstreichen' → Text zum Markieren; sonst null.
+  text: string | null
+  // Nur 'schaubild': das anzuzeigende Diagramm. Sonst null.
+  schaubild: SchaubildQuelle | null
+  loesungen: string[]
+  distraktoren: string[]
+  hilfen: string[]
+  abschnitt_ref: string
+  teilkompetenz: string
+  komplexitaetsstufe: Komplexitaetsstufe
+}
+
+// Ein Segment der Lern-Einheit: entweder ein Erklär-Textblock ODER ein Check.
+export type LernEinheitSegment =
+  | { typ: 'text'; markdown: string; check?: null }
+  | { typ: 'check'; check: InlineCheck; markdown?: null }
+
 // Inhalt für Nicht-Spiel-Bausteine (Erklär-/Input). Bei 'spiel' = null.
 export interface BausteinInhalt {
-  markdown: string
+  // Alt-Form (vor Block D): Erklärtext am Stück + getrennte `aufgaben`.
+  markdown?: string
+  // Neu (Block D): interleaved Sequenz aus Text- und Check-Segmenten.
+  segmente?: LernEinheitSegment[]
   kernaussagen: string[]
   didaktische_hinweise?: string[]
 }

@@ -1,0 +1,15 @@
+-- 018: Grounding-Report pro Modul (Block C — fachliche Korrektheit).
+--
+-- Ein zweiter KI-Pass (Prompt 13) prüft die generierten Aufgaben/Hilfen GEGEN
+-- das Quellmaterial (analysierte abschnitte). Aufgaben, die nicht aus dem
+-- Material ableitbar sind, werden verworfen (mind. 1 Aufgabe bleibt erhalten),
+-- der Rest wird markiert. Dieser Report hält für die Lehrkraft transparent fest,
+-- was geprüft, verworfen und markiert wurde.
+--
+-- Form: {
+--   "status": "ok" | "warnung" | "problem",
+--   "geprueft": int, "verworfen": int, "markiert": int,
+--   "zusammenfassung": text,
+--   "hinweise": [{ "aufgabe_id": text, "problem": text, "elemente": text[], "verworfen": bool }]
+-- }
+alter table games add column if not exists grounding jsonb;

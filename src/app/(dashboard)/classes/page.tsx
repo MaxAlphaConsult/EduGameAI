@@ -3,20 +3,7 @@
 import { useState, useEffect, useTransition, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { QrCode } from '@/components/qr-code'
-
-// ── Tier-Namen für Code-Generierung ──────────────────────────────────────────
-const TIER_NAMEN = [
-  'ADLER', 'BAER', 'DACHS', 'ELCH', 'FUCHS', 'GEIER', 'HAMSTER', 'IGEL',
-  'JAGUAR', 'KOLIBRI', 'LEMUR', 'MARDER', 'NASHORN', 'OTTER', 'PANDA', 'QUOKKA',
-  'RABE', 'STORCH', 'TAPIR', 'UHUUU', 'VIELFRAS', 'WASCHBAER', 'YOGI', 'ZEBRA',
-]
-function makeCodes(anzahl: number): string[] {
-  const shuffled = [...TIER_NAMEN].sort(() => Math.random() - 0.5)
-  return Array.from({ length: anzahl }, (_, i) => {
-    const zahl = Math.floor(1000 + Math.random() * 9000)
-    return `${shuffled[i % shuffled.length]}-${zahl}`
-  })
-}
+import { generateStudentCodes } from '@/lib/flow/student-code'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Klasse { id: string; name: string; jahrgangsstufe: string; fach: string }
@@ -189,7 +176,7 @@ export default function ClassesPage() {
   async function onGenerateCodes() {
     if (!selectedId) return
     setGeneratingCodes(true)
-    const codes = makeCodes(generateAnzahl)
+    const codes = generateStudentCodes(generateAnzahl)
     const rows = codes.map((code) => ({ class_id: selectedId, code }))
     await createClient().from('students').insert(rows)
     await loadStudents(selectedId)

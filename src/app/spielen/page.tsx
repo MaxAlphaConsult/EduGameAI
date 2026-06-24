@@ -10,6 +10,7 @@ interface FlowLookup {
   flow: { id: string; titel: string }
   klasse: { id: string; name: string; fach: string; jahrgangsstufe: string }
   modul_anzahl: number
+  spiel_anzahl: number
 }
 
 export default function SpielerPage() {
@@ -127,12 +128,14 @@ export default function SpielerPage() {
               <input
                 ref={flowInputRef}
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={8}
                 value={flowCodeInput}
-                onChange={(e) => setFlowCodeInput(e.target.value.toUpperCase())}
-                placeholder="z.B. ZELLE-9A-K42"
+                onChange={(e) => setFlowCodeInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="z.B. 1234 5678"
                 autoFocus
                 autoComplete="off"
-                autoCapitalize="characters"
                 spellCheck={false}
                 className="w-full text-center font-mono text-xl font-bold tracking-widest rounded-2xl px-5 py-4 outline-none transition-all"
                 style={{
@@ -180,7 +183,8 @@ export default function SpielerPage() {
                 </span>
                 <span style={{ color: 'rgba(196,181,253,0.5)' }}>·</span>
                 <span className="text-sm" style={{ color: '#C4B5FD' }}>
-                  {flowLookup.modul_anzahl} {flowLookup.modul_anzahl === 1 ? 'Spiel' : 'Spiele'}
+                  {flowLookup.modul_anzahl} {flowLookup.modul_anzahl === 1 ? 'Schritt' : 'Schritte'}
+                  {flowLookup.spiel_anzahl > 0 && ` · ${flowLookup.spiel_anzahl} ${flowLookup.spiel_anzahl === 1 ? 'Spiel' : 'Spiele'}`}
                 </span>
               </div>
             </div>
@@ -195,7 +199,7 @@ export default function SpielerPage() {
                 type="text"
                 value={studentCodeInput}
                 onChange={(e) => setStudentCodeInput(e.target.value.toUpperCase())}
-                placeholder="z.B. FUCHS-1234"
+                placeholder="z.B. FUCHS-482193"
                 autoComplete="off"
                 autoCapitalize="characters"
                 spellCheck={false}

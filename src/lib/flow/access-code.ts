@@ -1,54 +1,41 @@
-// Flow-AccessCode: gut lesbar, klassenspezifisch, leicht zu tippen.
-// Format: <THEMA>-<KLASSE>-<3 Hex-Zeichen>  → z.B. ZELLE-9A-K42
+// Flow-AccessCode: 8-stelliger, zufälliger Zahlencode (z.B. 12345678).
 //
-// Themenwort kommt aus dem Flow-Titel (erstes sinnvolles Wort, max. 6 Zeichen,
-// nur A-Z + Umlaute → ASCII). Wir hängen klassennamen+kurzes random suffix
-// an. Kollisionen werden über UNIQUE in der DB abgefangen — der Caller
-// retried bis zu N Mal mit neuem Suffix.
+// Datensparsamkeit (DSGVO): Der Code enthält KEIN Thema, KEINEN Klassennamen
+// und KEINE personenbezogenen Daten — er ist ein reines, nicht-sprechendes
+// Zufallstoken. Nicht-sequenziell (erschwert Enumeration). Eindeutigkeit wird
+// über die UNIQUE-Spalte in flow_releases + Retry im Caller sichergestellt.
 
-function asciiUpper(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/ß/g, 'SS')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-}
+const CODE_LENGTH = 8
 
-const STOPWORDS = new Set(['DIE', 'DER', 'DAS', 'EIN', 'EINE', 'UND', 'ODER', 'VON', 'EINHEIT', 'SPIEL', 'LERN', 'LERNREISE'])
-
-function topicFromTitle(titel: string): string {
-  const woerter = titel
-    .split(/[\s\-_–—]+/)
-    .map(asciiUpper)
-    .filter((w) => w.length >= 3 && !STOPWORDS.has(w))
-  const wort = woerter[0] ?? asciiUpper(titel) ?? 'FLOW'
-  return wort.slice(0, 6) || 'FLOW'
-}
-
-function randomSuffix(length = 3): string {
-  // Ohne 0/O/1/I/L → leichter zu tippen
-  const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
-  let out = ''
-  const arr = new Uint8Array(length)
-  if (typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
-    crypto.getRandomValues(arr)
-  } else {
-    for (let i = 0; i < length; i++) arr[i] = Math.floor(Math.random() * 256)
+function getRandomValues(arr: Uint8Array): Uint8Array {
+  // Web Crypto ist in Node 18+ und im Browser global verfügbar. Für einen
+  // sicherheitsrelevanten Code bewusst KEIN Math.random-Fallback — lieber laut
+  // scheitern als schwache Zufälligkeit.
+  if (typeof crypto === 'undefined' || !('getRandomValues' in crypto)) {
+    throw new Error('crypto.getRandomValues nicht verfügbar — AccessCode-Erzeugung abgebrochen')
   }
-  for (let i = 0; i < length; i++) {
-    out += ALPHABET[arr[i] % ALPHABET.length]
+  crypto.getRandomValues(arr)
+  return arr
+}
+
+// Erzeugt 8 gleichverteilte Ziffern (0–9). Rejection-Sampling (Werte ≥ 250
+// verwerfen) vermeidet den Modulo-Bias, der bei `byte % 10` entstünde.
+export function generateAccessCode(): string {
+  const digits: string[] = []
+  const buf = new Uint8Array(CODE_LENGTH * 2)
+  while (digits.length < CODE_LENGTH) {
+    getRandomValues(buf)
+    for (let i = 0; i < buf.length && digits.length < CODE_LENGTH; i++) {
+      if (buf[i] < 250) digits.push(String(buf[i] % 10))
+    }
   }
-  return out
+  return digits.join('')
 }
 
-export interface AccessCodeInput {
-  flowTitel: string
-  klassenName: string
+// Normalisiert eine Nutzereingabe auf den reinen 8-stelligen Code: entfernt
+// Leerzeichen/Bindestriche/sonstige Zeichen und kürzt auf max. 8 Ziffern.
+export function normalizeAccessCode(input: string): string {
+  return (input ?? '').replace(/\D/g, '').slice(0, CODE_LENGTH)
 }
 
-export function generateAccessCode({ flowTitel, klassenName }: AccessCodeInput): string {
-  const thema = topicFromTitle(flowTitel)
-  const klasse = asciiUpper(klassenName).slice(0, 4) || 'KL'
-  return `${thema}-${klasse}-${randomSuffix(3)}`
-}
+export const ACCESS_CODE_LENGTH = CODE_LENGTH

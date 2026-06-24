@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { BausteinInhaltPatchSchema, AufgabenPatchSchema } from '@/lib/schemas/pipeline'
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params
@@ -31,10 +32,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const updates: Record<string, unknown> = {}
 
   if (body.aufgaben !== undefined) {
-    if (!Array.isArray(body.aufgaben)) {
-      return NextResponse.json({ error: 'aufgaben muss ein Array sein' }, { status: 400 })
+    const parsed = AufgabenPatchSchema.safeParse(body.aufgaben)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'aufgaben ungültig (Array mit aufgabe_id je Eintrag, max. 200)' }, { status: 400 })
     }
-    updates.aufgaben = body.aufgaben
+    updates.aufgaben = parsed.data
   }
 
   if (body.titel !== undefined) {
@@ -61,22 +63,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     updates.baustein_typ = body.baustein_typ
   }
 
-  // LernFlow: Erklär-/Input-Inhalt bearbeiten (markdown, kernaussagen, hinweise).
+  // LernFlow: Erklär-/Input-Inhalt bearbeiten. Unterstützt die Alt-Form (markdown)
+  // UND die neue interleaved Form (segmente, Block D). `segmente` werden — falls
+  // mitgeschickt — unverändert erhalten, damit das Bearbeiten der Kernaussagen die
+  // Lern-Einheit nicht zerstört.
   if (body.baustein_inhalt !== undefined) {
     if (body.baustein_inhalt === null) {
       updates.baustein_inhalt = null
-    } else if (typeof body.baustein_inhalt === 'object' && typeof body.baustein_inhalt.markdown === 'string') {
-      updates.baustein_inhalt = {
-        markdown: body.baustein_inhalt.markdown,
-        kernaussagen: Array.isArray(body.baustein_inhalt.kernaussagen)
-          ? body.baustein_inhalt.kernaussagen.map(String)
-          : [],
-        didaktische_hinweise: Array.isArray(body.baustein_inhalt.didaktische_hinweise)
-          ? body.baustein_inhalt.didaktische_hinweise.map(String)
-          : [],
-      }
     } else {
-      return NextResponse.json({ error: 'baustein_inhalt muss null oder ein Objekt mit markdown sein' }, { status: 400 })
+      // Gegen die Generierungs-Schemas validieren (M1) — verhindert, dass per Hand
+      // kaputte Segmente/Inhalte gespeichert werden, die beim Schüler rendern.
+      const parsed = BausteinInhaltPatchSchema.safeParse(body.baustein_inhalt)
+      if (!parsed.success) {
+        return NextResponse.json({ error: 'baustein_inhalt ungültig (markdown oder segmente erforderlich)' }, { status: 400 })
+      }
+      const bi = parsed.data
+      updates.baustein_inhalt = {
+        ...(bi.segmente ? { segmente: bi.segmente } : {}),
+        ...(bi.markdown !== undefined ? { markdown: bi.markdown } : {}),
+        kernaussagen: bi.kernaussagen ?? [],
+        didaktische_hinweise: bi.didaktische_hinweise ?? [],
+      }
     }
   }
 

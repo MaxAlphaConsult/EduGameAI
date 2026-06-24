@@ -22,9 +22,14 @@ und auf die Wissensstruktur aus der Materialanalyse abgestimmt.
     "jahrgangsstufe": "<z.B. 8>",
     "fach": "<z.B. Biologie>",
     "zeitrahmen_minuten": 15
-  }
+  },
+  "material_abschnitte": [ { "id": "A1", "text": "<Originaltext des Abschnitts>" } ]
 }
 ```
+
+`material_abschnitte` ist die **maßgebliche Quelle**. Alle Aufgabeninhalte (Frage, Lösungen,
+Distraktoren, Hilfen) müssen sich daraus belegen lassen — nicht aus deinem Weltwissen. Ist das
+Feld `null`/leer, erde streng an `analyse` (Zusammenfassung + Kernaussagen).
 
 ---
 
@@ -146,8 +151,10 @@ Erstelle exakt **4 Aufgaben**. Nicht mehr, nicht weniger.
 - Eignet sich für: Schnelle Faktenchecks, Begriffsabfrage, Wiedererkennen — Drill-Format. **Nicht** für längere Definitionen oder mehrere richtige Antworten.
 
 ### Qualitätsregeln:
-- Alle Inhalte müssen im Originalmaterial belegt sein
-- Distraktoren müssen typische Fehlvorstellungen der Zielgruppe darstellen — keine absurden Falschantworten
+- **Quellenbindung (Pflicht):** Frage, Lösungen, Distraktoren UND Hilfen müssen sich aus `material_abschnitte` belegen lassen. Nutze dein Weltwissen NICHT, um Inhalte zu ergänzen, die das Material nicht hergibt. Im Zweifel: weglassen.
+- **Hilfen** dürfen nur auf das Material verweisen oder es paraphrasieren — niemals neue Fakten, Zahlen, Namen oder Zusammenhänge einführen, die nicht im Material stehen. (Ein nachgelagerter Prüf-Pass verwirft Aufgaben mit Material-fremden Hilfen.)
+- `abschnitt_ref` ist die ID genau des `material_abschnitte`-Eintrags, der die Aufgabe belegt.
+- Distraktoren müssen typische Fehlvorstellungen der Zielgruppe darstellen und zum Lerngegenstand passen — keine themenfremden oder absurden Falschantworten.
 - Jede Aufgabe muss eine eigene Teilkompetenz abdecken (keine Wiederholungen)
 - Komplexitätsstufen variieren (nicht alle gleich)
 

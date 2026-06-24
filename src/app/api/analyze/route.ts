@@ -11,7 +11,7 @@ import {
   PipelineApiError,
 } from '@/lib/claude/pipeline'
 import { createClient } from '@/lib/supabase/server'
-import type { AnalyseOutput, LernzielOutput, LernpfadOutput, SpielmappingOutput } from '@/lib/schemas/pipeline'
+import type { AnalyseOutput, LernzielOutput, LernpfadOutput, SpielmappingOutput, BausteinSequenzOutput } from '@/lib/schemas/pipeline'
 
 // /api/analyze macht NUR Analyse + Planung + Platzhalter-Module — die eigentliche
 // Modul-Generierung läuft danach pro Modul in eigenen Lambdas
@@ -129,12 +129,28 @@ export async function POST(request: NextRequest) {
         checkDeadline()
         const sequenz = await planBausteinSequenz({ analyse, lernziel, lernpfad, kontext, gewuenschteSpiele: anzahlSpiele })
 
-        const bausteine = [...sequenz.bausteine].sort((a, b) => a.position - b.position)
-        const spielBausteine = bausteine.filter((b) => b.baustein_typ === 'spiel')
+        // ── A3: Spielanzahl ist eine HARTE Zielvorgabe ──────────────────
+        // Die KI plant die Lern-Einheit (Erklär-/Check-/Übungsbausteine); die
+        // Anzahl der Tier-2-Spiele bestimmen WIR deterministisch und hängen sie
+        // als motivierenden Abschluss NACH die Lern-Einheit. So stimmt die
+        // angezeigte Spielzahl immer mit den tatsächlich erzeugten Spielen überein —
+        // unabhängig davon, wo/ob die KI Spiele platziert hätte.
+        const zielSpiele = Math.max(0, Math.floor(Number(anzahlSpiele) || 0))
+        const geplant = [...sequenz.bausteine].sort((a, b) => a.position - b.position)
+        const lernEinheit = geplant.filter((b) => b.baustein_typ !== 'spiel')
+        const geplanteSpiele = geplant.filter((b) => b.baustein_typ === 'spiel')
+        const spielAbschluss = buildSpielAbschluss(geplanteSpiele, zielSpiele, lernziel)
 
-        // Spielmapping nur, wenn die Sequenz überhaupt Spiel-Bausteine enthält.
+        // Positionen lückenlos 1..M neu vergeben: Lern-Einheit zuerst, dann Spiele.
+        const bausteine = [...lernEinheit, ...spielAbschluss].map((b, i) => ({ ...b, position: i + 1 }))
+        // Reconcilte Sequenz wird persistiert — /generate findet darüber je Position
+        // denselben Deskriptor (sonst Drift zwischen games-Rows und Sequenz).
+        const sequenzFinal: BausteinSequenzOutput = { ...sequenz, bausteine }
+
+        // Spielmapping immer dann, wenn Spiele gewünscht sind (nicht abhängig davon,
+        // ob die KI selbst Spiele geplant hat) — die Spiel-Lambdas brauchen es.
         let spielmappingGlobal: SpielmappingOutput | null = null
-        if (spielBausteine.length > 0) {
+        if (zielSpiele > 0) {
           send({ type: 'progress', label: 'Spielkonzepte werden entwickelt …', percent: 42, schrittIndex: 12 })
           checkDeadline()
           spielmappingGlobal = await runSpielMapping({
@@ -144,13 +160,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Geplanten Kontext SYNCHRON persistieren — jedes Generierungs-Lambda liest
-        // ihn aus analyses.raw_output. (Früher fire-and-forget → Race; jetzt awaited;
-        // erlaubteFormate mit drin, damit die Lambdas autark sind.)
+        // ihn aus analyses.raw_output. (erlaubteFormate mit drin, damit die Lambdas autark sind.)
         const { error: rawErr } = await supabase
           .from('analyses')
           .update({
             raw_output: {
-              analyse, lernziel, lernpfad, sequenz,
+              analyse, lernziel, lernpfad, sequenz: sequenzFinal,
               spielmapping: spielmappingGlobal,
               erlaubteFormate: erlaubteFormateArray ?? null,
             },
@@ -182,10 +197,12 @@ export async function POST(request: NextRequest) {
           .select('id, reihenfolge, baustein_typ')
         if (insertErr) throw insertErr
 
-        // Sequenz steht → anzahl_spiele = Bausteinanzahl, sortiert_am jetzt.
+        // Sequenz steht → anzahl_spiele = Anzahl der Tier-2-Spiele (harte Zielvorgabe).
+        // NICHT mehr die Bausteingesamtzahl (die ist über die games-Rows ableitbar) —
+        // das hatte „Spiele" und „Bausteine" vermischt (A3).
         await supabase
           .from('game_flows')
-          .update({ anzahl_spiele: bausteine.length, sortiert_am: new Date().toISOString() })
+          .update({ anzahl_spiele: zielSpiele, sortiert_am: new Date().toISOString() })
           .eq('id', gameFlow.id)
 
         const modules = (insertedRows ?? [])
@@ -240,6 +257,37 @@ export async function POST(request: NextRequest) {
       'Connection': 'keep-alive',
     },
   })
+}
+
+type BausteinDescriptor = BausteinSequenzOutput['bausteine'][number]
+
+// Erzeugt GENAU `ziel` Spiel-Deskriptoren als Abschluss. Nutzt — soweit
+// vorhanden — die von der KI geplanten Spiele als Vorlage; fehlen welche (z.B.
+// weil der Lernpfad-Archetyp kein Spiel vorsah), werden generische Übungsspiel-
+// Deskriptoren aus dem Lernziel abgeleitet. Der konkrete Spielinhalt entsteht
+// ohnehin erst später in /generate aus analyse/lernziel/spielmapping — der
+// Deskriptor liefert hier nur Titel/Thema/Funktion.
+function buildSpielAbschluss(
+  geplanteSpiele: BausteinDescriptor[],
+  ziel: number,
+  l: LernzielOutput,
+): BausteinDescriptor[] {
+  if (ziel <= 0) return []
+  const thema = l.schritt_7_lernziel.komponenten.inhalt || l.schritt_7_lernziel.original
+  const out: BausteinDescriptor[] = []
+  for (let i = 0; i < ziel; i++) {
+    const basis = geplanteSpiele[i]
+    out.push({
+      position: 0, // wird beim Zusammenbau lückenlos neu vergeben
+      baustein_typ: 'spiel',
+      titel: basis?.titel ?? `Übungsspiel ${i + 1}`,
+      thema: basis?.thema ?? thema,
+      didaktische_funktion: basis?.didaktische_funktion ?? 'Üben und Festigen durch Wiederholung',
+      bearbeitungszeit_minuten: basis?.bearbeitungszeit_minuten ?? 5,
+      begruendung: basis?.begruendung ?? 'Motivierender Übungs-Abschluss zur Festigung des Gelernten.',
+    })
+  }
+  return out
 }
 
 function buildAnalyseRow(

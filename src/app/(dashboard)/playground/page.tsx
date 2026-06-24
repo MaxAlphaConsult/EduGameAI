@@ -1,11 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { UploadZone } from '@/components/playground/UploadZone'
 import { LehrkraftCheckPanel } from '@/components/playground/LehrkraftCheckPanel'
 import { useGeneration } from '@/lib/generation-context'
+import { createClient } from '@/lib/supabase/client'
+import { QrCode } from '@/components/qr-code'
 
 type LocalStep = 'upload' | 'metadata'
+
+interface Klasse { id: string; name: string; jahrgangsstufe: string; fach: string }
 
 const ANALYSE_SCHRITTE = [
   'Material analysieren', 'Kernaussagen extrahieren', 'Wissensform bestimmen',
@@ -18,9 +23,6 @@ const ANALYSE_SCHRITTE = [
   'Sourcemapping erstellen', 'Lehrkraft-Check ausgeben',
 ]
 
-const FAECHER = ['Biologie', 'Chemie', 'Physik', 'Mathematik', 'Deutsch', 'Geschichte',
-  'Geographie', 'Politik', 'Philosophie', 'Englisch', 'Latein', 'Kunst', 'Musik', 'Sport', 'Informatik']
-const STUFEN = Array.from({ length: 9 }, (_, i) => `${i + 5}`)
 const SCHULFORMEN = ['Gymnasium', 'Realschule', 'Sekundarschule', 'Gesamtschule', 'Berufsschule', 'Grundschule']
 
 function getSpielRange(minuten: number): { min: number; max: number } {
@@ -78,6 +80,64 @@ export default function GameErstellenPage() {
   const [anzahlSpiele, setAnzahlSpiele] = useState(4)
   const [submitting, setSubmitting] = useState(false)
 
+  // Klassen für „ein Launch" — der fertige LernFlow wird direkt freigegeben.
+  const [klassen, setKlassen] = useState<Klasse[]>([])
+  const [selectedKlasseId, setSelectedKlasseId] = useState<string>('')
+  const [showNeueKlasse, setShowNeueKlasse] = useState(false)
+  const [neueKlasse, setNeueKlasse] = useState({ name: '', jahrgangsstufe: '', fach: '' })
+  const [klasseError, setKlasseError] = useState<string | null>(null)
+  const [creatingKlasse, setCreatingKlasse] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    let aktiv = true
+    ;(async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('classes')
+        .select('id, name, jahrgangsstufe, fach')
+        .eq('lehrer_id', user.id)
+        .order('erstellt_am', { ascending: false })
+      if (!aktiv) return
+      const liste = data ?? []
+      setKlassen(liste)
+      // Keine Klasse vorhanden? Direkt das Anlegen-Panel zeigen.
+      if (liste.length === 0) setShowNeueKlasse(true)
+      else setSelectedKlasseId((prev) => prev || liste[0].id)
+    })()
+    return () => { aktiv = false }
+  }, [])
+
+  const selectedKlasse = klassen.find((k) => k.id === selectedKlasseId) ?? null
+
+  async function onCreateKlasse() {
+    const name = neueKlasse.name.trim()
+    const jahrgangsstufe = neueKlasse.jahrgangsstufe.trim()
+    const fach = neueKlasse.fach.trim()
+    if (!name || !jahrgangsstufe || !fach) {
+      setKlasseError('Bitte Bezeichnung, Jahrgangsstufe und Fach ausfüllen.')
+      return
+    }
+    setCreatingKlasse(true)
+    setKlasseError(null)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setKlasseError('Nicht eingeloggt.'); setCreatingKlasse(false); return }
+    const { data, error } = await supabase
+      .from('classes')
+      .insert({ name, jahrgangsstufe, fach, lehrer_id: user.id })
+      .select('id, name, jahrgangsstufe, fach')
+      .single()
+    setCreatingKlasse(false)
+    if (error || !data) { setKlasseError('Klasse konnte nicht angelegt werden.'); return }
+    setKlassen((prev) => [data, ...prev])
+    setSelectedKlasseId(data.id)
+    setShowNeueKlasse(false)
+    setNeueKlasse({ name: '', jahrgangsstufe: '', fach: '' })
+  }
+
   // Sichtbarer Step ist eine Funktion aus Context + lokalem Step.
   // Sobald eine Generierung läuft, gewinnt der Context.
   const step: 'upload' | 'metadata' | 'analysing' | 'result' | 'error' =
@@ -115,16 +175,16 @@ export default function GameErstellenPage() {
     // Nach Erfolg oder Fehler zurück zur Upload-Ansicht für die nächste Erstellung
     gen.dismiss()
     setFile(null)
+    setCopied(false)
     setLocalStep('upload')
   }
 
   async function onSubmitMetadata(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!file) return
+    if (!selectedKlasse) { setKlasseError('Bitte zuerst eine Klasse wählen oder anlegen.'); return }
     const form = e.currentTarget
     const spielname = (form.elements.namedItem('spielname') as HTMLInputElement).value
-    const fach = (form.elements.namedItem('fach') as HTMLSelectElement).value
-    const jahrgangsstufe = (form.elements.namedItem('jahrgangsstufe') as HTMLSelectElement).value
     const schulform = (form.elements.namedItem('schulform') as HTMLSelectElement).value
     const lernziel = (form.elements.namedItem('lernziel') as HTMLInputElement).value
 
@@ -132,14 +192,16 @@ export default function GameErstellenPage() {
     try {
       await gen.start({
         file,
-        fach,
-        jahrgangsstufe,
+        // Fach + Jahrgangsstufe kommen aus der gewählten Klasse — eine Eingabe weniger.
+        fach: selectedKlasse.fach,
+        jahrgangsstufe: selectedKlasse.jahrgangsstufe,
         schulform,
         spielname,
         lernziel: lernziel || undefined,
         zeitrahmenMinuten: zeitrahmenInput,
         erlaubteFormate: selectedFormate,
         anzahlSpiele,
+        classId: selectedKlasse.id,
       })
     } catch (err) {
       // gen.start setzt selbst den Error-State; nur Pending zurücksetzen
@@ -220,28 +282,67 @@ export default function GameErstellenPage() {
               <p className="text-xs mt-1.5" style={{ color: '#7A6A94' }}>So findest du das Spiel später in deiner Übersicht.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label style={labelStyle}>Fach</label>
-                <select name="fach" required style={inputStyle}>
-                  <option value="">Bitte wählen</option>
-                  {FAECHER.map((f) => <option key={f}>{f}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Jahrgangsstufe</label>
-                <select name="jahrgangsstufe" required style={inputStyle}>
-                  <option value="">Bitte wählen</option>
-                  {STUFEN.map((s) => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Schulform</label>
-                <select name="schulform" required style={inputStyle}>
-                  <option value="">Bitte wählen</option>
-                  {SCHULFORMEN.map((s) => <option key={s}>{s}</option>)}
-                </select>
-              </div>
+            {/* Klasse — bestimmt zugleich Fach + Jahrgangsstufe UND für wen am Ende freigegeben wird. */}
+            <div>
+              <label style={labelStyle}>Klasse</label>
+              {klassen.length > 0 && !showNeueKlasse && (
+                <div className="flex gap-2">
+                  <select
+                    value={selectedKlasseId}
+                    onChange={(e) => setSelectedKlasseId(e.target.value)}
+                    style={{ ...inputStyle, flex: 1 }}
+                  >
+                    {klassen.map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.name} · Kl. {k.jahrgangsstufe} · {k.fach}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => { setShowNeueKlasse(true); setKlasseError(null) }}
+                    className="text-sm font-semibold px-3 rounded-lg whitespace-nowrap"
+                    style={{ background: '#F3EEFF', color: '#7C3AED', border: '1.5px solid #E9D5FF', cursor: 'pointer' }}>
+                    + Neue
+                  </button>
+                </div>
+              )}
+
+              {showNeueKlasse && (
+                <div className="rounded-xl p-4 mt-1" style={{ background: '#F6F1FF', border: '1px solid #E9D5FF' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <input placeholder="Bezeichnung (z.B. 9a)" value={neueKlasse.name}
+                      onChange={(e) => setNeueKlasse((s) => ({ ...s, name: e.target.value }))} style={inputStyle} />
+                    <input placeholder="Jahrgangsstufe (z.B. 9)" value={neueKlasse.jahrgangsstufe}
+                      onChange={(e) => setNeueKlasse((s) => ({ ...s, jahrgangsstufe: e.target.value }))} style={inputStyle} />
+                    <input placeholder="Fach (z.B. Biologie)" value={neueKlasse.fach}
+                      onChange={(e) => setNeueKlasse((s) => ({ ...s, fach: e.target.value }))} style={inputStyle} />
+                  </div>
+                  <div className="flex items-center gap-3 mt-3">
+                    <button type="button" onClick={onCreateKlasse} disabled={creatingKlasse}
+                      className="text-sm font-bold px-4 py-2 rounded-lg"
+                      style={{ background: 'linear-gradient(135deg,#7C3AED,#A855F7)', color: 'white', border: 'none', cursor: 'pointer', opacity: creatingKlasse ? 0.6 : 1 }}>
+                      {creatingKlasse ? 'Anlegen…' : 'Klasse anlegen'}
+                    </button>
+                    {klassen.length > 0 && (
+                      <button type="button" onClick={() => { setShowNeueKlasse(false); setKlasseError(null) }}
+                        className="text-sm" style={{ color: '#7A6A94', background: 'none', border: 'none', cursor: 'pointer' }}>
+                        Abbrechen
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {klasseError && <p className="text-xs mt-1.5" style={{ color: '#DC2626' }}>{klasseError}</p>}
+              <p className="text-xs mt-1.5" style={{ color: '#7A6A94' }}>
+                Bestimmt Fach &amp; Jahrgangsstufe — und für welche Klasse der LernFlow am Ende automatisch freigegeben wird.
+              </p>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Schulform</label>
+              <select name="schulform" required style={inputStyle}>
+                <option value="">Bitte wählen</option>
+                {SCHULFORMEN.map((s) => <option key={s}>{s}</option>)}
+              </select>
             </div>
 
             <div>
@@ -338,11 +439,14 @@ export default function GameErstellenPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={isPending}
+            <button type="submit" disabled={isPending || !selectedKlasse}
               className="w-full rounded-xl py-3 text-sm font-bold transition-all mt-2"
-              style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', opacity: isPending ? 0.6 : 1 }}>
-              {isPending ? 'Wird gestartet…' : '✦ LernFlow erstellen →'}
+              style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', opacity: (isPending || !selectedKlasse) ? 0.6 : 1, cursor: (isPending || !selectedKlasse) ? 'not-allowed' : 'pointer' }}>
+              {isPending ? 'Wird gestartet…' : selectedKlasse ? `✦ Erstellen & für ${selectedKlasse.name} freigeben →` : '✦ Zuerst Klasse wählen'}
             </button>
+            <p className="text-xs text-center" style={{ color: '#7A6A94' }}>
+              Ein Klick: Material analysieren → Lern-Einheit &amp; Spiele bauen → für die Klasse freigeben.
+            </p>
           </form>
         </div>
       )}
@@ -390,21 +494,61 @@ export default function GameErstellenPage() {
       {/* Step 4: Result */}
       {step === 'result' && analyseResult && (
         <div className="flex flex-col gap-5">
-          {/* Erfolgs-Header mit klaren nächsten Schritten */}
+          {/* Erfolgs-Header: fertig UND (bei fehlerfreier Generierung) direkt freigegeben */}
           <div className="rounded-3xl p-6"
             style={{ background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)', border: '1px solid #6EE7B7' }}>
             <div className="flex items-center gap-3 mb-4">
               <span className="text-3xl">🎉</span>
               <div>
-                <p className="text-lg font-bold" style={{ color: '#065F46' }}>Dein LernFlow ist fertig!</p>
+                <p className="text-lg font-bold" style={{ color: '#065F46' }}>
+                  {analyseResult.accessCode ? 'Fertig & freigegeben!' : 'Dein LernFlow ist fertig!'}
+                </p>
                 <p className="text-xs" style={{ color: '#047857' }}>
-                  {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Baustein' : 'Bausteine'}, didaktisch sortiert. Spiel es einmal durch — wie ein Schüler.
+                  {analyseResult.spielIds.length} {analyseResult.spielIds.length === 1 ? 'Baustein' : 'Bausteine'}, didaktisch sortiert
+                  {selectedKlasse ? ` · für Klasse ${selectedKlasse.name}` : ''}.
                 </p>
               </div>
             </div>
 
+            {/* Spielcode (wenn im selben Lauf freigegeben) */}
+            {analyseResult.accessCode && (
+              <div className="rounded-2xl p-4 mb-3 flex flex-col sm:flex-row sm:items-center gap-4"
+                style={{ background: '#FFFFFF', border: '1px solid #6EE7B7' }}>
+                <QrCode value={typeof window !== 'undefined' ? `${window.location.origin}/spielen` : '/spielen'} size={96} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: '#047857' }}>Spielcode für die Klasse</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <code className="font-mono font-black text-2xl tracking-[0.2em] px-3 py-1.5 rounded-lg"
+                      style={{ background: '#ECFDF5', color: '#065F46', border: '1.5px solid #6EE7B7' }}>
+                      {analyseResult.accessCode}
+                    </code>
+                    <button
+                      onClick={() => navigator.clipboard?.writeText(analyseResult.accessCode!).then(() => setCopied(true)).catch(() => {})}
+                      className="text-xs font-semibold px-3 py-2 rounded-xl"
+                      style={{ background: '#ECFDF5', color: '#047857', border: '1px solid #6EE7B7', cursor: 'pointer' }}>
+                      {copied ? '✓ Kopiert' : '📋 Kopieren'}
+                    </button>
+                  </div>
+                  <p className="text-xs mt-2" style={{ color: '#047857' }}>
+                    Schüler öffnen <strong>/spielen</strong> (oder QR), geben diesen Code + ihren persönlichen Tier-Code ein.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Freigabe pausiert/fehlgeschlagen (z.B. Teilfehler bei der Generierung) */}
+            {!analyseResult.accessCode && analyseResult.releaseError && (
+              <div className="rounded-2xl p-4 mb-3" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                <p className="text-sm font-semibold" style={{ color: '#92400E' }}>Noch nicht freigegeben</p>
+                <p className="text-xs mt-1" style={{ color: '#B45309' }}>{analyseResult.releaseError}</p>
+                <Link href="/classes" className="inline-block text-xs font-bold mt-2" style={{ color: '#7C3AED' }}>
+                  → In „Klassen“ prüfen und manuell freigeben
+                </Link>
+              </div>
+            )}
+
             {/* Primärer CTA: Testen */}
-            <a href={`/spiele/${analyseResult.gameFlowId}/preview`}
+            <Link href={`/spiele/${analyseResult.gameFlowId}/preview`}
               target="_blank"
               className="block rounded-2xl px-5 py-4 text-center text-base font-bold transition-all mb-3"
               style={{
@@ -414,20 +558,20 @@ export default function GameErstellenPage() {
                 textDecoration: 'none',
               }}>
               ▶▶ LernFlow jetzt testen ↗
-            </a>
+            </Link>
 
             {/* Sekundäre Optionen */}
             <div className="grid grid-cols-2 gap-3">
-              <a href="/classes"
+              <Link href="/classes"
                 className="rounded-2xl px-5 py-3 text-center text-sm font-bold transition-all"
                 style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>
-                👥 An Klasse freigeben
-              </a>
-              <a href="/spiele"
+                🔑 Schüler-Codes
+              </Link>
+              <Link href="/spiele"
                 className="rounded-2xl px-5 py-3 text-center text-sm font-bold transition-all"
                 style={{ background: '#FFFFFF', color: '#065F46', border: '1px solid #6EE7B7', textDecoration: 'none' }}>
                 📚 Zur Übersicht
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -438,7 +582,7 @@ export default function GameErstellenPage() {
             </p>
             <div className="flex flex-col gap-2">
               {analyseResult.spielIds.map((id, i) => (
-                <a
+                <Link
                   key={id}
                   href={`/modules/${id}`}
                   className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
@@ -452,7 +596,7 @@ export default function GameErstellenPage() {
                     Baustein {i + 1}
                   </span>
                   <span className="text-xs" style={{ color: '#7C3AED' }}>→ Vorschau</span>
-                </a>
+                </Link>
               ))}
             </div>
           </div>

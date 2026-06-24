@@ -80,6 +80,16 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
   const abschnitte = (materialResult.data?.abschnitte ?? []) as MaterialAbschnitt[]
   const sourcemapping = checkResult.data?.sourcemapping ?? null
   const reduktionen = checkResult.data?.reduktionen ?? null
+
+  // Grounding-Report (Block C): zeigt, was der Quellentreue-Pass verworfen/markiert hat.
+  const grounding = (spiel.grounding ?? null) as {
+    status: 'ok' | 'warnung' | 'problem'
+    geprueft: number
+    verworfen: number
+    markiert: number
+    zusammenfassung: string
+    hinweise: { aufgabe_id: string; problem: string; elemente: string[]; verworfen: boolean }[]
+  } | null
   const alleModule = ((geschwisterResult.data ?? []) as Array<{
     id: string
     titel: string | null
@@ -212,6 +222,35 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
             bausteinTyp={spiel.baustein_typ as BausteinTyp}
             bausteinInhalt={(spiel.baustein_inhalt ?? null) as BausteinInhalt | null}
           />
+        )}
+
+        {/* Quellentreue-Prüfung (Block C): verworfene/markierte Aufgaben */}
+        {grounding && grounding.hinweise.length > 0 && (
+          <div className="rounded-xl p-4" style={{
+            background: grounding.status === 'problem' ? '#FEF2F2' : '#FFFBEB',
+            border: `1px solid ${grounding.status === 'problem' ? '#FECACA' : '#FDE68A'}`,
+          }}>
+            <p className="text-sm font-semibold mb-1" style={{ color: grounding.status === 'problem' ? '#991B1B' : '#92400E' }}>
+              🔎 Quellentreue: {grounding.verworfen} verworfen · {grounding.markiert} markiert (von {grounding.geprueft} geprüft)
+            </p>
+            <p className="text-xs mb-2" style={{ color: grounding.status === 'problem' ? '#B91C1C' : '#B45309' }}>{grounding.zusammenfassung}</p>
+            <ul className="flex flex-col gap-1">
+              {grounding.hinweise.map((h, i) => (
+                <li key={i} className="text-xs" style={{ color: grounding.status === 'problem' ? '#B91C1C' : '#B45309' }}>
+                  <span className="font-mono font-semibold">{h.aufgabe_id}</span>
+                  {h.verworfen ? ' (verworfen)' : ' (markiert)'} — {h.problem}
+                  {h.elemente.length > 0 && <span className="opacity-70"> [{h.elemente.join(', ')}]</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {grounding && grounding.hinweise.length === 0 && (
+          <div className="rounded-xl px-4 py-2" style={{ background: '#ECFDF5', border: '1px solid #6EE7B7' }}>
+            <p className="text-xs font-medium" style={{ color: '#065F46' }}>
+              ✓ Automatisch auf Quellentreue geprüft: alle {grounding.geprueft} Aufgaben aus dem Material belegt.
+            </p>
+          </div>
         )}
 
         {/* Aufgaben mit Sourcemapping + "Neu generieren" */}

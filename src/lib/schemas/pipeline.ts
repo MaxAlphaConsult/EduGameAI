@@ -341,6 +341,93 @@ export const InputBausteinOutputSchema = z.object({
 
 export type InputBausteinOutput = z.infer<typeof InputBausteinOutputSchema>
 
+// --- Schema 7b: Lern-Einheit mit interleaved Inline-Checks (Prompt 12, Block D) ---
+//
+// Eine Lern-Einheit ist eine geordnete Sequenz aus Text- und Check-Segmenten:
+// Textblock → Check → Textblock → Check → … Die Checks sind Tier-1-Widgets
+// (KEINE Game-Engine). Einheitliche Aufgaben-Felder, damit jeder Check 1:1 in
+// `aufgaben` (Answers/Diagnose) und in den Grounding-Pass übernommen werden kann.
+const InlineCheckSchema = z.object({
+  check_id: z.string().min(1),
+  typ: z.enum(['quiz', 'lueckentext', 'zuordnen', 'unterstreichen', 'schaubild']),
+  // Aufgabenstellung des Checks.
+  frage: z.string().min(1),
+  // Bei typ='quiz' und 'schaubild' relevant (sonst null).
+  quiz_format: z.union([z.enum(['single_choice', 'multiple_choice']), z.null()]),
+  // 'lueckentext': Satz mit ___-Lücken; 'unterstreichen': der zu markierende Text; sonst null.
+  text: z.union([z.string(), z.null()]),
+  // Nur 'schaubild': Diagramm als Mermaid (bevorzugt) oder sanitisiertes SVG — KEINE Rastergrafik.
+  schaubild: z.union([
+    z.object({ format: z.enum(['mermaid', 'svg']), quelle: z.string().min(1) }),
+    z.null(),
+  ]),
+  // 'lueckentext': Lückenfüller in Reihenfolge; 'zuordnen': Paare "Begriff → Zuordnung";
+  // 'unterstreichen': die korrekt zu markierenden Textstellen; 'quiz': richtige Option(en).
+  loesungen: z.array(z.string().min(1)).min(1),
+  distraktoren: z.array(z.string()),
+  hilfen: z.array(z.string()),
+  abschnitt_ref: z.string().min(1),
+  teilkompetenz: z.string().min(1),
+  komplexitaetsstufe: KomplexitaetsstufeSchema,
+})
+
+export const LernEinheitSegmentSchema = z.object({
+  typ: z.enum(['text', 'check']),
+  markdown: z.union([z.string(), z.null()]), // bei typ='text'
+  check: z.union([InlineCheckSchema, z.null()]), // bei typ='check'
+})
+
+export const LernEinheitOutputSchema = z.object({
+  titel: z.string().min(1),
+  segmente: z.array(LernEinheitSegmentSchema).min(1),
+  kernaussagen: z.array(z.string().min(1)).min(1),
+  didaktische_hinweise: z.array(z.string()),
+})
+
+export type LernEinheitOutput = z.infer<typeof LernEinheitOutputSchema>
+
+// Validierung für den BEARBEITEN-Pfad (PATCH /api/games/[id]). Akzeptiert die
+// Alt-Form (markdown) ODER die neue Segment-Form; verhindert, dass per Hand/CSRF
+// kaputte Inhalte gespeichert werden, die später beim Schüler rendern (M1,
+// Defense-in-Depth gegenüber der Generierungs-Validierung). Caps gegen Aufblähen.
+export const BausteinInhaltPatchSchema = z.object({
+  markdown: z.string().max(20000).optional(),
+  segmente: z.array(LernEinheitSegmentSchema).max(40).optional(),
+  kernaussagen: z.array(z.string()).max(20).optional(),
+  didaktische_hinweise: z.array(z.string()).max(20).optional(),
+}).refine((v) => v.markdown !== undefined || (v.segmente !== undefined && v.segmente.length > 0), {
+  message: 'baustein_inhalt braucht markdown oder segmente',
+})
+
+// Lockere Validierung für PATCH-aufgaben: jede Aufgabe braucht eine ID; weitere
+// Felder bleiben erlaubt (Spiel- wie Inline-Check-Aufgaben haben unterschiedliche Formate).
+export const AufgabePatchSchema = z.object({ aufgabe_id: z.string().min(1) }).passthrough()
+export const AufgabenPatchSchema = z.array(AufgabePatchSchema).max(200)
+
+// --- Schema: Grounding-Check (Prompt 13, Block C) ------------
+//
+// Zweiter Pass: prüft je Aufgabe, ob sie (inkl. Lösungen, Distraktoren und
+// besonders Hilfen) aus dem Quellmaterial ableitbar ist — NICHT aus
+// Modell-Weltwissen. Bewusst ohne z.unknown(), damit Structured Outputs nutzbar
+// ist (garantiert schema-konformes JSON).
+const GroundingElementSchema = z.enum(['frage', 'loesung', 'distraktor', 'hilfe'])
+
+export const GroundingCheckOutputSchema = z.object({
+  bewertungen: z.array(z.object({
+    aufgabe_id: z.string().min(1),
+    // true = vollständig aus dem Material belegbar; false = enthält Material-fremde
+    // oder widersprüchliche Anteile.
+    gegruendet: z.boolean(),
+    problematische_elemente: z.array(GroundingElementSchema),
+    problem: z.union([z.string(), z.null()]),
+    // Abschnitt, der die Aufgabe belegt (korrigierter Ref), falls bestimmbar.
+    beleg_abschnitt_ref: z.union([z.string(), z.null()]),
+  })),
+  zusammenfassung: z.string().min(1),
+})
+
+export type GroundingCheckOutput = z.infer<typeof GroundingCheckOutputSchema>
+
 // --- Schema 4: Spielgenerierung (Prompt 04, Schritte 11–16) --
 
 const DifferenzierungsStufeSchema = z.object({
