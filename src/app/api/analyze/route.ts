@@ -15,6 +15,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import type { AnalyseOutput, LernzielOutput, LernpfadOutput, SpielmappingOutput, SpielOutput, BausteinSequenzOutput, InputBausteinOutput } from '@/lib/schemas/pipeline'
 import { normalizeSkin } from '@/lib/game/theme'
+import { mapLimit } from '@/lib/concurrency'
 
 // Vercel: bis zu 5 Minuten für die Multi-Game-Pipeline erlauben
 export const maxDuration = 300
@@ -22,6 +23,21 @@ export const maxDuration = 300
 const enc = new TextEncoder()
 function sseEvent(data: Record<string, unknown>) {
   return enc.encode(`data: ${JSON.stringify(data)}\n\n`)
+}
+
+// Höchstens so viele schwere KI-Generierungen (Bausteine/Spiele) gleichzeitig —
+// verhindert 429-Rate-Limit-Stau und lässt den Prompt-Cache warmlaufen.
+const GENERATION_CONCURRENCY = 2
+
+// Knapp unter maxDuration (300s): rechtzeitig sauber abbrechen, statt vom
+// Vercel-Hard-Kill erwischt zu werden (sonst hängt die UI ewig beim letzten %).
+const SOFT_DEADLINE_MS = 280_000
+
+class PipelineDeadlineError extends Error {
+  constructor() {
+    super('Zeitlimit erreicht')
+    this.name = 'PipelineDeadlineError'
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -60,6 +76,10 @@ export async function POST(request: NextRequest) {
       const heartbeat = setInterval(() => {
         try { controller.enqueue(enc.encode(`: ping\n\n`)) } catch { /* closed */ }
       }, 10_000)
+
+      // Vor jeder neuen schweren Generierung prüfen, ob noch Zeit bis zum Limit ist.
+      const deadlineAt = Date.now() + SOFT_DEADLINE_MS
+      const checkDeadline = () => { if (Date.now() > deadlineAt) throw new PipelineDeadlineError() }
 
       try {
         const kontext = {
@@ -151,31 +171,30 @@ export async function POST(request: NextRequest) {
         if (inputBausteine.length > 0) {
           send({ type: 'progress', label: 'Lerninhalte werden erstellt …', percent: 58, schrittIndex: 13 })
         }
-        await Promise.all(
-          inputBausteine.map(async (b) => {
-            const inhalt = await generateInputBaustein({
-              analyse, lernziel,
-              baustein: {
-                baustein_typ: b.baustein_typ,
-                titel: b.titel,
-                thema: b.thema,
-                didaktische_funktion: b.didaktische_funktion,
-              },
-              kontext: baseKontext,
-            })
-            const { data: row, error } = await supabase
-              .from('games')
-              .insert({
-                ...buildBausteinRow(analyseRow.id, user.id, b, inhalt),
-                game_flow_id: gameFlow.id,
-                reihenfolge: b.position,
-              })
-              .select()
-              .single()
-            if (error) throw error
-            moduleIdByPosition[b.position] = row.id as string
+        await mapLimit(inputBausteine, GENERATION_CONCURRENCY, async (b) => {
+          checkDeadline()
+          const inhalt = await generateInputBaustein({
+            analyse, lernziel,
+            baustein: {
+              baustein_typ: b.baustein_typ,
+              titel: b.titel,
+              thema: b.thema,
+              didaktische_funktion: b.didaktische_funktion,
+            },
+            kontext: baseKontext,
           })
-        )
+          const { data: row, error } = await supabase
+            .from('games')
+            .insert({
+              ...buildBausteinRow(analyseRow.id, user.id, b, inhalt),
+              game_flow_id: gameFlow.id,
+              reihenfolge: b.position,
+            })
+            .select()
+            .single()
+          if (error) throw error
+          moduleIdByPosition[b.position] = row.id as string
+        })
 
         // ── Phase 3b: Spiel-Bausteine (wie bisher, nur bei Passung) ─────
         const vorschlaege = spielmappingGlobal
@@ -195,38 +214,37 @@ export async function POST(request: NextRequest) {
             percent: 70,
             schrittIndex: 13,
           })
-          await Promise.all(
-            spielBausteine.map(async (b, i) => {
-              const vorschlag = vorschlaege[i % vorschlaege.length]
-              const spielmappingFuerDiesesSpiel: SpielmappingOutput = {
-                ...spielmappingGlobal!,
-                ausgewaehlter_vorschlag_rang: vorschlag.rang,
-                auswahlbegruendung: vorschlag.passung_begruendung,
-              }
-              const spiel = await generateGame({
-                analyse, lernziel, lernpfad,
-                spielmapping: spielmappingFuerDiesesSpiel,
-                kontext,
-                erlaubteFormate: erlaubteFormateArray,
-              })
-              const { data: row, error } = await supabase
-                .from('games')
-                .insert({
-                  ...buildSpielRow(analyseRow.id, user.id, spiel, spielmappingFuerDiesesSpiel, b.titel),
-                  game_flow_id: gameFlow.id,
-                  reihenfolge: b.position,
-                  baustein_typ: 'spiel',
-                  // spiel_output: rohes SpielOutput für die asynchrone Validierung
-                  spiel_output: spiel,
-                })
-                .select()
-                .single()
-              if (error) throw error
-              moduleIdByPosition[b.position] = row.id as string
-              generated++
-              sendGameProgress()
+          await mapLimit(spielBausteine, GENERATION_CONCURRENCY, async (b, i) => {
+            checkDeadline()
+            const vorschlag = vorschlaege[i % vorschlaege.length]
+            const spielmappingFuerDiesesSpiel: SpielmappingOutput = {
+              ...spielmappingGlobal!,
+              ausgewaehlter_vorschlag_rang: vorschlag.rang,
+              auswahlbegruendung: vorschlag.passung_begruendung,
+            }
+            const spiel = await generateGame({
+              analyse, lernziel, lernpfad,
+              spielmapping: spielmappingFuerDiesesSpiel,
+              kontext,
+              erlaubteFormate: erlaubteFormateArray,
             })
-          )
+            const { data: row, error } = await supabase
+              .from('games')
+              .insert({
+                ...buildSpielRow(analyseRow.id, user.id, spiel, spielmappingFuerDiesesSpiel, b.titel),
+                game_flow_id: gameFlow.id,
+                reihenfolge: b.position,
+                baustein_typ: 'spiel',
+                // spiel_output: rohes SpielOutput für die asynchrone Validierung
+                spiel_output: spiel,
+              })
+              .select()
+              .single()
+            if (error) throw error
+            moduleIdByPosition[b.position] = row.id as string
+            generated++
+            sendGameProgress()
+          })
         }
 
         await supabase
@@ -246,7 +264,10 @@ export async function POST(request: NextRequest) {
 
       } catch (err) {
         let message = 'Analyse fehlgeschlagen'
-        if (err instanceof PipelineValidationError) {
+        if (err instanceof PipelineDeadlineError) {
+          message = 'Die Generierung hat das Zeitlimit erreicht — bitte mit weniger Spielen erneut versuchen.'
+          console.error('[analyze] PipelineDeadlineError')
+        } else if (err instanceof PipelineValidationError) {
           message = `Validierungsfehler: ${err.message}`
           console.error('[analyze] PipelineValidationError', { schritt: err.schritt, zod: err.zodError.issues, raw: err.rawOutput })
         } else if (err instanceof PipelineJsonError) {
