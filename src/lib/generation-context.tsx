@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useRef, useState, ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { mapLimit } from '@/lib/concurrency'
 
 const ANALYSE_SCHRITTE_COUNT = 21
 
@@ -139,6 +140,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       const reader = analyseRes.body!.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      let planned: { gameFlowId: string; analyseId: string; modules: { id: string; position: number; baustein_typ: string }[] } | null = null
 
       while (true) {
         const { done, value } = await reader.read()
@@ -156,28 +158,59 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
               percent: event.percent,
               schrittIndex: event.schrittIndex,
             }))
-          } else if (event.type === 'done') {
-            setState((s) => ({
-              ...s,
-              status: 'done',
-              percent: 100,
-              schrittIndex: ANALYSE_SCHRITTE_COUNT,
-              result: {
-                gameFlowId: event.gameFlowId,
-                spielIds: event.spielIds,
-                analyseId: event.analyseId,
-              },
-            }))
-            // Fire-and-forget Lehrkraft-Validierung pro Spiel
-            if (Array.isArray(event.spielIds)) {
-              for (const id of event.spielIds as string[]) {
-                fetch(`/api/games/${id}/check`, { method: 'POST' }).catch(() => { /* best effort */ })
-              }
+          } else if (event.type === 'planned') {
+            planned = {
+              gameFlowId: event.gameFlowId,
+              analyseId: event.analyseId,
+              modules: event.modules ?? [],
             }
+            setState((s) => ({ ...s, label: 'Bausteine werden erstellt …', percent: 50 }))
           } else if (event.type === 'error') {
             throw new Error(event.message)
           }
         }
+      }
+
+      // ── Phase 2: Module einzeln generieren (je ein eigenes Lambda) ──────
+      if (!planned) throw new Error('Pipeline hat keine Module geplant')
+      const p = planned
+      const mods = [...p.modules].sort((a, b) => a.position - b.position)
+      const total = mods.length
+      let fertig = 0
+      let fehler = 0
+      setState((s) => ({ ...s, label: `Bausteine: 0/${total} …`, percent: 50, schrittIndex: ANALYSE_SCHRITTE_COUNT }))
+
+      // Gedrosselt (2 gleichzeitig) wie der Lehrkraft-Check-Fan-out — pro Modul
+      // ein Lambda mit eigenem 5-min-Timeout, also kein Aggregat-Zeitlimit.
+      await mapLimit(mods, 2, async (m) => {
+        try {
+          const res = await fetch(`/api/games/${m.id}/generate`, { method: 'POST' })
+          if (!res.ok) fehler++
+        } catch {
+          fehler++
+        }
+        fertig++
+        setState((s) => ({
+          ...s,
+          label: `Bausteine: ${fertig}/${total} fertig`,
+          percent: 50 + Math.round((fertig / total) * 50),
+        }))
+      })
+
+      if (fehler >= total) throw new Error('Keiner der Bausteine konnte erzeugt werden')
+
+      const spielIds = mods.map((m) => m.id)
+      setState((s) => ({
+        ...s,
+        status: 'done',
+        percent: 100,
+        schrittIndex: ANALYSE_SCHRITTE_COUNT,
+        result: { gameFlowId: p.gameFlowId, spielIds, analyseId: p.analyseId },
+      }))
+
+      // Fire-and-forget Lehrkraft-Validierung pro Modul (Check überspringt Nicht-Spiele).
+      for (const id of spielIds) {
+        fetch(`/api/games/${id}/check`, { method: 'POST' }).catch(() => { /* best effort */ })
       }
     } catch (err) {
       setState((s) => ({

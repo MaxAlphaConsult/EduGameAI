@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { FlowLehrkraftCheckPanel } from '@/components/modules/FlowLehrkraftCheckPanel'
 import { FlowImprovePanel } from '@/components/modules/FlowImprovePanel'
+import { FlowGenerationPoller, RegenerateModuleButton } from '@/components/modules/FlowGenerationPoller'
 
 interface GameRow {
   id: string
@@ -12,6 +13,8 @@ interface GameRow {
   spieltyp_didaktisch: string | null
   game_engine: string | null
   aufgaben: unknown[] | null
+  gen_status: string | null
+  gen_error: string | null
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -46,17 +49,22 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
 
   const { data: gamesRaw } = await supabase
     .from('games')
-    .select('id, titel, status, reihenfolge, spieltyp_didaktisch, game_engine, aufgaben')
+    .select('id, titel, status, reihenfolge, spieltyp_didaktisch, game_engine, aufgaben, gen_status, gen_error')
     .eq('game_flow_id', flowId)
     .eq('lehrer_id', user.id)
 
-  const module = ((gamesRaw ?? []) as GameRow[])
+  const bausteine = ((gamesRaw ?? []) as GameRow[])
     .sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
 
-  const totalAufgaben = module.reduce((sum, m) => sum + (m.aufgaben?.length ?? 0), 0)
+  const totalAufgaben = bausteine.reduce((sum, m) => sum + (m.aufgaben?.length ?? 0), 0)
+  const anyPending = bausteine.some((m) => m.gen_status === 'pending' || m.gen_status === 'generating')
+  const allReady = bausteine.length > 0 && bausteine.every((m) => (m.gen_status ?? 'ready') === 'ready')
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-3xl">
+      {/* Solange noch Module erzeugt werden: Seite alle 4s auffrischen. */}
+      {anyPending && <FlowGenerationPoller flowId={flowId} />}
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-3 mb-6">
         <Link href="/spiele" className="text-sm" style={{ color: '#7A6A94', textDecoration: 'none' }}>← LernFlows</Link>
@@ -68,12 +76,23 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: '#1F1235' }}>{flow.titel}</h1>
         <p className="text-sm" style={{ color: '#7A6A94' }}>
-          {module.length} {module.length === 1 ? 'Baustein' : 'Bausteine'} · {totalAufgaben} Aufgaben · erstellt {new Date(flow.created_at).toLocaleDateString('de-DE')}
+          {bausteine.length} {bausteine.length === 1 ? 'Baustein' : 'Bausteine'} · {totalAufgaben} Aufgaben · erstellt {new Date(flow.created_at).toLocaleDateString('de-DE')}
         </p>
       </div>
 
-      {/* Großer CTA: ganzen LernFlow testen */}
-      {module.length > 0 && (
+      {/* Hinweis, solange Module noch erzeugt werden */}
+      {anyPending && (
+        <div className="mb-6 rounded-2xl px-5 py-3 flex items-center gap-3"
+          style={{ background: 'linear-gradient(135deg, #FFFFFF, #F6F1FF)', border: '1px solid #C4B5FD' }}>
+          <span className="text-base">⏳</span>
+          <p className="text-sm font-medium" style={{ color: '#5B21B6' }}>
+            Bausteine werden gerade erstellt — sie erscheinen hier nach und nach.
+          </p>
+        </div>
+      )}
+
+      {/* Großer CTA: ganzen LernFlow testen (erst wenn alles fertig ist) */}
+      {allReady && (
         <Link
           href={`/spiele/${flowId}/preview`}
           target="_blank"
@@ -92,7 +111,7 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
             <div className="flex-1 min-w-0">
               <p className="font-bold text-base">Ganzen LernFlow testen</p>
               <p className="text-xs" style={{ color: '#E9D5FF' }}>
-                Alle {module.length} Bausteine hintereinander, wie ein Schüler.
+                Alle {bausteine.length} Bausteine hintereinander, wie ein Schüler.
               </p>
             </div>
             <span className="text-xl flex-shrink-0" style={{ color: '#E9D5FF' }}>↗</span>
@@ -116,8 +135,10 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
           Bausteine (didaktische Reihenfolge: leicht → schwer)
         </p>
         <div className="flex flex-col gap-2">
-          {module.map((m) => {
+          {bausteine.map((m) => {
+            const gen = m.gen_status ?? 'ready'
             const stat = m.status ?? 'entwurf'
+            const istBereit = gen === 'ready'
             return (
               <div key={m.id} className="rounded-xl p-3"
                 style={{ background: '#FFFFFF', border: '1px solid #F3EEFF' }}>
@@ -134,18 +155,34 @@ export default async function FlowDetailPage({ params }: { params: Promise<{ flo
                       {m.spieltyp_didaktisch || m.game_engine || '—'} · {m.aufgaben?.length ?? 0} Aufgaben
                     </p>
                   </div>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                    style={{ background: STATUS_BG[stat] ?? '#F3F4F6', color: STATUS_FG[stat] ?? '#6B7280' }}>
-                    {STATUS_LABEL[stat] ?? stat}
-                  </span>
+                  {gen === 'pending' || gen === 'generating' ? (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: '#EDE9FE', color: '#6D28D9' }}>
+                      ⏳ wird erstellt …
+                    </span>
+                  ) : gen === 'gen_error' ? (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: '#FEE2E2', color: '#991B1B' }}>
+                      ⚠️ Fehler
+                    </span>
+                  ) : (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: STATUS_BG[stat] ?? '#F3F4F6', color: STATUS_FG[stat] ?? '#6B7280' }}>
+                      {STATUS_LABEL[stat] ?? stat}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: '#F3EEFF' }}>
-                  <Link href={`/modules/${m.id}`}
-                    className="text-xs font-bold px-3 py-1.5 rounded-lg"
-                    style={{ background: '#7C3AED', color: 'white', textDecoration: 'none' }}>
-                    Öffnen & bearbeiten →
-                  </Link>
-                  {(m.aufgaben?.length ?? 0) > 0 && (
+                  {gen === 'gen_error' ? (
+                    <RegenerateModuleButton gameId={m.id} />
+                  ) : (
+                    <Link href={`/modules/${m.id}`}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                      style={{ background: istBereit ? '#7C3AED' : '#C4B5FD', color: 'white', textDecoration: 'none', pointerEvents: istBereit ? 'auto' : 'none', opacity: istBereit ? 1 : 0.7 }}>
+                      {istBereit ? 'Öffnen & bearbeiten →' : 'wird erstellt …'}
+                    </Link>
+                  )}
+                  {istBereit && (m.aufgaben?.length ?? 0) > 0 && (
                     <Link href={`/modules/${m.id}/preview`} target="_blank"
                       className="text-xs font-bold px-3 py-1.5 rounded-lg"
                       style={{ background: '#F3EEFF', color: '#7C3AED', border: '1px solid #E9D5FF', textDecoration: 'none' }}>

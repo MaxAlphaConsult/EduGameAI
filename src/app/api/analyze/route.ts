@@ -4,20 +4,19 @@ import {
   determineLearningObjective,
   determineLernpfad,
   planBausteinSequenz,
-  generateInputBaustein,
   runSpielMapping,
-  generateGame,
   PipelineValidationError,
   PipelineJsonError,
   PipelineTruncationError,
   PipelineApiError,
 } from '@/lib/claude/pipeline'
 import { createClient } from '@/lib/supabase/server'
-import type { AnalyseOutput, LernzielOutput, LernpfadOutput, SpielmappingOutput, SpielOutput, BausteinSequenzOutput, InputBausteinOutput } from '@/lib/schemas/pipeline'
-import { normalizeSkin } from '@/lib/game/theme'
-import { mapLimit } from '@/lib/concurrency'
+import type { AnalyseOutput, LernzielOutput, LernpfadOutput, SpielmappingOutput } from '@/lib/schemas/pipeline'
 
-// Vercel: bis zu 5 Minuten für die Multi-Game-Pipeline erlauben
+// /api/analyze macht NUR Analyse + Planung + Platzhalter-Module — die eigentliche
+// Modul-Generierung läuft danach pro Modul in eigenen Lambdas
+// (/api/games/[id]/generate), vom Client orchestriert. So gibt es KEIN
+// Aggregat-Zeitlimit mehr (skaliert mit beliebig vielen Bausteinen/Spielen).
 export const maxDuration = 300
 
 const enc = new TextEncoder()
@@ -25,12 +24,8 @@ function sseEvent(data: Record<string, unknown>) {
   return enc.encode(`data: ${JSON.stringify(data)}\n\n`)
 }
 
-// Höchstens so viele schwere KI-Generierungen (Bausteine/Spiele) gleichzeitig —
-// verhindert 429-Rate-Limit-Stau und lässt den Prompt-Cache warmlaufen.
-const GENERATION_CONCURRENCY = 2
-
-// Knapp unter maxDuration (300s): rechtzeitig sauber abbrechen, statt vom
-// Vercel-Hard-Kill erwischt zu werden (sonst hängt die UI ewig beim letzten %).
+// Sicherheitsnetz: knapp unter maxDuration sauber abbrechen statt Hard-Kill,
+// falls die PLANUNG bei sehr großem Material doch an die 300s stößt.
 const SOFT_DEADLINE_MS = 280_000
 
 class PipelineDeadlineError extends Error {
@@ -72,12 +67,11 @@ export async function POST(request: NextRequest) {
       const send = (data: Record<string, unknown>) => controller.enqueue(sseEvent(data))
 
       // Heartbeat: SSE-Kommentar alle 10s, damit Proxies/Browser die Verbindung
-      // nicht wegen Inaktivität kappen, während die Pipeline lange läuft.
+      // nicht wegen Inaktivität kappen.
       const heartbeat = setInterval(() => {
         try { controller.enqueue(enc.encode(`: ping\n\n`)) } catch { /* closed */ }
       }, 10_000)
 
-      // Vor jeder neuen schweren Generierung prüfen, ob noch Zeit bis zum Limit ist.
       const deadlineAt = Date.now() + SOFT_DEADLINE_MS
       const checkDeadline = () => { if (Date.now() > deadlineAt) throw new PipelineDeadlineError() }
 
@@ -89,24 +83,23 @@ export async function POST(request: NextRequest) {
           zeitrahmenMinuten,
         }
 
-        // ── Phase 1: Analyse (einmalig) ─────────────────────────────────
-        send({ type: 'progress', label: 'Material wird analysiert …', percent: 5, schrittIndex: 0 })
+        // ── Phase 1: Analyse + Lernziel + Lernpfad ──────────────────────
+        send({ type: 'progress', label: 'Material wird analysiert …', percent: 8, schrittIndex: 0 })
+        checkDeadline()
         const analyse = await analyzeMaterial({
           materialText: material.extrahierter_text,
           abschnitte: material.abschnitte,
           kontext,
         })
 
-        send({ type: 'progress', label: 'Lernziel wird bestimmt …', percent: 20, schrittIndex: 6 })
+        send({ type: 'progress', label: 'Lernziel wird bestimmt …', percent: 18, schrittIndex: 6 })
+        checkDeadline()
         const lernziel = await determineLearningObjective({ analyse, lernzielLehrkraft })
 
-        send({ type: 'progress', label: 'Lernpfad wird bestimmt …', percent: 32, schrittIndex: 10 })
+        send({ type: 'progress', label: 'Lernpfad wird bestimmt …', percent: 26, schrittIndex: 10 })
+        checkDeadline()
         const lernpfad = await determineLernpfad({ analyse, lernziel, kontext })
 
-        // Analyse in DB speichern. raw_output enthält die rohen Pipeline-Outputs,
-        // damit die asynchrone Lehrkraft-Validierung später ohne erneutes
-        // Pipeline-Setup darauf zugreifen kann (siehe Migration 011).
-        // spielmapping wird gleich nach Phase 2 ergänzt.
         const { data: analyseRow, error: analyseError } = await supabase
           .from('analyses')
           .insert(buildAnalyseRow(materialId, analyse, lernziel, lernpfad))
@@ -114,7 +107,6 @@ export async function POST(request: NextRequest) {
           .single()
         if (analyseError) throw analyseError
 
-        // GameFlow anlegen (war: einheit)
         const flowTitel = spielname?.trim() || `Lernreise – ${new Date().toLocaleDateString('de-DE')}`
         const { data: gameFlow, error: gameFlowError } = await supabase
           .from('game_flows')
@@ -131,141 +123,86 @@ export async function POST(request: NextRequest) {
         if (gameFlowError) throw gameFlowError
 
         // ── Phase 2: Lernsequenz planen ─────────────────────────────────
-        // Statt nur Spiele zu erzeugen, plant die KI eine didaktische
-        // Bausteinsequenz (Einstieg/Vorwissen/Input/Spiel/Sicherung/…).
-        // Das Spiel ist nur ein Baustein-Typ und wird nur nach Passung gewählt.
         const erlaubteFormateArray: string[] | undefined = Array.isArray(erlaubteFormate) ? erlaubteFormate : undefined
 
-        send({ type: 'progress', label: 'Lernsequenz wird geplant …', percent: 40, schrittIndex: 11 })
+        send({ type: 'progress', label: 'Lernsequenz wird geplant …', percent: 34, schrittIndex: 11 })
+        checkDeadline()
         const sequenz = await planBausteinSequenz({ analyse, lernziel, lernpfad, kontext, gewuenschteSpiele: anzahlSpiele })
 
         const bausteine = [...sequenz.bausteine].sort((a, b) => a.position - b.position)
         const spielBausteine = bausteine.filter((b) => b.baustein_typ === 'spiel')
-        const inputBausteine = bausteine.filter((b) => b.baustein_typ !== 'spiel')
 
         // Spielmapping nur, wenn die Sequenz überhaupt Spiel-Bausteine enthält.
         let spielmappingGlobal: SpielmappingOutput | null = null
         if (spielBausteine.length > 0) {
-          send({ type: 'progress', label: 'Spielkonzepte werden entwickelt …', percent: 48, schrittIndex: 12 })
+          send({ type: 'progress', label: 'Spielkonzepte werden entwickelt …', percent: 42, schrittIndex: 12 })
+          checkDeadline()
           spielmappingGlobal = await runSpielMapping({
             analyse, lernziel, lernpfad, kontext,
             erlaubteFormate: erlaubteFormateArray,
           })
         }
 
-        // Pipeline-Inputs für asynchrone Validierung persistieren — fire-and-forget.
-        supabase
+        // Geplanten Kontext SYNCHRON persistieren — jedes Generierungs-Lambda liest
+        // ihn aus analyses.raw_output. (Früher fire-and-forget → Race; jetzt awaited;
+        // erlaubteFormate mit drin, damit die Lambdas autark sind.)
+        const { error: rawErr } = await supabase
           .from('analyses')
-          .update({ raw_output: { analyse, lernziel, lernpfad, sequenz, spielmapping: spielmappingGlobal } })
-          .eq('id', analyseRow.id)
-          .then((res) => {
-            if (res.error) console.error('[analyze] raw_output-Update fehlgeschlagen:', res.error)
-          })
-
-        // reihenfolge = Sequenzposition (didaktisch geplant, nicht mehr nach
-        // Komplexität sortiert). Modul-IDs nach Position sammeln.
-        const moduleIdByPosition: Record<number, string> = {}
-        const baseKontext = { fach: material.fach, jahrgangsstufe: material.jahrgangsstufe, schulform: material.schulform }
-
-        // ── Phase 3a: Nicht-Spiel-Bausteine (Erklär/Input/Check) ────────
-        if (inputBausteine.length > 0) {
-          send({ type: 'progress', label: 'Lerninhalte werden erstellt …', percent: 58, schrittIndex: 13 })
-        }
-        await mapLimit(inputBausteine, GENERATION_CONCURRENCY, async (b) => {
-          checkDeadline()
-          const inhalt = await generateInputBaustein({
-            analyse, lernziel,
-            baustein: {
-              baustein_typ: b.baustein_typ,
-              titel: b.titel,
-              thema: b.thema,
-              didaktische_funktion: b.didaktische_funktion,
+          .update({
+            raw_output: {
+              analyse, lernziel, lernpfad, sequenz,
+              spielmapping: spielmappingGlobal,
+              erlaubteFormate: erlaubteFormateArray ?? null,
             },
-            kontext: baseKontext,
           })
-          const { data: row, error } = await supabase
-            .from('games')
-            .insert({
-              ...buildBausteinRow(analyseRow.id, user.id, b, inhalt),
-              game_flow_id: gameFlow.id,
-              reihenfolge: b.position,
-            })
-            .select()
-            .single()
-          if (error) throw error
-          moduleIdByPosition[b.position] = row.id as string
-        })
+          .eq('id', analyseRow.id)
+        if (rawErr) throw rawErr
 
-        // ── Phase 3b: Spiel-Bausteine (wie bisher, nur bei Passung) ─────
-        const vorschlaege = spielmappingGlobal
-          ? [...spielmappingGlobal.vorschlaege].sort((a, b) => a.rang - b.rang)
-          : []
+        // ── Platzhalter-Module anlegen (KEINE KI-Calls hier) ────────────
+        // Ein games-Row pro Baustein mit gen_status='pending'. Der Client stößt
+        // danach pro Modul /api/games/[id]/generate an (eigenes Lambda).
+        send({ type: 'progress', label: 'Bausteine werden vorbereitet …', percent: 48, schrittIndex: 13 })
+        const placeholderRows = bausteine.map((b) => ({
+          analyse_id: analyseRow.id,
+          lehrer_id: user.id,
+          game_flow_id: gameFlow.id,
+          reihenfolge: b.position,
+          baustein_typ: b.baustein_typ,
+          titel: b.titel,
+          spieltyp_didaktisch: b.didaktische_funktion,
+          game_engine: null,
+          game_skin: b.baustein_typ === 'spiel' ? null : 'analytics',
+          aufgaben: [],
+          status: 'entwurf',
+          gen_status: 'pending',
+        }))
+        const { data: insertedRows, error: insertErr } = await supabase
+          .from('games')
+          .insert(placeholderRows)
+          .select('id, reihenfolge, baustein_typ')
+        if (insertErr) throw insertErr
 
-        let generated = 0
-        const sendGameProgress = () => {
-          const percent = Math.round(70 + (generated / Math.max(spielBausteine.length, 1)) * 23) // 70 → 93
-          send({ type: 'progress', label: `Spiel ${generated}/${spielBausteine.length} fertig`, percent, schrittIndex: 13 })
-        }
-
-        if (spielBausteine.length > 0 && spielmappingGlobal) {
-          send({
-            type: 'progress',
-            label: spielBausteine.length === 1 ? 'Spiel wird generiert …' : `${spielBausteine.length} Spiele werden generiert …`,
-            percent: 70,
-            schrittIndex: 13,
-          })
-          await mapLimit(spielBausteine, GENERATION_CONCURRENCY, async (b, i) => {
-            checkDeadline()
-            const vorschlag = vorschlaege[i % vorschlaege.length]
-            const spielmappingFuerDiesesSpiel: SpielmappingOutput = {
-              ...spielmappingGlobal!,
-              ausgewaehlter_vorschlag_rang: vorschlag.rang,
-              auswahlbegruendung: vorschlag.passung_begruendung,
-            }
-            const spiel = await generateGame({
-              analyse, lernziel, lernpfad,
-              spielmapping: spielmappingFuerDiesesSpiel,
-              kontext,
-              erlaubteFormate: erlaubteFormateArray,
-            })
-            const { data: row, error } = await supabase
-              .from('games')
-              .insert({
-                ...buildSpielRow(analyseRow.id, user.id, spiel, spielmappingFuerDiesesSpiel, b.titel),
-                game_flow_id: gameFlow.id,
-                reihenfolge: b.position,
-                baustein_typ: 'spiel',
-                // spiel_output: rohes SpielOutput für die asynchrone Validierung
-                spiel_output: spiel,
-              })
-              .select()
-              .single()
-            if (error) throw error
-            moduleIdByPosition[b.position] = row.id as string
-            generated++
-            sendGameProgress()
-          })
-        }
-
+        // Sequenz steht → anzahl_spiele = Bausteinanzahl, sortiert_am jetzt.
         await supabase
           .from('game_flows')
           .update({ anzahl_spiele: bausteine.length, sortiert_am: new Date().toISOString() })
           .eq('id', gameFlow.id)
 
-        // Alle Modul-IDs in didaktischer Reihenfolge (= Sequenzposition).
-        // Das Frontend stößt darüber pro Modul den Check an; Nicht-Spiel-Module
-        // werden in der Check-Route sauber als No-op übersprungen.
-        const spielIds: string[] = bausteine
-          .map((b) => moduleIdByPosition[b.position])
-          .filter((id): id is string => Boolean(id))
+        const modules = (insertedRows ?? [])
+          .map((r) => ({
+            id: r.id as string,
+            position: (r.reihenfolge ?? 0) as number,
+            baustein_typ: r.baustein_typ as string,
+          }))
+          .sort((a, b) => a.position - b.position)
 
-        send({ type: 'progress', label: 'Ergebnisse werden gespeichert …', percent: 95, schrittIndex: 20 })
-        send({ type: 'done', gameFlowId: gameFlow.id, spielIds, analyseId: analyseRow.id })
+        // Fertig geplant — der Client generiert die Module einzeln weiter.
+        send({ type: 'planned', gameFlowId: gameFlow.id, analyseId: analyseRow.id, modules })
 
       } catch (err) {
         let message = 'Analyse fehlgeschlagen'
         if (err instanceof PipelineDeadlineError) {
-          message = 'Die Generierung hat das Zeitlimit erreicht — bitte mit weniger Spielen erneut versuchen.'
+          message = 'Die Planung hat das Zeitlimit erreicht — bitte mit kürzerem Material erneut versuchen.'
           console.error('[analyze] PipelineDeadlineError')
         } else if (err instanceof PipelineValidationError) {
           message = `Validierungsfehler: ${err.message}`
@@ -334,66 +271,3 @@ function buildAnalyseRow(
     lernpfad: lp,
   }
 }
-
-function buildSpielRow(analyseId: string, lehrerId: string, s: SpielOutput, sm: SpielmappingOutput, spielname?: string) {
-  const selectedVorschlag = sm.vorschlaege.find(v => v.rang === sm.ausgewaehlter_vorschlag_rang)
-  const aufgaben = s.schritt_14_aufgaben.map((q) => ({
-    aufgabe_id: q.aufgabe_id,
-    text: q.text,
-    antwortformat: q.antwortformat,
-    loesungen: q.loesungen,
-    distraktoren: q.distraktoren,
-    hilfen: q.hilfen,
-    abschnitt_ref: q.abschnitt_ref,
-    teilkompetenz: q.teilkompetenz,
-    komplexitaetsstufe: q.komplexitaetsstufe,
-  }))
-
-  return {
-    analyse_id: analyseId,
-    lehrer_id: lehrerId,
-    titel: spielname || (selectedVorschlag
-      ? `${selectedVorschlag.name} – ${new Date().toLocaleDateString('de-DE')}`
-      : `Spiel – ${new Date().toLocaleDateString('de-DE')}`),
-    spieltyp_didaktisch: s.schritt_13_spieltyp_didaktisch,
-    game_engine: s.schritt_11_game_engine.engine_typ,
-    // KI darf jetzt aus dem vollen Skin-Pool wählen (alle 15 + 3 Basis-Stufen).
-    // Wir nehmen skin_name wenn bekannt, sonst fallen wir auf die Altersstufe zurück.
-    game_skin: normalizeSkin(s.schritt_12_game_skin.skin_name, s.schritt_12_game_skin.altersstufe),
-    aufgaben,
-    zeitregelung_sekunden: null,
-    zeitdruck_aktiv: false,
-    status: 'entwurf',
-  }
-}
-
-// Baut eine games-Zeile für einen Nicht-Spiel-Baustein (Erklär/Input/Check).
-// Der Erklärinhalt liegt in baustein_inhalt; die Mini-Verständnisfrage als
-// einzige Aufgabe in aufgaben[] (nutzt die bestehende /api/answers-Logik).
-function buildBausteinRow(
-  analyseId: string,
-  lehrerId: string,
-  b: BausteinSequenzOutput['bausteine'][number],
-  inhalt: InputBausteinOutput,
-) {
-  return {
-    analyse_id: analyseId,
-    lehrer_id: lehrerId,
-    titel: inhalt.titel || b.titel,
-    spieltyp_didaktisch: b.didaktische_funktion,
-    game_engine: null,
-    game_skin: 'analytics',
-    baustein_typ: b.baustein_typ,
-    baustein_inhalt: {
-      markdown: inhalt.markdown,
-      kernaussagen: inhalt.kernaussagen,
-      didaktische_hinweise: inhalt.didaktische_hinweise,
-    },
-    aufgaben: [inhalt.mini_check],
-    zeitregelung_sekunden: null,
-    zeitdruck_aktiv: false,
-    status: 'entwurf',
-  }
-}
-
-// buildCheckRow ist nach Migration 011 in /api/games/[gameId]/check umgezogen.
