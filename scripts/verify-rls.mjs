@@ -69,6 +69,9 @@ await db.exec(`
   -- DER LEAK aus Migration 005, den 019 schließen muss:
   CREATE POLICY "students_anon_read" ON students FOR SELECT USING (true);
   CREATE POLICY "flow_releases_anon_read" ON flow_releases FOR SELECT USING (status = 'aktiv');
+  -- WICHTIG: diese Policy (Mig. 010) bildet mit den 017-Policies den Rekursions-Zyklus.
+  CREATE POLICY "flow_releases_lehrer_all" ON flow_releases FOR ALL USING (
+    class_id IN (SELECT id FROM classes WHERE lehrer_id = auth.uid()));
   CREATE POLICY "lehrer_own_games" ON games FOR ALL USING (lehrer_id = auth.uid());
 
   -- Supabase gewährt anon SELECT auf public-Tabellen; RLS filtert dann die Zeilen.
@@ -79,6 +82,7 @@ await db.exec(`
 await db.exec(mig('017_student_anon_flow_class_read.sql'))
 await db.exec(mig('018_games_grounding.sql'))
 await db.exec(mig('019_student_code_validation.sql'))
+await db.exec(mig('020_fix_anon_policy_recursion.sql')) // behebt die 017-Rekursion
 
 // ── Seed (als Superuser, RLS-frei) ──────────────────────────────────────────
 const teacher = '11111111-1111-1111-1111-111111111111'
@@ -104,6 +108,8 @@ check('017: anon liest NICHT den unveröffentlichten game_flow',
   await seen('SELECT id FROM game_flows WHERE id=$1', [flowU.id]) === 0)
 check('017: anon liest die freigegebene Klasse',
   await seen('SELECT id FROM classes WHERE id=$1', [cls.id]) === 1)
+check('020: anon liest das aktive flow_release OHNE Rekursion (42P17)',
+  await seen('SELECT id FROM flow_releases WHERE access_code=$1', ['12345678']) === 1)
 
 check('019: anon kann KEINE students lesen (Leak geschlossen)',
   await seen('SELECT id FROM students') === 0)
