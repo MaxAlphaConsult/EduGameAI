@@ -33,6 +33,17 @@ export function LernEinheitRunner({ moduleSessionId, titel, inhalt, intro, previ
   const aktivBeantwortet = aktiv?.typ === 'text' || (aktivCheckId != null && antworten[aktivCheckId] != null)
   const istLetztes = pos >= segmente.length - 1
 
+  // Nach dem Beantworten eines Checks automatisch zum nächsten Segment gehen —
+  // kein extra „Weiter"-Klick nötig. Kurze Pause, damit Feedback + Lösung sichtbar
+  // bleiben (der beantwortete Check bleibt ohnehin oben im Verlauf stehen).
+  // Das letzte Segment wird NICHT automatisch beendet — dort tippt man „Fertig".
+  useEffect(() => {
+    if (aktiv?.typ !== 'check' || istLetztes) return
+    if (aktivCheckId == null || antworten[aktivCheckId] == null) return
+    const t = setTimeout(() => setPos((p) => p + 1), 1200)
+    return () => clearTimeout(t)
+  }, [aktiv, aktivCheckId, antworten, istLetztes])
+
   async function handleAnswered(check: InlineCheck, korrekt: boolean, wert: unknown) {
     setAntworten((prev) => (prev[check.check_id] ? prev : { ...prev, [check.check_id]: { korrekt, teilkompetenz: check.teilkompetenz } }))
     if (!preview) {
@@ -90,7 +101,10 @@ export function LernEinheitRunner({ moduleSessionId, titel, inhalt, intro, previ
           </div>
         )}
 
-        {aktivBeantwortet && (
+        {/* Text-Segmente behalten den manuellen „Weiter"-Knopf (Lesetempo selbst
+            bestimmen); beantwortete Checks gehen automatisch weiter. Nur das
+            letzte Segment zeigt „Fertig", damit das Modul bewusst beendet wird. */}
+        {aktivBeantwortet && (aktiv?.typ === 'text' || istLetztes) && (
           <button
             onClick={() => (istLetztes ? fertig() : setPos((p) => p + 1))}
             className="w-full py-3.5 rounded-xl font-bold text-base text-white"

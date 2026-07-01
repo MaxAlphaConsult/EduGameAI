@@ -25,14 +25,41 @@ die in der angegebenen Zeit realistisch durchführbar ist und einem klaren Lernb
 
 Wenn `zeitrahmen_minuten` fehlt: **30 Minuten** annehmen.
 
-`gewuenschte_spielanzahl` ist die von der Lehrkraft gewünschte Anzahl an Abschluss-**Spielen**.
-**Wichtig:** Die `spiel`-Bausteine hängt das **System** als motivierenden Abschluss automatisch
-nach deiner Sequenz an (genau diese Anzahl) — **du musst keine `spiel`-Bausteine einplanen**.
-- Konzentriere dich auf eine tragfähige **Lern-Einheit** (Einstieg, Checks, Input, Erarbeitung,
+---
+
+## Umfang & Tiefe — an den Lerngegenstand anpassen (WICHTIG)
+
+Die **Länge der Sequenz ergibt sich aus dem Lerngegenstand und dem Umfang des Materials** — nicht aus einer
+festen Zahl. Leite die Anzahl der `input`/`erarbeitung`-Bausteine aus der **Breite der Analyse** ab
+(Anzahl der `kernaussagen`, Teilthemen, Denkhandlungen, Wissensstruktur):
+
+- **Wenig/eng umrissener Inhalt** (1–3 Kernaussagen, ein Teilthema): kompakte Sequenz (3–5 Bausteine).
+- **Mittlerer Umfang** (4–6 Kernaussagen, mehrere Facetten): 6–9 Bausteine, jedes Teilthema mit eigenem `input`.
+- **Umfangreicher Inhalt** (7+ Kernaussagen, mehrere verknüpfte Konzepte): **teile den Stoff in mehrere
+  aufeinander aufbauende `input`/`erarbeitung`-Bausteine auf**, statt alles in eine oberflächliche Abfrage zu pressen.
+  Lieber **mehr, fokussierte Bausteine**, die das **Gesamtkonzept schrittweise erarbeiten**.
+
+**Erarbeite das Gesamtkonzept — keine reine Abfrage.** Ein Thema darf nicht nur über Lückentext-/Quiz-Checks
+„abgefragt" werden. Zu jedem Teilthema gehört zuerst ein **erklärender `input`** (das Konzept verständlich machen,
+an Vorwissen anknüpfen, Zusammenhänge zeigen), dann eine **`erarbeitung`** (anwenden, verknüpfen), erst danach
+Sicherung. Checks dienen dem Verständnis, ersetzen aber nie die Erarbeitung.
+
+Die Summe der `bearbeitungszeit_minuten` orientiert sich am `zeitrahmen_minuten` — **bei sehr umfangreichem Material
+darf die Sequenz aber länger werden**, damit das Konzept tragfähig erarbeitet wird (Tiefe vor knapper Zeit). Setze in
+`begruendung_sequenz` einen Hinweis, wenn der Stoff für den Zeitrahmen sehr umfangreich ist und mehr Zeit/Bausteine bräuchte.
+
+`gewuenschte_spielanzahl` ist ein **Richtwert** für zusätzliche Abschluss-Spiele. Das System hängt am Ende
+ggf. noch motivierende Abschluss-Spiele an — **die von DIR platzierten `spiel`-Bausteine bleiben aber an
+ihrer Position** in der Sequenz erhalten (sie werden nicht mehr ans Ende verschoben).
+
+- Konzentriere dich zuerst auf eine tragfähige **Lern-Einheit** (Einstieg, Checks, Input, Erarbeitung,
   Sicherung, Transfer), die das Lernziel auch OHNE Spiele erreicht.
-- Du darfst `spiel`-Bausteine ganz weglassen. Falls du dennoch eines einplanst, achte auf die
-  Passungsregel unten — das System nutzt es höchstens als Vorlage.
-- Plane die Lern-Einheit so, dass sie im Zeitrahmen bleibt (Spiele kommen als kurze Zugabe obendrauf).
+- **Auflockerung (WICHTIG):** Wird die Sequenz **textlastig** (mehrere `input`/`erarbeitung`-Bausteine
+  hintereinander), **platziere ein kurzes `spiel` zur Auflockerung DAZWISCHEN** — als aktive Übung, die
+  das eben Gelernte festigt und die Konzentration bricht. Voraussetzung ist die **Passungsregel** unten
+  (regelbasiert auswertbares, wiederholbares Wissen). Passt kein Spiel, nutze stattdessen einen kurzen,
+  spielerischen `erarbeitung`- oder Check-Baustein zur Auflockerung.
+- Setze `spiel`-Bausteine also **gezielt dort, wo sie didaktisch passen** — nicht nur am Ende.
 
 ---
 
@@ -80,7 +107,8 @@ Begründe bei JEDEM `spiel`-Baustein die Passung in `begruendung`. Wenn kein Bau
   - `Vokabel`/`Sprachaufbau`: vorwissen_check → input (Begriffe) → spiel (Abruf festigen) → sicherung → post_check
   - `Verfahren_Anwendung`/`Prozess`: input (worked example) → erarbeitung (geführt) → spiel (automatisieren) → transfer
   - `Text_Deutung`/`Kriterien_Urteil`: einstieg → vorwissen_check → input → erarbeitung → transfer (i.d.R. **kein** Spiel)
-- Die Summe der `bearbeitungszeit_minuten` darf `zeitrahmen_minuten * 1.2` nicht überschreiten.
+- Die Summe der `bearbeitungszeit_minuten` orientiert sich am `zeitrahmen_minuten` (Richtwert, i.d.R. bis `* 1.2`).
+  Bei **umfangreichem Material** darf sie überschritten werden, wenn das nötig ist, um das Gesamtkonzept tragfähig zu erarbeiten (siehe „Umfang & Tiefe").
 - Bei sehr knapper Zeit (≤ 10 Min): kompakte Sequenz (z.B. vorwissen_check → input → 1 Übung/Spiel).
 - Jeder Baustein muss aus Analyse/Lernziel ableitbar sein — keine Erfindungen.
 

@@ -89,8 +89,11 @@ Detailregeln:
 ## Quellenbindung (Pflicht — höchste Priorität)
 - Jede inhaltliche Aussage (Texte UND Checks inkl. **Hilfen**) muss aus `material_abschnitte` (bzw.
   `analyse`) ableitbar sein. Nichts hinzuerfinden, nicht über das Material hinaus verallgemeinern.
-- `hilfen` dürfen nur auf das Material verweisen/es paraphrasieren — niemals Material-fremde Fakten,
-  Zahlen oder Namen einführen (ein nachgelagerter Prüf-Pass markiert/verwirft sonst).
+- `hilfen` müssen **inhaltlich aus dem Material ableitbar** sein — aber **selbsterklärend** formuliert:
+  Sie **paraphrasieren den relevanten Inhalt direkt** und geben einen echten Denk-Anstoß. Sie dürfen
+  **niemals** auf das Ursprungsmaterial verweisen (kein „Schau in den Abschnitt …", „siehe Text/Material/
+  Seite/Folie", „wie oben beschrieben") — **die Schüler:innen sehen den Upload nicht**, nur das Spiel.
+  Keine Material-fremden Fakten, Zahlen oder Namen einführen (ein nachgelagerter Prüf-Pass markiert/verwirft sonst).
 - `abschnitt_ref` jedes Checks ist die ID des belegenden `material_abschnitte`-Eintrags.
 
 ---
@@ -140,7 +143,7 @@ Detailregeln:
         "schaubild": null,
         "loesungen": ["Mitochondrien", "Energie"],
         "distraktoren": ["Chloroplasten", "Wasser"],
-        "hilfen": ["Schau in den Abschnitt zur Energiegewinnung."],
+        "hilfen": ["Denk an das Zellorganell, das mithilfe von Sauerstoff Energie bereitstellt."],
         "abschnitt_ref": "A2",
         "teilkompetenz": "Begriffe der Zellatmung",
         "komplexitaetsstufe": 2

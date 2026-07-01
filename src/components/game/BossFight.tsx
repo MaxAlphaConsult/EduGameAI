@@ -11,133 +11,142 @@ interface Option {
   isCorrect: boolean
 }
 
-interface Props {
+interface BossAufgabe {
+  aufgabe_id: string
   text: string
   optionen: Option[]
+}
+
+interface Props {
+  /** Alle Fragen des Moduls — EIN Boss über alle Fragen. */
+  aufgaben: BossAufgabe[]
   /** Sekunden, bis der Boss angreift. Default: 12s */
   zeitSekunden?: number
-  onAntwort: (antworten: string[], korrekt: boolean) => void
+  /** Startleben — Leben gehen NUR verloren, wenn der Boss seinen Angriff auflädt. */
+  startLeben?: number
+  onAufgabeAntwort: (aufgabeId: string, antworten: string[], korrekt: boolean) => void
+  onSpielVorbei: () => void
 }
 
 const ATTACK_ICONS = ['🗡️', '✨', '⚡', '💥']
 const ATTACK_NAMES = ['Slash', 'Magic', 'Strike', 'Smash']
 const DEFAULT_ZEIT = 12
+const DEFAULT_LEBEN = 3
 
-type Phase = 'kampf' | 'spieler-attack' | 'boss-attack' | 'fertig'
+type Phase = 'kampf' | 'feedback' | 'sieg' | 'niederlage'
 
-export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwort }: Props) {
+export function BossFight({ aufgaben, zeitSekunden = DEFAULT_ZEIT, startLeben = DEFAULT_LEBEN, onAufgabeAntwort, onSpielVorbei }: Props) {
   const theme = useGameTheme()
+  const total = Math.max(1, aufgaben.length)
+  // Schaden pro richtiger Antwort — so ist der Boss bei lauter richtigen Antworten
+  // spätestens nach der letzten Frage besiegt. Die letzte Frage nimmt ihm den Rest.
+  const schadenProTreffer = Math.ceil(100 / total)
+
+  const [idx, setIdx] = useState(0)
   const [phase, setPhase] = useState<Phase>('kampf')
   const [selected, setSelected] = useState<number | null>(null)
+  const [letzteKorrekt, setLetzteKorrekt] = useState(false)
   const [bossHp, setBossHp] = useState(100)
-  const [spielerHp, setSpielerHp] = useState(3)
+  const [spielerHp, setSpielerHp] = useState(startLeben)
   const [verbleibend, setVerbleibend] = useState(zeitSekunden)
   const [bossShake, setBossShake] = useState(false)
   const [spielerShake, setSpielerShake] = useState(false)
   const [attackEffect, setAttackEffect] = useState<{ icon: string; type: 'spieler' | 'boss' } | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const finishedRef = useRef(false)
+  const beendetRef = useRef(false)
+  const spielerHpRef = useRef(startLeben)
 
-  const triggerEnde = useCallback(
-    (gewonnen: boolean, antwort: string) => {
-      if (finishedRef.current) return
-      finishedRef.current = true
-      if (timerRef.current) clearInterval(timerRef.current)
-      setPhase('fertig')
-      if (gewonnen) burstKorrekt({ farbe: theme.success, intensitaet: 'normal' })
-      setTimeout(() => onAntwort([antwort], gewonnen), 1200)
-    },
-    [onAntwort, theme.success],
-  )
+  const aufgabe = aufgaben[idx]
+  const istLetzte = idx >= total - 1
 
-  // Timer
+  const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null } }
+
+  const beende = useCallback((sieg: boolean) => {
+    if (beendetRef.current) return
+    beendetRef.current = true
+    stopTimer()
+    setPhase(sieg ? 'sieg' : 'niederlage')
+    if (sieg) burstKorrekt({ farbe: theme.success, intensitaet: 'gross' })
+    setTimeout(() => onSpielVorbei(), 1600)
+  }, [onSpielVorbei, theme.success])
+
+  // Boss lädt Angriff auf — läuft der Timer ab, verliert man EIN Leben (nur dann!).
   useEffect(() => {
-    if (phase !== 'kampf') return
+    if (phase !== 'kampf' || beendetRef.current) return
+    setVerbleibend(zeitSekunden)
     timerRef.current = setInterval(() => {
       setVerbleibend((v) => {
         if (v <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current)
-          // Boss greift an
+          stopTimer()
           bossAttacke()
           return 0
         }
         return v - 1
       })
     }, 1000)
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [phase])
+    return stopTimer
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, idx])
 
   function bossAttacke() {
-    if (finishedRef.current) return
-    setPhase('boss-attack')
+    if (beendetRef.current) return
+    // Boss-Angriff aufgeladen → EIN Leben verloren (nur hier, nicht bei Falschantwort).
+    setPhase('feedback')
+    setLetzteKorrekt(false)
     setAttackEffect({ icon: '💢', type: 'boss' })
     setSpielerShake(true)
     setTimeout(() => setSpielerShake(false), 400)
-    setSpielerHp((hp) => {
-      const neueHp = Math.max(0, hp - 1)
-      if (neueHp <= 0) {
-        triggerEnde(false, '⏱️ Zeit abgelaufen')
-      } else {
-        // Eine weitere Chance — neuer Timer
-        setTimeout(() => {
-          setAttackEffect(null)
-          setVerbleibend(zeitSekunden)
-          setPhase('kampf')
-        }, 700)
-      }
-      return neueHp
-    })
+    const neu = Math.max(0, spielerHpRef.current - 1)
+    spielerHpRef.current = neu
+    setSpielerHp(neu)
+    setTimeout(() => {
+      if (beendetRef.current) return
+      setAttackEffect(null)
+      if (neu <= 0) beende(false)
+      else setPhase('kampf') // gleiche Frage, Timer startet neu (Effekt oben)
+    }, 1000)
   }
 
   function angreifen(i: number) {
-    if (phase !== 'kampf' || finishedRef.current) return
-    if (timerRef.current) clearInterval(timerRef.current)
+    if (phase !== 'kampf' || beendetRef.current) return
+    stopTimer()
     setSelected(i)
-    const korrekt = optionen[i].isCorrect
-    setPhase('spieler-attack')
+    const korrekt = aufgabe.optionen[i].isCorrect
+    setLetzteKorrekt(korrekt)
+    onAufgabeAntwort(aufgabe.aufgabe_id, [aufgabe.optionen[i].text], korrekt)
     setAttackEffect({ icon: ATTACK_ICONS[i % ATTACK_ICONS.length], type: 'spieler' })
+    setPhase('feedback')
 
     if (korrekt) {
-      // Boss-Treffer
       setBossShake(true)
       setTimeout(() => setBossShake(false), 400)
-      const schaden = 34 + Math.floor(Math.random() * 12)
-      setBossHp((hp) => {
-        const neueHp = Math.max(0, hp - schaden)
-        if (neueHp <= 0) {
-          setTimeout(() => triggerEnde(true, optionen[i].text), 600)
-        } else {
-          // Nächste Runde — falls Aufgabe-Pattern später Multi-Round zulässt
-          // Hier: erste richtige Antwort beendet die Aufgabe
-          setTimeout(() => triggerEnde(true, optionen[i].text), 600)
-        }
-        return neueHp
-      })
-    } else {
-      // Spieler verfehlt → Boss greift sofort an
-      setTimeout(() => {
-        setAttackEffect(null)
-        setPhase('boss-attack')
-        setSpielerShake(true)
-        setTimeout(() => setSpielerShake(false), 400)
-        setSpielerHp((hp) => {
-          const neueHp = Math.max(0, hp - 1)
-          // Falsche Antwort = Aufgabe gilt als falsch beantwortet, Spiel endet
-          setTimeout(() => triggerEnde(false, optionen[i].text), 600)
-          return neueHp
-        })
-      }, 500)
     }
+    // HP-Abzug: richtiger Treffer nimmt Schaden; die LETZTE Frage besiegt den Boss ganz.
+    setBossHp((hp) => (istLetzte ? 0 : korrekt ? Math.max(0, hp - schadenProTreffer) : hp))
+
+    setTimeout(() => {
+      if (beendetRef.current) return
+      if (istLetzte) { beende(true); return }
+      setAttackEffect(null)
+      setSelected(null)
+      setIdx((n) => n + 1)
+      setPhase('kampf')
+    }, korrekt ? 1100 : 1900)
   }
 
   const prozentZeit = (verbleibend / zeitSekunden) * 100
+  const bossEmoji = phase === 'sieg' || bossHp <= 0 ? '💀' : bossHp > 50 ? '👹' : '😡'
   const status: 'idle' | 'korrekt' | 'falsch' =
-    phase !== 'fertig' ? 'idle' : bossHp <= 0 || (selected !== null && optionen[selected].isCorrect) ? 'korrekt' : 'falsch'
+    phase === 'kampf' ? 'idle' : phase === 'feedback' ? (letzteKorrekt ? 'korrekt' : 'falsch') : letzteKorrekt || phase === 'sieg' ? 'korrekt' : 'falsch'
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Fortschritt */}
+      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest" style={{ color: theme.textMuted }}>
+        <span>Frage {Math.min(idx + 1, total)}/{total}</span>
+        <span>{phase === 'sieg' ? '🏆 Boss besiegt!' : phase === 'niederlage' ? '💀 Besiegt' : '⚔️ Ein Boss, alle Fragen'}</span>
+      </div>
+
       {/* Boss */}
       <motion.div
         animate={bossShake ? { x: [0, -12, 12, -8, 8, 0], rotate: [0, -3, 3, 0] } : {}}
@@ -151,9 +160,8 @@ export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwo
             className="text-7xl"
             style={{ filter: `drop-shadow(0 6px 12px ${theme.error}60)` }}
           >
-            {bossHp > 50 ? '👹' : bossHp > 0 ? '😡' : '💀'}
+            {bossEmoji}
           </motion.div>
-          {/* Attack Effect on Boss */}
           <AnimatePresence>
             {attackEffect?.type === 'spieler' && (
               <motion.div
@@ -188,7 +196,7 @@ export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwo
         </div>
       </motion.div>
 
-      {/* Boss-Charge-Timer */}
+      {/* Boss-Charge-Timer — läuft er ab, kostet es EIN Leben */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
           <span style={{ color: theme.warning }}>⏳ Boss lädt Angriff …</span>
@@ -209,18 +217,14 @@ export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwo
       {/* Frage */}
       <div
         className="rounded-2xl px-4 py-3 text-center text-sm font-bold leading-snug"
-        style={{
-          background: theme.accentSoft,
-          border: `1px solid ${theme.border}`,
-          color: theme.text,
-        }}
+        style={{ background: theme.accentSoft, border: `1px solid ${theme.border}`, color: theme.text }}
       >
-        {text}
+        {aufgabe.text}
       </div>
 
       {/* Attack Cards */}
       <div className="grid grid-cols-1 gap-2">
-        {optionen.map((opt, i) => {
+        {aufgabe.optionen.map((opt, i) => {
           const isSelected = selected === i
           const showResult = phase !== 'kampf' && isSelected
           const isRight = opt.isCorrect
@@ -228,25 +232,13 @@ export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwo
           let bg = theme.surface
           let border = theme.border
           let color = theme.text
-          let glow = 'none'
+          const glow = 'none'
 
           if (phase !== 'kampf') {
-            if (showResult && isRight) {
-              bg = theme.successSoft
-              border = theme.success
-              color = theme.success
-            } else if (showResult && !isRight) {
-              bg = theme.errorSoft
-              border = theme.error
-              color = theme.error
-            } else if (!isSelected && isRight) {
-              bg = theme.successSoft
-              border = theme.success
-              color = theme.success
-            } else if (!isSelected) {
-              bg = theme.surfaceAlt
-              color = theme.textMuted
-            }
+            if (showResult && isRight) { bg = theme.successSoft; border = theme.success; color = theme.success }
+            else if (showResult && !isRight) { bg = theme.errorSoft; border = theme.error; color = theme.error }
+            else if (!isSelected && isRight) { bg = theme.successSoft; border = theme.success; color = theme.success }
+            else if (!isSelected) { bg = theme.surfaceAlt; color = theme.textMuted }
           }
 
           return (
@@ -265,13 +257,7 @@ export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwo
             >
               <span
                 className="flex items-center justify-center text-lg flex-shrink-0 rounded-xl"
-                style={{
-                  width: 38,
-                  height: 38,
-                  background: theme.accentGradient,
-                  border: `2px solid ${theme.border}`,
-                  color: '#fff',
-                }}
+                style={{ width: 38, height: 38, background: theme.accentGradient, border: `2px solid ${theme.border}`, color: '#fff' }}
               >
                 {ATTACK_ICONS[i % ATTACK_ICONS.length]}
               </span>
@@ -299,7 +285,7 @@ export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwo
             Du
           </span>
           <div className="flex gap-1">
-            {Array.from({ length: 3 }).map((_, i) => (
+            {Array.from({ length: startLeben }).map((_, i) => (
               <motion.span
                 key={i}
                 animate={{ scale: i < spielerHp ? 1 : 0.7, opacity: i < spielerHp ? 1 : 0.3 }}
@@ -327,10 +313,10 @@ export function BossFight({ text, optionen, zeitSekunden = DEFAULT_ZEIT, onAntwo
 
       <ResultBanner
         status={status}
-        detail={status === 'korrekt' ? '⚔️ Treffer!' : status === 'falsch' ? 'Boss kontert' : undefined}
+        detail={status === 'korrekt' ? (phase === 'sieg' ? '🏆 Boss besiegt!' : '⚔️ Treffer!') : status === 'falsch' ? 'Kein Treffer' : undefined}
         erklaerung={
-          status === 'falsch'
-            ? `Die richtige Attacke wäre: ${optionen.find((o) => o.isCorrect)?.text ?? ''}`
+          status === 'falsch' && phase === 'feedback'
+            ? `Richtig gewesen wäre: ${aufgabe.optionen.find((o) => o.isCorrect)?.text ?? ''}`
             : undefined
         }
       />

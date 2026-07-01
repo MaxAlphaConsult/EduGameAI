@@ -60,6 +60,9 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
   const [gesamtAufgaben, setGesamtAufgaben] = useState(0)
   const [bonusSpiele, setBonusSpiele] = useState<BonusSpiel[] | null>(null)
   const [bonusAktuell, setBonusAktuell] = useState<BonusSpiel | null>(null)
+  // Über alle Module gesammelte Teilkompetenzen — Grundlage fürs Feedback-PDF.
+  const [alleKannGut, setAlleKannGut] = useState<string[]>([])
+  const [alleNochUeben, setAlleNochUeben] = useState<string[]>([])
 
   // Auflösen des dynamischen Param
   useEffect(() => { params.then(({ sessionId }) => setSessionId(sessionId)) }, [params])
@@ -136,6 +139,8 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
     setLetztesErgebnis(ergebnis)
     setGesamtKorrekt((g) => g + ergebnis.korrekt)
     setGesamtAufgaben((g) => g + ergebnis.gesamt)
+    setAlleKannGut((prev) => [...new Set([...prev, ...ergebnis.kannGut])])
+    setAlleNochUeben((prev) => [...new Set([...prev, ...ergebnis.nochUeben])])
     setPhase('uebergang')
   }, [])
 
@@ -205,8 +210,12 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
 
   if (phase === 'fertig') {
     const prozent = gesamtAufgaben > 0 ? Math.round((gesamtKorrekt / gesamtAufgaben) * 100) : 0
+    const staerken = alleKannGut.filter((tk) => !alleNochUeben.includes(tk))
+    const ueben = alleNochUeben
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 text-center">
+        {/* Nur die Feedback-Karte landet im PDF/Ausdruck. */}
+        <style>{`@media print { body * { visibility: hidden !important } #feedback-print, #feedback-print * { visibility: visible !important } #feedback-print { position: absolute; left: 0; top: 0; width: 100%; padding: 24px } .no-print { display: none !important } }`}</style>
         <div className="text-6xl">{prozent >= 80 ? '🌟' : prozent >= 50 ? '💪' : '📚'}</div>
         <div>
           <h1 className="text-3xl font-black mb-1">Geschafft!</h1>
@@ -214,12 +223,43 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
             Du hast alle {flowState?.modul_anzahl ?? 0} Schritte dieser Lernreise abgeschlossen.
           </p>
         </div>
-        <div className="rounded-2xl border bg-violet-50 border-violet-200 px-6 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-violet-800 mb-1">Dein Gesamtergebnis</p>
+
+        {/* Feedback-/Ergebnis-Sicherung — auch als PDF speicherbar */}
+        <div id="feedback-print" className="w-full max-w-md rounded-2xl border border-violet-200 bg-white px-6 py-5 text-left">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-800 mb-1">Mein Lern-Feedback</p>
           <p className="text-2xl font-black text-violet-900">{gesamtKorrekt} von {gesamtAufgaben} Aufgaben richtig</p>
-          <p className="text-sm text-violet-700 mt-1">{prozent}% der Aufgaben gelöst</p>
+          <p className="text-sm text-violet-700 mt-0.5">{prozent}% gelöst</p>
+
+          {staerken.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm font-bold text-emerald-700">✅ Das kannst du schon gut</p>
+              <ul className="list-disc pl-5 mt-1 flex flex-col gap-0.5 text-sm text-emerald-900">
+                {staerken.map((tk) => <li key={tk}>{tk}</li>)}
+              </ul>
+            </div>
+          )}
+          {ueben.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm font-bold text-amber-700">📌 Das übst du als Nächstes</p>
+              <ul className="list-disc pl-5 mt-1 flex flex-col gap-0.5 text-sm text-amber-900">
+                {ueben.map((tk) => <li key={tk}>{tk}</li>)}
+              </ul>
+            </div>
+          )}
+          {staerken.length === 0 && ueben.length === 0 && (
+            <p className="mt-4 text-sm text-muted-foreground">Stark durchgehalten — bleib dran, dann sitzt das Thema bald!</p>
+          )}
+          <p className="mt-4 text-xs text-muted-foreground">Erstellt mit EduGame · {new Date().toLocaleDateString('de-DE')}</p>
         </div>
-        <p className="text-sm text-muted-foreground max-w-md">
+
+        <button
+          onClick={() => window.print()}
+          className="no-print rounded-xl px-5 py-3 font-semibold text-white text-sm"
+          style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)' }}>
+          📄 Feedback als PDF speichern
+        </button>
+
+        <p className="no-print text-sm text-muted-foreground max-w-md">
           Deine Lehrkraft kann jetzt sehen, was schon gut sitzt und wo es noch Übung braucht.
         </p>
         {bonusSpiele && bonusSpiele.length > 0 && (
