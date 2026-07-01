@@ -10,17 +10,15 @@ import { QrCode } from '@/components/qr-code'
 
 type LocalStep = 'upload' | 'metadata'
 
-interface Klasse { id: string; name: string; jahrgangsstufe: string; fach: string }
+interface Klasse { id: string; name: string; jahrgangsstufe: string; fach: string; schulform: string | null }
 
+// Drei verständliche Makro-Phasen statt der 21 internen Pipeline-Schritte.
+// Der aktive Schritt wird aus dem Fortschritt (percent) abgeleitet, damit die
+// Liste NIE „fertig" zeigt, während der Balken noch läuft.
 const ANALYSE_SCHRITTE = [
-  'Material analysieren', 'Kernaussagen extrahieren', 'Wissensform bestimmen',
-  'Lernform bestimmen', 'Wissensstruktur bestimmen', 'Komplexitätsstufe bestimmen',
-  'Lernziel formulieren', 'Spielbarkeit prüfen', 'Ampel-Entscheidung',
-  'Antwortformat bestimmen', 'Game-Engine wählen', 'Game-Skin wählen',
-  'Spieltyp benennen', 'Aufgaben generieren', 'Differenzierung erzeugen',
-  'Fehlvorstellungen einbauen', 'Feedbackbausteine erstellen',
-  'Fachliche Reduktion prüfen', 'Fachliche Korrektheit prüfen',
-  'Sourcemapping erstellen', 'Lehrkraft-Check ausgeben',
+  'Lerngegenstand analysieren',
+  'Game-Engine & Aufgabenformat wählen',
+  'Aufgaben und Spiele generieren',
 ]
 
 const SCHULFORMEN = ['Gymnasium', 'Realschule', 'Sekundarschule', 'Gesamtschule', 'Berufsschule', 'Grundschule']
@@ -77,14 +75,13 @@ export default function GameErstellenPage() {
   const [file, setFile] = useState<File | null>(null)
   const [selectedFormate, setSelectedFormate] = useState<string[]>(ALLE_FORMAT_IDS)
   const [zeitrahmenInput, setZeitrahmenInput] = useState(15)
-  const [anzahlSpiele, setAnzahlSpiele] = useState(4)
   const [submitting, setSubmitting] = useState(false)
 
   // Klassen für „ein Launch" — der fertige LernFlow wird direkt freigegeben.
   const [klassen, setKlassen] = useState<Klasse[]>([])
   const [selectedKlasseId, setSelectedKlasseId] = useState<string>('')
   const [showNeueKlasse, setShowNeueKlasse] = useState(false)
-  const [neueKlasse, setNeueKlasse] = useState({ name: '', jahrgangsstufe: '', fach: '' })
+  const [neueKlasse, setNeueKlasse] = useState({ name: '', jahrgangsstufe: '', fach: '', schulform: '' })
   const [klasseError, setKlasseError] = useState<string | null>(null)
   const [creatingKlasse, setCreatingKlasse] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -97,7 +94,7 @@ export default function GameErstellenPage() {
       if (!user) return
       const { data } = await supabase
         .from('classes')
-        .select('id, name, jahrgangsstufe, fach')
+        .select('id, name, jahrgangsstufe, fach, schulform')
         .eq('lehrer_id', user.id)
         .order('erstellt_am', { ascending: false })
       if (!aktiv) return
@@ -116,8 +113,9 @@ export default function GameErstellenPage() {
     const name = neueKlasse.name.trim()
     const jahrgangsstufe = neueKlasse.jahrgangsstufe.trim()
     const fach = neueKlasse.fach.trim()
-    if (!name || !jahrgangsstufe || !fach) {
-      setKlasseError('Bitte Bezeichnung, Jahrgangsstufe und Fach ausfüllen.')
+    const schulform = neueKlasse.schulform
+    if (!name || !jahrgangsstufe || !fach || !schulform) {
+      setKlasseError('Bitte Bezeichnung, Jahrgangsstufe, Fach und Schulform ausfüllen.')
       return
     }
     setCreatingKlasse(true)
@@ -127,15 +125,15 @@ export default function GameErstellenPage() {
     if (!user) { setKlasseError('Nicht eingeloggt.'); setCreatingKlasse(false); return }
     const { data, error } = await supabase
       .from('classes')
-      .insert({ name, jahrgangsstufe, fach, lehrer_id: user.id })
-      .select('id, name, jahrgangsstufe, fach')
+      .insert({ name, jahrgangsstufe, fach, schulform, lehrer_id: user.id })
+      .select('id, name, jahrgangsstufe, fach, schulform')
       .single()
     setCreatingKlasse(false)
     if (error || !data) { setKlasseError('Klasse konnte nicht angelegt werden.'); return }
     setKlassen((prev) => [data, ...prev])
     setSelectedKlasseId(data.id)
     setShowNeueKlasse(false)
-    setNeueKlasse({ name: '', jahrgangsstufe: '', fach: '' })
+    setNeueKlasse({ name: '', jahrgangsstufe: '', fach: '', schulform: '' })
   }
 
   // Sichtbarer Step ist eine Funktion aus Context + lokalem Step.
@@ -148,16 +146,21 @@ export default function GameErstellenPage() {
 
   const progressPercent = gen.percent
   const progressLabel = gen.label
-  const progressSchrittIndex = gen.schrittIndex
+  // Aktiver Makro-Schritt direkt aus dem Fortschritt — bleibt so immer synchron
+  // zum Balken (0–30 % analysieren, 30–50 % Engine/Format, ab 50 % generieren).
+  const macroActive = progressPercent >= 50 ? 2 : progressPercent >= 30 ? 1 : 0
+  const alleSchritteFertig = gen.status === 'done'
   const analyseResult = gen.result
   const errorMsg = gen.error
 
   function onZeitrahmenChange(minuten: number) {
     setZeitrahmenInput(minuten)
-    const range = getSpielRange(minuten)
-    // Aktuellen Wert in die neue Range klemmen
-    setAnzahlSpiele(prev => Math.min(Math.max(prev, range.min), range.max))
   }
+
+  // Spiele sind nur ein motivierender Abschluss (Zugabe) — die Länge des LernFlows
+  // ergibt sich aus Lerngegenstand + Umfang. Die Spielanzahl wird daher nicht mehr
+  // von der Lehrkraft gewählt, sondern moderat aus dem Zeitrahmen abgeleitet.
+  const abgeleiteteSpielanzahl = Math.max(1, Math.round(getSpielRange(zeitrahmenInput).min / 2))
 
   function toggleFormat(id: string) {
     setSelectedFormate(prev =>
@@ -185,22 +188,23 @@ export default function GameErstellenPage() {
     if (!selectedKlasse) { setKlasseError('Bitte zuerst eine Klasse wählen oder anlegen.'); return }
     const form = e.currentTarget
     const spielname = (form.elements.namedItem('spielname') as HTMLInputElement).value
-    const schulform = (form.elements.namedItem('schulform') as HTMLSelectElement).value
     const lernziel = (form.elements.namedItem('lernziel') as HTMLInputElement).value
 
     setSubmitting(true)
     try {
       await gen.start({
         file,
-        // Fach + Jahrgangsstufe kommen aus der gewählten Klasse — eine Eingabe weniger.
+        // Fach, Jahrgangsstufe UND Schulform kommen aus der gewählten Klasse — je eine Eingabe weniger.
         fach: selectedKlasse.fach,
         jahrgangsstufe: selectedKlasse.jahrgangsstufe,
-        schulform,
+        schulform: selectedKlasse.schulform ?? '',
         spielname,
         lernziel: lernziel || undefined,
         zeitrahmenMinuten: zeitrahmenInput,
         erlaubteFormate: selectedFormate,
-        anzahlSpiele,
+        // Kein Lehrkraft-Richtwert mehr: die Länge ergibt sich aus Lerngegenstand +
+        // Umfang; ein moderater Spiel-Abschluss wird aus dem Zeitrahmen abgeleitet.
+        anzahlSpiele: abgeleiteteSpielanzahl,
         classId: selectedKlasse.id,
       })
     } catch (err) {
@@ -282,10 +286,10 @@ export default function GameErstellenPage() {
               <p className="text-xs mt-1.5" style={{ color: '#7A6A94' }}>So findest du das Spiel später in deiner Übersicht.</p>
             </div>
 
-            {/* Klasse — bestimmt zugleich Fach + Jahrgangsstufe UND für wen am Ende freigegeben wird. */}
+            {/* Klasse — bestimmt zugleich Fach + Jahrgangsstufe + Schulform UND für wen am Ende freigegeben wird. */}
             <div>
               <label style={labelStyle}>Klasse</label>
-              {klassen.length > 0 && !showNeueKlasse && (
+              {klassen.length > 0 ? (
                 <div className="flex gap-2">
                   <select
                     value={selectedKlasseId}
@@ -304,45 +308,62 @@ export default function GameErstellenPage() {
                     + Neue
                   </button>
                 </div>
+              ) : (
+                <button type="button" onClick={() => { setShowNeueKlasse(true); setKlasseError(null) }}
+                  className="w-full text-sm font-semibold py-3 rounded-lg"
+                  style={{ background: '#F3EEFF', color: '#7C3AED', border: '1.5px dashed #C4B5FD', cursor: 'pointer' }}>
+                  + Erste Klasse anlegen
+                </button>
               )}
+              {klasseError && !showNeueKlasse && <p className="text-xs mt-1.5" style={{ color: '#DC2626' }}>{klasseError}</p>}
+              <p className="text-xs mt-1.5" style={{ color: '#7A6A94' }}>
+                Bestimmt Fach, Jahrgangsstufe &amp; Schulform — und für welche Klasse der LernFlow am Ende automatisch freigegeben wird.
+              </p>
 
+              {/* Pop-up „Neue Klasse anlegen" — öffnet sich auch automatisch, wenn noch keine Klasse existiert. */}
               {showNeueKlasse && (
-                <div className="rounded-xl p-4 mt-1" style={{ background: '#F6F1FF', border: '1px solid #E9D5FF' }}>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <input placeholder="Bezeichnung (z.B. 9a)" value={neueKlasse.name}
-                      onChange={(e) => setNeueKlasse((s) => ({ ...s, name: e.target.value }))} style={inputStyle} />
-                    <input placeholder="Jahrgangsstufe (z.B. 9)" value={neueKlasse.jahrgangsstufe}
-                      onChange={(e) => setNeueKlasse((s) => ({ ...s, jahrgangsstufe: e.target.value }))} style={inputStyle} />
-                    <input placeholder="Fach (z.B. Biologie)" value={neueKlasse.fach}
-                      onChange={(e) => setNeueKlasse((s) => ({ ...s, fach: e.target.value }))} style={inputStyle} />
-                  </div>
-                  <div className="flex items-center gap-3 mt-3">
-                    <button type="button" onClick={onCreateKlasse} disabled={creatingKlasse}
-                      className="text-sm font-bold px-4 py-2 rounded-lg"
-                      style={{ background: 'linear-gradient(135deg,#7C3AED,#A855F7)', color: 'white', border: 'none', cursor: 'pointer', opacity: creatingKlasse ? 0.6 : 1 }}>
-                      {creatingKlasse ? 'Anlegen…' : 'Klasse anlegen'}
-                    </button>
-                    {klassen.length > 0 && (
-                      <button type="button" onClick={() => { setShowNeueKlasse(false); setKlasseError(null) }}
-                        className="text-sm" style={{ color: '#7A6A94', background: 'none', border: 'none', cursor: 'pointer' }}>
-                        Abbrechen
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                  style={{ background: 'rgba(31,18,53,0.45)' }}
+                  onClick={() => { if (klassen.length > 0) { setShowNeueKlasse(false); setKlasseError(null) } }}>
+                  <div className="w-full max-w-md rounded-2xl p-6"
+                    style={{ background: 'white', boxShadow: '0 20px 60px rgba(31,18,53,0.35)' }}
+                    onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-base font-black mb-1" style={{ color: '#1F1235' }}>Neue Klasse anlegen</h3>
+                    <p className="text-xs mb-4" style={{ color: '#7A6A94' }}>
+                      Der LernFlow wird nach der Erstellung direkt für diese Klasse freigegeben.
+                    </p>
+                    <div className="flex flex-col gap-3">
+                      <input placeholder="Bezeichnung (z.B. 9a)" value={neueKlasse.name}
+                        onChange={(e) => setNeueKlasse((s) => ({ ...s, name: e.target.value }))} style={inputStyle} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <input placeholder="Jahrgangsstufe (z.B. 9)" value={neueKlasse.jahrgangsstufe}
+                          onChange={(e) => setNeueKlasse((s) => ({ ...s, jahrgangsstufe: e.target.value }))} style={inputStyle} />
+                        <input placeholder="Fach (z.B. Biologie)" value={neueKlasse.fach}
+                          onChange={(e) => setNeueKlasse((s) => ({ ...s, fach: e.target.value }))} style={inputStyle} />
+                      </div>
+                      <select value={neueKlasse.schulform}
+                        onChange={(e) => setNeueKlasse((s) => ({ ...s, schulform: e.target.value }))} style={inputStyle}>
+                        <option value="" disabled>Schulform wählen</option>
+                        {SCHULFORMEN.map((s) => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    {klasseError && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{klasseError}</p>}
+                    <div className="flex items-center gap-3 mt-5">
+                      <button type="button" onClick={onCreateKlasse} disabled={creatingKlasse}
+                        className="flex-1 text-sm font-bold px-4 py-2.5 rounded-lg"
+                        style={{ background: 'linear-gradient(135deg,#7C3AED,#A855F7)', color: 'white', border: 'none', cursor: 'pointer', opacity: creatingKlasse ? 0.6 : 1 }}>
+                        {creatingKlasse ? 'Anlegen…' : 'Klasse anlegen'}
                       </button>
-                    )}
+                      {klassen.length > 0 && (
+                        <button type="button" onClick={() => { setShowNeueKlasse(false); setKlasseError(null) }}
+                          className="text-sm px-3" style={{ color: '#7A6A94', background: 'none', border: 'none', cursor: 'pointer' }}>
+                          Abbrechen
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
-              {klasseError && <p className="text-xs mt-1.5" style={{ color: '#DC2626' }}>{klasseError}</p>}
-              <p className="text-xs mt-1.5" style={{ color: '#7A6A94' }}>
-                Bestimmt Fach &amp; Jahrgangsstufe — und für welche Klasse der LernFlow am Ende automatisch freigegeben wird.
-              </p>
-            </div>
-
-            <div>
-              <label style={labelStyle}>Schulform</label>
-              <select name="schulform" required style={inputStyle}>
-                <option value="">Bitte wählen</option>
-                {SCHULFORMEN.map((s) => <option key={s}>{s}</option>)}
-              </select>
             </div>
 
             <div>
@@ -357,42 +378,13 @@ export default function GameErstellenPage() {
                   style={{ ...inputStyle, width: 100 }}
                 />
                 <span className="text-xs" style={{ color: '#7A6A94' }}>
-                  {(() => { const r = getSpielRange(zeitrahmenInput); return `→ ${r.min}–${r.max} Spiele möglich` })()}
+                  Richtwert für die Gesamtdauer des LernFlows.
                 </span>
               </div>
-            </div>
-
-            <div>
-              <label style={labelStyle}>Spiele im LernFlow (Richtwert)</label>
-              <p className="text-xs mb-3" style={{ color: '#7A6A94' }}>
-                Die KI baut eine didaktische Lernsequenz (Erklären · Vorwissen · Üben · Sichern)
-                und setzt Spiele nur dort, wo sie passen. Dein Wert ist ein Richtwert, wie viele Spiele sie dabei anstrebt.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {(() => {
-                  const { min, max } = getSpielRange(zeitrahmenInput)
-                  return Array.from({ length: max - min + 1 }, (_, i) => min + i).map(n => {
-                    const aktiv = anzahlSpiele === n
-                    return (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => setAnzahlSpiele(n)}
-                        className="w-12 h-12 rounded-xl text-sm font-bold transition-all flex-shrink-0"
-                        style={{
-                          border: aktiv ? '2px solid #7C3AED' : '1.5px solid #E9D5FF',
-                          background: aktiv ? '#7C3AED' : '#FAFAFA',
-                          color: aktiv ? 'white' : '#7A6A94',
-                        }}
-                      >
-                        {n}
-                      </button>
-                    )
-                  })
-                })()}
-              </div>
               <p className="text-xs mt-2" style={{ color: '#7A6A94' }}>
-                Die Gesamtdauer richtet sich nach dem Zeitrahmen oben — nicht nur nach den Spielen.
+                Die KI baut eine didaktische Lernsequenz (Erklären · Vorwissen · Üben · Sichern).
+                Länge und Anzahl der Bausteine ergeben sich aus dem Lerngegenstand und dem Umfang
+                deines Materials — ein paar Spiele kommen als motivierender Abschluss dazu.
               </p>
             </div>
 
@@ -475,18 +467,22 @@ export default function GameErstellenPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            {ANALYSE_SCHRITTE.map((s, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all"
-                style={{
-                  background: i === progressSchrittIndex ? '#F6F1FF' : 'transparent',
-                  color: i < progressSchrittIndex ? '#059669' : i === progressSchrittIndex ? '#7C3AED' : '#C4B5FD',
-                }}>
-                <span className="w-5 text-center flex-shrink-0 text-xs">
-                  {i < progressSchrittIndex ? '✓' : i === progressSchrittIndex ? '⟳' : `${i + 1}`}
-                </span>
-                <span className={i === progressSchrittIndex ? 'font-semibold' : ''}>{s}</span>
-              </div>
-            ))}
+            {ANALYSE_SCHRITTE.map((s, i) => {
+              const fertig = alleSchritteFertig || i < macroActive
+              const aktiv = !alleSchritteFertig && i === macroActive
+              return (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all"
+                  style={{
+                    background: aktiv ? '#F6F1FF' : 'transparent',
+                    color: fertig ? '#059669' : aktiv ? '#7C3AED' : '#C4B5FD',
+                  }}>
+                  <span className="w-5 text-center flex-shrink-0 text-xs">
+                    {fertig ? '✓' : aktiv ? '⟳' : `${i + 1}`}
+                  </span>
+                  <span className={aktiv ? 'font-semibold' : ''}>{s}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
