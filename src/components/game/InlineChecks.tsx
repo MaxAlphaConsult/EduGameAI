@@ -151,7 +151,9 @@ function LueckentextCheck({ check, onAnswered }: CheckWidgetProps) {
 // ── Zuordnen ──────────────────────────────────────────────────────────────
 function ZuordnenCheck({ check, onAnswered }: CheckWidgetProps) {
   const paare = useMemo(() => parsePaare(check.loesungen), [check])
-  const rechtsOptionen = useMemo(() => shuffle(paare.map((p) => p.rechts)), [paare])
+  // Jede Ziel-Option nur EINMAL im Dropdown — auch wenn mehrere Begriffe darauf
+  // passen (sonst tauchen Duplikate doppelt in der Auswahl auf).
+  const rechtsOptionen = useMemo(() => shuffle([...new Set(paare.map((p) => p.rechts))]), [paare])
   const [zuordnung, setZuordnung] = useState<Record<string, string>>({})
   const [submitted, setSubmitted] = useState(false)
 
