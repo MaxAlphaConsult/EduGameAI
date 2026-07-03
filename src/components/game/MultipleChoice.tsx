@@ -19,15 +19,18 @@ interface Props {
   hilfen: string[]
   feedback: { bei_korrekt: string; bei_falsch: string }
   onAntwort: (antworten: string[], korrekt: boolean) => void
+  /** Bei Wiederholung einer falsch beantworteten Frage: Hilfe direkt einblenden (leichter). */
+  autoHint?: boolean
 }
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 
-export function MultipleChoice({ text, optionen, mehrfach, hilfen, feedback, onAntwort }: Props) {
+export function MultipleChoice({ text, optionen, mehrfach, hilfen, feedback, onAntwort, autoHint = false }: Props) {
   const theme = useGameTheme()
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [submitted, setSubmitted] = useState(false)
-  const [showHilfe, setShowHilfe] = useState(false)
+  // Bei Wiederholung startet die Hilfe sichtbar — die Frage kommt so „leichter" zurück.
+  const [showHilfe, setShowHilfe] = useState(autoHint && hilfen.length > 0)
   const [hilfeIndex, setHilfeIndex] = useState(0)
 
   function toggle(i: number) {

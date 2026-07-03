@@ -63,6 +63,8 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
   // Über alle Module gesammelte Teilkompetenzen — Grundlage fürs Feedback-PDF.
   const [alleKannGut, setAlleKannGut] = useState<string[]>([])
   const [alleNochUeben, setAlleNochUeben] = useState<string[]>([])
+  // Kernaussagen aller Bausteine — Zusammenfassung der Lerninhalte im Feedback.
+  const [alleKernaussagen, setAlleKernaussagen] = useState<string[]>([])
 
   // Auflösen des dynamischen Param
   useEffect(() => { params.then(({ sessionId }) => setSessionId(sessionId)) }, [params])
@@ -124,6 +126,9 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
           niveau: data.niveau,
           position: data.position,
         })
+        // Kernaussagen dieses Bausteins für die Abschluss-Zusammenfassung sammeln.
+        const kern = (data.bausteinInhalt?.kernaussagen ?? []) as string[]
+        if (kern.length > 0) setAlleKernaussagen((prev) => [...new Set([...prev, ...kern])])
         setPhase('spielt')
       } catch (e) {
         if (abort) return
@@ -212,6 +217,11 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
     const prozent = gesamtAufgaben > 0 ? Math.round((gesamtKorrekt / gesamtAufgaben) * 100) : 0
     const staerken = alleKannGut.filter((tk) => !alleNochUeben.includes(tk))
     const ueben = alleNochUeben
+    const lernzielText = prozent >= 80
+      ? 'Lernziel weitgehend erreicht — stark! 🎉'
+      : prozent >= 50
+        ? 'Lernziel teilweise erreicht — du bist auf gutem Weg.'
+        : 'Grundlagen gelegt — schau dir die markierten Themen nochmal an.'
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 text-center">
         {/* Nur die Feedback-Karte landet im PDF/Ausdruck. */}
@@ -229,6 +239,16 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-800 mb-1">Mein Lern-Feedback</p>
           <p className="text-2xl font-black text-violet-900">{gesamtKorrekt} von {gesamtAufgaben} Aufgaben richtig</p>
           <p className="text-sm text-violet-700 mt-0.5">{prozent}% gelöst</p>
+          <p className="text-sm font-semibold text-violet-900 mt-2">🎯 {lernzielText}</p>
+
+          {alleKernaussagen.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm font-bold text-violet-800">📝 Das war das Thema</p>
+              <ul className="list-disc pl-5 mt-1 flex flex-col gap-0.5 text-sm text-foreground/90">
+                {alleKernaussagen.map((k, i) => <li key={i}>{k}</li>)}
+              </ul>
+            </div>
+          )}
 
           {staerken.length > 0 && (
             <div className="mt-4">
@@ -240,7 +260,7 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
           )}
           {ueben.length > 0 && (
             <div className="mt-4">
-              <p className="text-sm font-bold text-amber-700">📌 Das übst du als Nächstes</p>
+              <p className="text-sm font-bold text-amber-700">📌 Das liest du nochmal nach</p>
               <ul className="list-disc pl-5 mt-1 flex flex-col gap-0.5 text-sm text-amber-900">
                 {ueben.map((tk) => <li key={tk}>{tk}</li>)}
               </ul>

@@ -714,6 +714,7 @@ function GameEngineInner({
                     text={aufgabe.text}
                     optionen={stableOptionen}
                     mehrfach={false}
+                    autoHint={istRetry}
                     hilfen={hilfen}
                     feedback={feedback}
                     onAntwort={handleAntwort}
@@ -737,6 +738,7 @@ function GameEngineInner({
                     text={aufgabe.text}
                     optionen={stableOptionen}
                     mehrfach={false}
+                    autoHint={istRetry}
                     hilfen={hilfen}
                     feedback={feedback}
                     onAntwort={handleAntwort}
@@ -760,6 +762,7 @@ function GameEngineInner({
                     text={aufgabe.text}
                     optionen={stableOptionen}
                     mehrfach={false}
+                    autoHint={istRetry}
                     hilfen={hilfen}
                     feedback={feedback}
                     onAntwort={handleAntwort}
@@ -772,6 +775,7 @@ function GameEngineInner({
                 text={aufgabe.text}
                 optionen={stableOptionen}
                 mehrfach={format === 'multiple_choice'}
+                autoHint={istRetry}
                 hilfen={hilfen}
                 feedback={feedback}
                 onAntwort={handleAntwort}

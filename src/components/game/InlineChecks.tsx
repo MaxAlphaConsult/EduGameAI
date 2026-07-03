@@ -290,16 +290,6 @@ function Schaubild({ schaubild }: { schaubild: SchaubildQuelle }) {
   return <div ref={ref} className="flex justify-center overflow-x-auto rounded-xl border border-violet-100 bg-white p-3 [&_svg]:max-w-full [&_svg]:h-auto" />
 }
 
-// ── Text mit Schaubild: Diagramm + Verständnisfrage (Quiz-Mechanik) ─────────
-function SchaubildCheck({ check, onAnswered }: CheckWidgetProps) {
-  return (
-    <div className="flex flex-col gap-3">
-      {check.schaubild && <Schaubild schaubild={check.schaubild} />}
-      <QuizCheck check={check} onAnswered={onAnswered} />
-    </div>
-  )
-}
-
 // ── Dispatcher ──────────────────────────────────────────────────────────────
 export function InlineCheckView({ check, onAnswered }: CheckWidgetProps) {
   const inner = (() => {
@@ -308,13 +298,17 @@ export function InlineCheckView({ check, onAnswered }: CheckWidgetProps) {
       case 'lueckentext': return <LueckentextCheck check={check} onAnswered={onAnswered} />
       case 'zuordnen': return <ZuordnenCheck check={check} onAnswered={onAnswered} />
       case 'unterstreichen': return <UnterstreichenCheck check={check} onAnswered={onAnswered} />
-      case 'schaubild': return <SchaubildCheck check={check} onAnswered={onAnswered} />
+      // Schaubild nutzt die Quiz-Mechanik; das Diagramm wird oben (vor der Frage) gezeigt.
+      case 'schaubild': return <QuizCheck check={check} onAnswered={onAnswered} />
       default: return null
     }
   })()
   return (
     <div className="rounded-2xl border border-violet-200 bg-white px-5 py-4 flex flex-col gap-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Kurzer Check</p>
+      {/* Abbildung ZUERST — damit die Frage direkt über den Antwortmöglichkeiten steht
+          (nicht Frage → Abbildung → Antworten). */}
+      {check.typ === 'schaubild' && check.schaubild && <Schaubild schaubild={check.schaubild} />}
       <h3 className="text-base font-bold">{check.frage}</h3>
       {inner}
     </div>
