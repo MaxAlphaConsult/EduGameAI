@@ -26,7 +26,10 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function Zuordnung({ text, paare, hilfen, feedback, onAntwort }: Props) {
-  const [rechtsShuffled] = useState(() => shuffle(paare.map((p) => p.rechts)))
+  // Jeder Ziel-Bereich nur EINMAL — auch wenn mehrere linke Elemente darauf passen
+  // (many-to-one). Duplikate würden sonst doppelt angezeigt und beim Belegen alle
+  // zugleich ausgegraut.
+  const [rechtsShuffled] = useState(() => shuffle([...new Set(paare.map((p) => p.rechts))]))
   const [zuordnungen, setZuordnungen] = useState<Record<number, string>>({})
   const [selectedLinks, setSelectedLinks] = useState<number | null>(null)
   const [hinweisRechts, setHinweisRechts] = useState(false)
@@ -138,11 +141,12 @@ export function Zuordnung({ text, paare, hilfen, feedback, onAntwort }: Props) {
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold text-muted-foreground text-center mb-1">Zuordnung</p>
           {rechtsShuffled.map((r, i) => {
+            // Wiederverwendbar: ein Bereich kann von mehreren linken Elementen belegt
+            // werden. „Belegt" ist nur ein dezenter Hinweis, kein Sperren/Ausgrauen.
             const isVergeben = vergeben.has(r)
-            const linksIdx = Object.entries(zuordnungen).find(([, v]) => v === r)?.[0]
-            const isKorrekt = submitted && linksIdx !== undefined && paare[Number(linksIdx)].rechts === r
-            const isFalsch = submitted && linksIdx !== undefined && paare[Number(linksIdx)].rechts !== r
-            const isClickable = !submitted && selectedLinks !== null && !isVergeben
+            const isKorrekt = submitted && paare.some((p, k) => p.rechts === r && zuordnungen[k] === r)
+            const isFalsch = submitted && !isKorrekt && Object.values(zuordnungen).includes(r)
+            const isClickable = !submitted && selectedLinks !== null
 
             return (
               <button
@@ -151,12 +155,12 @@ export function Zuordnung({ text, paare, hilfen, feedback, onAntwort }: Props) {
                 disabled={submitted}
                 className={cn(
                   'text-left px-3 py-2.5 rounded-xl border text-sm transition-all duration-150 min-h-[44px]',
-                  !submitted && isVergeben && 'border-primary/30 bg-muted/30 text-muted-foreground opacity-60 cursor-default',
-                  !submitted && !isVergeben && selectedLinks === null && 'border-border text-muted-foreground',
+                  !submitted && selectedLinks === null && 'border-border text-muted-foreground',
+                  !submitted && isVergeben && selectedLinks === null && 'bg-primary/5 border-primary/30',
                   isClickable && 'border-dashed border-primary/60 bg-primary/5 hover:bg-primary/10 hover:border-primary cursor-pointer',
                   submitted && isKorrekt && 'border-green-500 bg-green-50 text-green-900',
                   submitted && isFalsch && 'border-red-400 bg-red-50 text-red-900',
-                  submitted && !isVergeben && 'border-border opacity-50',
+                  submitted && !isKorrekt && !isFalsch && 'border-border opacity-50',
                 )}
               >
                 {r}

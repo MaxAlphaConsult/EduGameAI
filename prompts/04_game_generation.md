@@ -178,6 +178,7 @@ Gib für beide Felder leere Arrays zurück:
 
 - Antworte ausschließlich mit dem JSON-Objekt. Kein Text außerhalb des JSON.
 - Erfinde keine Inhalte, die nicht im Material stehen.
+- **Selbsterklärend, kein Verweis auf die Quelle:** Frage, Lösungen, Distraktoren und Hilfen dürfen NIE auf das Material verweisen („im Arbeitsblatt", „im Text", „laut Material", „auf dem Blatt", „siehe Abschnitt/Seite"). Die Schüler:innen sehen den Upload nicht — die Aufgabe muss aus sich heraus verständlich sein.
 - Alle `abschnitt_ref` müssen existierende IDs aus dem Input sein.
 - Wenn `erlaubte_formate` im Input angegeben ist: Verwende für `antwortformat` **ausschließlich** Werte aus dieser Liste. Ist das Feld null oder fehlt es, gelten alle Formate als erlaubt.
 

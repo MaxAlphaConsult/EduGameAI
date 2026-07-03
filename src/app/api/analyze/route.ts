@@ -142,9 +142,24 @@ export async function POST(request: NextRequest) {
         // damit sie sich nicht mit den bereits platzierten Spielen doppeln.
         const spielAbschluss = buildSpielAbschluss([], fehlendeSpiele, lernziel)
 
-        // Positionen lückenlos 1..M neu vergeben: geplante Sequenz (inkl. interspersed
-        // Spiele in Position), dann die zusätzlichen Abschluss-Spiele.
-        const bausteine = [...geplant, ...spielAbschluss].map((b, i) => ({ ...b, position: i + 1 }))
+        // #5: Ein Spiel ZWISCHENDURCH erzwingen, wenn die Lern-Einheit lang/textlastig
+        // ist und die KI selbst keins mittendrin platziert hat — sonst käme jedes Spiel
+        // erst am Ende. Wir ziehen dann EIN Abschluss-Spiel in die Mitte der Sequenz.
+        const hatZwischenSpiel = geplant.some((b, i) => b.baustein_typ === 'spiel' && i < geplant.length - 1)
+        let bausteineRoh = [...geplant, ...spielAbschluss]
+        if (!hatZwischenSpiel && spielAbschluss.length > 0 && geplant.length >= 4) {
+          const [auflockerung, ...restSpiele] = spielAbschluss
+          const einfuegePos = Math.max(2, Math.floor(geplant.length / 2)) // nach ~Hälfte, nicht vor dem ersten Input
+          bausteineRoh = [
+            ...geplant.slice(0, einfuegePos),
+            auflockerung,
+            ...geplant.slice(einfuegePos),
+            ...restSpiele,
+          ]
+        }
+
+        // Positionen lückenlos 1..M neu vergeben.
+        const bausteine = bausteineRoh.map((b, i) => ({ ...b, position: i + 1 }))
         const spieleGesamt = interspersedSpiele.length + spielAbschluss.length
         // Reconcilte Sequenz wird persistiert — /generate findet darüber je Position
         // denselben Deskriptor (sonst Drift zwischen games-Rows und Sequenz).

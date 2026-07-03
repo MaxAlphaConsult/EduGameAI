@@ -137,6 +137,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   try {
     if (game.baustein_typ !== 'spiel') {
+      // Gesamtsequenz als Kontext → jeder Baustein baut auf die anderen auf,
+      // statt Inhalte/Fragen zu wiederholen (Progression).
+      const sequenzKontext = [...raw.sequenz.bausteine]
+        .sort((a, b) => a.position - b.position)
+        .map((b) => ({ position: b.position, baustein_typ: b.baustein_typ, titel: b.titel, thema: b.thema }))
       const inhalt = await generateInputBaustein({
         analyse: raw.analyse,
         lernziel: raw.lernziel,
@@ -147,6 +152,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           didaktische_funktion: descriptor.didaktische_funktion,
         },
         kontext: { fach: kontext.fach, jahrgangsstufe: kontext.jahrgangsstufe, schulform: kontext.schulform },
+        position: reihenfolge,
+        sequenzKontext,
         abschnitte,
       })
       // C2: Alle Inline-Checks gegen die Quelle prüfen. minKeep = Anzahl Checks,
