@@ -63,9 +63,10 @@ festen Zahl. Leite die Anzahl der `input`/`erarbeitung`-Bausteine aus der **Brei
 an Vorwissen anknüpfen, Zusammenhänge zeigen), dann eine **`erarbeitung`** (anwenden, verknüpfen), erst danach
 Sicherung. Checks dienen dem Verständnis, ersetzen aber nie die Erarbeitung.
 
-Die Summe der `bearbeitungszeit_minuten` orientiert sich am `zeitrahmen_minuten` — **bei sehr umfangreichem Material
-darf die Sequenz aber länger werden**, damit das Konzept tragfähig erarbeitet wird (Tiefe vor knapper Zeit). Setze in
-`begruendung_sequenz` einen Hinweis, wenn der Stoff für den Zeitrahmen sehr umfangreich ist und mehr Zeit/Bausteine bräuchte.
+**Halte dich an den `zeitrahmen_minuten`.** Die Summe der `bearbeitungszeit_minuten` soll den Zeitrahmen
+**treffen** (Toleranz höchstens `* 1.2`). Ist das Material dafür zu umfangreich, **priorisiere den Kern**
+statt den Rahmen deutlich zu sprengen — decke das Wichtigste tragfähig ab und **weise in `begruendung_sequenz`
+darauf hin**, dass der Reststoff einen zweiten LernFlow bräuchte. Der Zeitrahmen ist die Leitgröße für die Länge.
 
 `gewuenschte_spielanzahl` ist ein **Richtwert** für zusätzliche Abschluss-Spiele. Das System hängt am Ende
 ggf. noch motivierende Abschluss-Spiele an — **die von DIR platzierten `spiel`-Bausteine bleiben aber an
@@ -75,10 +76,12 @@ ihrer Position** in der Sequenz erhalten (sie werden nicht mehr ans Ende verscho
   Sicherung, Transfer), die das Lernziel auch OHNE Spiele erreicht.
 - **Auflockerung (WICHTIG):** Wird die Sequenz **textlastig** (mehrere `input`/`erarbeitung`-Bausteine
   hintereinander), **platziere ein kurzes `spiel` zur Auflockerung DAZWISCHEN** — als aktive Übung, die
-  das eben Gelernte festigt und die Konzentration bricht. **Bevorzuge dabei ein motivierendes Spaß-Format**
-  (z.B. Study Bird / Flappy, Hangman, Memory, Sprint-Quiz), sofern der Inhalt regelbasiert auswertbar ist.
-  Voraussetzung ist die **Passungsregel** unten. Passt kein Spiel, nutze stattdessen einen kurzen,
-  spielerischen `erarbeitung`- oder Check-Baustein zur Auflockerung.
+  das eben Gelernte festigt und die Konzentration bricht. **Wähle dafür ein echtes Arcade-/Spaß-Format**
+  (z.B. Study Bird / Flappy, Space Invaders, Hangman, Sprint-Quiz, Boss Fight, Memory) — passend zum
+  Lerngegenstand und sofern der Inhalt regelbasiert auswertbar ist. **KEIN Sortierband/Zuordnung als
+  Auflockerungs-Spiel**: Zuordnen/Sortieren ist eine **Lern-/Check-Aktivität** und gehört als Check in die
+  Lern-Einheit, nicht als Spaß-Spiel. Passt kein Arcade-Spiel, nutze stattdessen einen kurzen, spielerischen
+  `erarbeitung`- oder Check-Baustein zur Auflockerung.
 - Setze `spiel`-Bausteine also **gezielt dort, wo sie didaktisch passen** — nicht nur am Ende.
 
 ---

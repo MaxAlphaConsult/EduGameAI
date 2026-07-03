@@ -73,7 +73,8 @@ export default function GameErstellenPage() {
   const gen = useGeneration()
   const [localStep, setLocalStep] = useState<LocalStep>('upload')
   const [file, setFile] = useState<File | null>(null)
-  const [selectedFormate, setSelectedFormate] = useState<string[]>(ALLE_FORMAT_IDS)
+  // Alle Formate erlaubt — die KI wählt automatisch passend zum Lerngegenstand.
+  const selectedFormate = ALLE_FORMAT_IDS
   const [zeitrahmenInput, setZeitrahmenInput] = useState(15)
   const [modus, setModus] = useState<'lernflow' | 'sicherung'>('lernflow')
   const [submitting, setSubmitting] = useState(false)
@@ -166,13 +167,6 @@ export default function GameErstellenPage() {
     ? getSpielRange(zeitrahmenInput).max
     : Math.max(1, Math.round(getSpielRange(zeitrahmenInput).min / 2))
 
-  function toggleFormat(id: string) {
-    setSelectedFormate(prev =>
-      prev.includes(id)
-        ? prev.length > 1 ? prev.filter(f => f !== id) : prev
-        : [...prev, id]
-    )
-  }
 
   const stepIndex = step === 'upload' ? 0 : step === 'metadata' ? 1 : step === 'analysing' ? 2 : step === 'result' ? 3 : 0
 
@@ -426,40 +420,8 @@ export default function GameErstellenPage() {
               <p className="text-xs mt-1.5" style={{ color: '#7A6A94' }}>Ohne Angabe formuliert die KI ein Lernziel aus dem Material.</p>
             </div>
 
-            <div>
-              <label style={labelStyle}>
-                Spielformate <span style={{ color: '#7A6A94', fontWeight: 400 }}>(mindestens 1)</span>
-              </label>
-              <p className="text-xs mb-3" style={{ color: '#7A6A94' }}>
-                Die KI wählt nur aus den aktivierten Formaten. Deaktiviere Formate, die du nicht möchtest.
-              </p>
-              <div className="grid grid-cols-1 gap-2">
-                {SPIELFORMATE.map(f => {
-                  const aktiv = selectedFormate.includes(f.id)
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => toggleFormat(f.id)}
-                      className="flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all"
-                      style={{
-                        border: aktiv ? '1.5px solid #7C3AED' : '1.5px solid #E9D5FF',
-                        background: aktiv ? '#F6F1FF' : '#FAFAFA',
-                      }}
-                    >
-                      <span className="text-lg w-6 text-center flex-shrink-0">{f.emoji}</span>
-                      <span className="font-semibold text-sm flex-1" style={{ color: '#1F1235' }}>{f.label}</span>
-                      <span className="text-xs" style={{ color: '#7A6A94' }}>{f.dauer}</span>
-                      <span className="text-xs font-semibold rounded-full px-2 py-0.5"
-                        style={{ background: `${f.zweckFarbe}18`, color: f.zweckFarbe }}>
-                        {f.zweck}
-                      </span>
-                      <span className="text-base flex-shrink-0">{aktiv ? '✓' : '○'}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+            {/* Spielformate werden automatisch passend zum Lerngegenstand gewählt —
+                keine manuelle Auswahl mehr (alle Formate erlaubt, die KI entscheidet). */}
 
             <button type="submit" disabled={isPending || !selectedKlasse}
               className="w-full rounded-xl py-3 text-sm font-bold transition-all mt-2"
