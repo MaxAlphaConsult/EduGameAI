@@ -51,13 +51,23 @@ function Feedback({ korrekt, loesung }: { korrekt: boolean; loesung: string }) {
 // ── Quiz (single/multiple choice) ──────────────────────────────────────────
 function QuizCheck({ check, onAnswered }: CheckWidgetProps) {
   const mehrfach = check.quiz_format === 'multiple_choice'
-  const optionen = useMemo(
-    () => shuffle([
-      ...check.loesungen.map((t) => ({ text: t, korrekt: true })),
-      ...check.distraktoren.map((t) => ({ text: t, korrekt: false })),
-    ]),
-    [check],
-  )
+  // Dedup nach normalisiertem Text (Lösungen zuerst) — kein doppeltes Erscheinen,
+  // falls ein Distraktor einer Lösung gleicht.
+  const optionen = useMemo(() => {
+    const seen = new Set<string>()
+    const opts: { text: string; korrekt: boolean }[] = []
+    for (const t of check.loesungen) {
+      const key = t.trim().toLowerCase()
+      if (!key || seen.has(key)) continue
+      seen.add(key); opts.push({ text: t, korrekt: true })
+    }
+    for (const t of check.distraktoren) {
+      const key = t.trim().toLowerCase()
+      if (!key || seen.has(key)) continue
+      seen.add(key); opts.push({ text: t, korrekt: false })
+    }
+    return shuffle(opts)
+  }, [check])
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [submitted, setSubmitted] = useState(false)
 
@@ -151,7 +161,9 @@ function LueckentextCheck({ check, onAnswered }: CheckWidgetProps) {
 // ── Zuordnen ──────────────────────────────────────────────────────────────
 function ZuordnenCheck({ check, onAnswered }: CheckWidgetProps) {
   const paare = useMemo(() => parsePaare(check.loesungen), [check])
-  const rechtsOptionen = useMemo(() => shuffle(paare.map((p) => p.rechts)), [paare])
+  // Jede Ziel-Option nur EINMAL im Dropdown — auch wenn mehrere Begriffe darauf
+  // passen (sonst tauchen Duplikate doppelt in der Auswahl auf).
+  const rechtsOptionen = useMemo(() => shuffle([...new Set(paare.map((p) => p.rechts))]), [paare])
   const [zuordnung, setZuordnung] = useState<Record<string, string>>({})
   const [submitted, setSubmitted] = useState(false)
 

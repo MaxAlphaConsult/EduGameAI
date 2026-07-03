@@ -72,10 +72,21 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function buildOptionen(aufgabe: Aufgabe) {
-  return shuffle([
-    ...aufgabe.loesungen.map((l) => ({ text: l, isCorrect: true })),
-    ...(aufgabe.distraktoren ?? []).map((d) => ({ text: d, isCorrect: false })),
-  ])
+  // Dedup nach normalisiertem Text: Lösungen zuerst, damit ein Distraktor, der
+  // (durch KI-Fehler) einer Lösung gleicht, verworfen wird — statt doppelt zu erscheinen.
+  const seen = new Set<string>()
+  const opts: { text: string; isCorrect: boolean }[] = []
+  for (const l of aufgabe.loesungen) {
+    const key = l.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key); opts.push({ text: l, isCorrect: true })
+  }
+  for (const d of aufgabe.distraktoren ?? []) {
+    const key = d.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key); opts.push({ text: d, isCorrect: false })
+  }
+  return shuffle(opts)
 }
 
 function parsePaare(aufgabe: Aufgabe) {
