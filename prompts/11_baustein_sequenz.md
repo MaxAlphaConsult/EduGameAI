@@ -75,8 +75,9 @@ ihrer Position** in der Sequenz erhalten (sie werden nicht mehr ans Ende verscho
   Sicherung, Transfer), die das Lernziel auch OHNE Spiele erreicht.
 - **Auflockerung (WICHTIG):** Wird die Sequenz **textlastig** (mehrere `input`/`erarbeitung`-Bausteine
   hintereinander), **platziere ein kurzes `spiel` zur Auflockerung DAZWISCHEN** — als aktive Übung, die
-  das eben Gelernte festigt und die Konzentration bricht. Voraussetzung ist die **Passungsregel** unten
-  (regelbasiert auswertbares, wiederholbares Wissen). Passt kein Spiel, nutze stattdessen einen kurzen,
+  das eben Gelernte festigt und die Konzentration bricht. **Bevorzuge dabei ein motivierendes Spaß-Format**
+  (z.B. Study Bird / Flappy, Hangman, Memory, Sprint-Quiz), sofern der Inhalt regelbasiert auswertbar ist.
+  Voraussetzung ist die **Passungsregel** unten. Passt kein Spiel, nutze stattdessen einen kurzen,
   spielerischen `erarbeitung`- oder Check-Baustein zur Auflockerung.
 - Setze `spiel`-Bausteine also **gezielt dort, wo sie didaktisch passen** — nicht nur am Ende.
 
@@ -113,6 +114,24 @@ ihrer Position** in der Sequenz erhalten (sie werden nicht mehr ans Ende verscho
 
 Begründe bei JEDEM `spiel`-Baustein die Passung in `begruendung`. Wenn kein Baustein die Spiel-Regel erfüllt,
 **enthält die Sequenz kein Spiel** — das ist völlig in Ordnung.
+
+---
+
+## Progression & Differenzierung (WICHTIG)
+
+- **Steigende Schwierigkeit (leicht → komplex, einfach → anspruchsvoll).** Ordne die Bausteine so, dass die
+  **Komplexität über den Verlauf zunimmt**: erst Reproduktion/Verstehen (konkret, niedrige Stufe), dann Anwenden,
+  dann Transfer/Bewerten. Die `komplexitaetsstufe`-Anforderung der Bausteine steigt tendenziell monoton.
+- **Kein Im-Kreis-Drehen.** Kein Baustein darf einen früheren nahezu identisch wiederholen. Jeder Schritt wird
+  **anspruchsvoller** oder wechselt **Format/Perspektive** — nie „dasselbe nochmal, nur anders verpackt".
+- **Der Flow läuft auf Spiele zu.** Die Sequenz endet in Übungs-/`spiel`-Bausteinen, die das Erarbeitete festigen;
+  bei langen/textlastigen Flows kommen Spiele auch **zwischendurch** zur Auflockerung (siehe Auflockerung oben).
+- **Progression = Differenzierung.** Baue einen Bogen „von allen schaffbar" → „für Starke fordernd": die frühen
+  Bausteine sichern die Basis (alle Schüler:innen erreichen sie), spätere fordern mehr. Es ist **ausdrücklich in
+  Ordnung, wenn schwächere Schüler:innen nicht alle Stufen meistern** — die frühen Stufen plus die Spiele am Ende
+  genügen ihnen. Erzwinge also keinen „alle müssen das Maximum schaffen"-Verlauf.
+- **Balance Spaß ↔ Tiefe.** Verbinde Abwechslung & Motivation (kurze Häppchen, wechselnde Formate, Spiele) mit
+  **fachlicher Tiefe** (das Konzept wirklich erarbeiten). Weder reine Textwüste noch reines Ratespiel.
 
 ---
 

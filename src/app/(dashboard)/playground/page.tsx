@@ -373,7 +373,7 @@ export default function GameErstellenPage() {
 
             <div>
               <label style={labelStyle}>Wofür ist der LernFlow?</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-stretch">
                 {([
                   { id: 'lernflow', titel: '📚 Neu erarbeiten', text: 'Vollständiger LernFlow — die Klasse lernt das Thema hier zum ersten Mal.' },
                   { id: 'sicherung', titel: '🎯 Sichern & abfragen', text: 'Thema wurde schon behandelt — Fokus auf Üben, Spiele & Wissensabfrage.' },
@@ -381,9 +381,10 @@ export default function GameErstellenPage() {
                   const aktiv = modus === opt.id
                   return (
                     <button key={opt.id} type="button" onClick={() => setModus(opt.id)}
-                      className="text-left rounded-xl p-3 transition-all"
+                      className="text-left rounded-xl p-3 transition-all h-full flex flex-col"
                       style={{
-                        border: aktiv ? '2px solid #7C3AED' : '1.5px solid #E9D5FF',
+                        // Gleiche Rahmenbreite in beiden Zuständen → beide Reiter exakt gleich groß & bündig.
+                        border: `2px solid ${aktiv ? '#7C3AED' : '#E9D5FF'}`,
                         background: aktiv ? '#F6F1FF' : '#FAFAFA',
                         cursor: 'pointer',
                       }}>
