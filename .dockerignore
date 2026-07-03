@@ -1,0 +1,27 @@
+# Build-Ballast & alles, was im Image nichts zu suchen hat
+node_modules
+.next
+.git
+.gitignore
+
+# Secrets NIEMALS in den Build-Kontext
+.env
+.env.*
+!.env.example
+
+# Lokales / IDE
+.vscode
+.idea
+.DS_Store
+npm-debug.log*
+
+# Docs, Tests, Tooling die zur Laufzeit nicht gebraucht werden
+*.md
+!prompts/**
+coverage
+.vercel
+
+# Supabase-Migrationen & Skripte laufen separat (CI/CLI), nicht im App-Container
+supabase
+scripts
+echo
