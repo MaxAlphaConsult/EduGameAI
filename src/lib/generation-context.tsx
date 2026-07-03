@@ -28,6 +28,9 @@ export interface GenerationStartParams {
   zeitrahmenMinuten: number
   erlaubteFormate: string[]
   anzahlSpiele: number
+  // 'lernflow' = vollständig neu erarbeiten; 'sicherung' = Inhalt schon behandelt →
+  // Fokus auf Üben/Abfragen (mehr Spiele/Checks).
+  modus: 'lernflow' | 'sicherung'
   // Klasse, für die der fertige LernFlow direkt freigegeben wird (ein Launch).
   classId?: string
 }
@@ -136,6 +139,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           zeitrahmenMinuten: params.zeitrahmenMinuten,
           erlaubteFormate: params.erlaubteFormate,
           anzahlSpiele: params.anzahlSpiele,
+          modus: params.modus,
         }),
       })
       if (!analyseRes.ok) {

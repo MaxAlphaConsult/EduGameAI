@@ -19,11 +19,30 @@ die in der angegebenen Zeit realistisch durchführbar ist und einem klaren Lernb
   "analyse": "<JSON aus Prompt 01 — Wissensform, Lernform, Komplexität, Denkhandlung>",
   "lernziel": "<JSON aus Prompt 02>",
   "lernpfad": "<Kurzfassung aus Prompt 03 — lernpfad_typ, phasen, balance, zeitstrukturplan>",
-  "kontext": { "fach": "...", "jahrgangsstufe": "...", "schulform": "...", "zeitrahmen_minuten": 30, "gewuenschte_spielanzahl": 2 }
+  "kontext": { "fach": "...", "jahrgangsstufe": "...", "schulform": "...", "zeitrahmen_minuten": 30, "gewuenschte_spielanzahl": 2, "modus": "lernflow | sicherung" }
 }
 ```
 
 Wenn `zeitrahmen_minuten` fehlt: **30 Minuten** annehmen.
+
+---
+
+## Modus — bestimmt die Ausrichtung der Sequenz (WICHTIG)
+
+`kontext.modus` steuert, WOFÜR der Flow dient:
+
+- **`lernflow` (Standard — neu erarbeiten):** Die Schüler:innen lernen den Inhalt hier zum ersten Mal.
+  Vollständiger Lernbogen mit Vermittlung: `einstieg` → `vorwissen_check` → `input` → `erarbeitung` →
+  `sicherung` → `transfer`, Spiele nur nach Passung. (Regeln unten wie beschrieben.)
+
+- **`sicherung` (Üben & Abfragen — Inhalt schon behandelt):** Der Stoff wurde **im Unterricht bereits
+  vermittelt**; der Flow dient der **Festigung und Wissensabfrage**, nicht der Erst-Vermittlung.
+  - **Verzichte weitgehend auf `input`/`einstieg`-Vermittlungsbausteine.** Setze den Inhalt als bekannt voraus.
+  - Baue die Sequenz aus **`erarbeitung`, `spiel`, `vorwissen_check`/`post_check`** — kurze Aktivierung,
+    dann **viel Üben/Anwenden/Abfragen**. Ziel: Geläufigkeit, Sicherheit, Selbsteinschätzung.
+  - **Deutlich mehr `spiel`-Bausteine** (wo regelbasiert auswertbar) — Spiele wie Hangman, Memory,
+    Zuordnung, Sprint-Quiz sind hier ausdrücklich erwünscht, um Wissen abzufragen und zu festigen.
+  - Ein knapper Sicherungs-/Zusammenfassungsbaustein am Ende ist ok; keine ausführliche Neu-Erklärung.
 
 ---
 

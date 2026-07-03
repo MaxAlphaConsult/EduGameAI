@@ -75,6 +75,7 @@ export default function GameErstellenPage() {
   const [file, setFile] = useState<File | null>(null)
   const [selectedFormate, setSelectedFormate] = useState<string[]>(ALLE_FORMAT_IDS)
   const [zeitrahmenInput, setZeitrahmenInput] = useState(15)
+  const [modus, setModus] = useState<'lernflow' | 'sicherung'>('lernflow')
   const [submitting, setSubmitting] = useState(false)
 
   // Klassen für „ein Launch" — der fertige LernFlow wird direkt freigegeben.
@@ -160,7 +161,10 @@ export default function GameErstellenPage() {
   // Spiele sind nur ein motivierender Abschluss (Zugabe) — die Länge des LernFlows
   // ergibt sich aus Lerngegenstand + Umfang. Die Spielanzahl wird daher nicht mehr
   // von der Lehrkraft gewählt, sondern moderat aus dem Zeitrahmen abgeleitet.
-  const abgeleiteteSpielanzahl = Math.max(1, Math.round(getSpielRange(zeitrahmenInput).min / 2))
+  // Im Sicherungs-Modus (Inhalt schon behandelt) mehr Spiele — Fokus aufs Üben/Abfragen.
+  const abgeleiteteSpielanzahl = modus === 'sicherung'
+    ? getSpielRange(zeitrahmenInput).max
+    : Math.max(1, Math.round(getSpielRange(zeitrahmenInput).min / 2))
 
   function toggleFormat(id: string) {
     setSelectedFormate(prev =>
@@ -205,6 +209,7 @@ export default function GameErstellenPage() {
         // Kein Lehrkraft-Richtwert mehr: die Länge ergibt sich aus Lerngegenstand +
         // Umfang; ein moderater Spiel-Abschluss wird aus dem Zeitrahmen abgeleitet.
         anzahlSpiele: abgeleiteteSpielanzahl,
+        modus,
         classId: selectedKlasse.id,
       })
     } catch (err) {
@@ -364,6 +369,30 @@ export default function GameErstellenPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div>
+              <label style={labelStyle}>Wofür ist der LernFlow?</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {([
+                  { id: 'lernflow', titel: '📚 Neu erarbeiten', text: 'Vollständiger LernFlow — die Klasse lernt das Thema hier zum ersten Mal.' },
+                  { id: 'sicherung', titel: '🎯 Sichern & abfragen', text: 'Thema wurde schon behandelt — Fokus auf Üben, Spiele & Wissensabfrage.' },
+                ] as const).map((opt) => {
+                  const aktiv = modus === opt.id
+                  return (
+                    <button key={opt.id} type="button" onClick={() => setModus(opt.id)}
+                      className="text-left rounded-xl p-3 transition-all"
+                      style={{
+                        border: aktiv ? '2px solid #7C3AED' : '1.5px solid #E9D5FF',
+                        background: aktiv ? '#F6F1FF' : '#FAFAFA',
+                        cursor: 'pointer',
+                      }}>
+                      <div className="text-sm font-bold" style={{ color: aktiv ? '#7C3AED' : '#1F1235' }}>{opt.titel}</div>
+                      <div className="text-xs mt-0.5" style={{ color: '#7A6A94' }}>{opt.text}</div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             <div>

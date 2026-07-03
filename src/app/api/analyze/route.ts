@@ -48,7 +48,11 @@ export async function POST(request: NextRequest) {
     zeitrahmenMinuten = 15,
     erlaubteFormate,
     anzahlSpiele = 1,
+    // 'lernflow' = vollständig neu erarbeiten; 'sicherung' = Inhalt schon behandelt,
+    // Fokus auf Üben/Abfragen (mehr Spiele/Checks, kaum Input-Vermittlung).
+    modus = 'lernflow',
   } = body
+  const lernModus: 'lernflow' | 'sicherung' = modus === 'sicherung' ? 'sicherung' : 'lernflow'
   if (!materialId) return NextResponse.json({ error: 'materialId fehlt' }, { status: 400 })
 
   const { data: material, error: materialError } = await supabase
@@ -127,7 +131,7 @@ export async function POST(request: NextRequest) {
 
         send({ type: 'progress', label: 'Lernsequenz wird geplant …', percent: 34, schrittIndex: 11 })
         checkDeadline()
-        const sequenz = await planBausteinSequenz({ analyse, lernziel, lernpfad, kontext, gewuenschteSpiele: anzahlSpiele })
+        const sequenz = await planBausteinSequenz({ analyse, lernziel, lernpfad, kontext, gewuenschteSpiele: anzahlSpiele, modus: lernModus })
 
         // ── C10: Von der KI platzierte Spiele bleiben an ihrer Position ──
         // Die KI darf `spiel`-Bausteine gezielt ZWISCHEN textlastige Bausteine
