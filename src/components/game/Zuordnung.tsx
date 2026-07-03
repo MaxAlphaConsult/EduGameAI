@@ -25,6 +25,18 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+// Farbpalette für zusammengehörende Paare — jede Zuordnung bekommt eine eigene,
+// passende Farbe (Begriff links + zugeordneter Bereich rechts gleich eingefärbt).
+const PAIR_COLORS = [
+  { border: '#7C3AED', bg: '#F3EEFF', text: '#5B21B6' },
+  { border: '#0EA5E9', bg: '#E0F2FE', text: '#075985' },
+  { border: '#10B981', bg: '#D1FAE5', text: '#065F46' },
+  { border: '#F59E0B', bg: '#FEF3C7', text: '#92400E' },
+  { border: '#EC4899', bg: '#FCE7F3', text: '#9D174F' },
+  { border: '#14B8A6', bg: '#CCFBF1', text: '#115E59' },
+  { border: '#6366F1', bg: '#E0E7FF', text: '#3730A3' },
+]
+
 export function Zuordnung({ text, paare, hilfen, feedback, onAntwort }: Props) {
   // Jeder Ziel-Bereich nur EINMAL — auch wenn mehrere linke Elemente darauf passen
   // (many-to-one). Duplikate würden sonst doppelt angezeigt und beim Belegen alle
@@ -72,7 +84,6 @@ export function Zuordnung({ text, paare, hilfen, feedback, onAntwort }: Props) {
   }
 
   const alleZugeordnet = paare.every((_, i) => zuordnungen[i] !== undefined)
-  const vergeben = new Set(Object.values(zuordnungen))
 
   return (
     <div className="flex flex-col gap-4">
@@ -103,16 +114,18 @@ export function Zuordnung({ text, paare, hilfen, feedback, onAntwort }: Props) {
             const hasMatch = zuordnungen[i] !== undefined
             const isKorrekt = submitted && zuordnungen[i] === p.rechts
             const isFalsch = submitted && zuordnungen[i] !== undefined && zuordnungen[i] !== p.rechts
+            // Farbe der Zuordnung (nur vor dem Auswerten) — Begriff + Bereich gleich eingefärbt.
+            const farbe = !submitted && hasMatch ? PAIR_COLORS[i % PAIR_COLORS.length] : null
 
             return (
               <button
                 key={i}
                 onClick={() => clickLinks(i)}
                 disabled={submitted}
+                style={farbe ? { borderColor: farbe.border, background: farbe.bg, color: farbe.text } : undefined}
                 className={cn(
                   'text-left px-3 py-2.5 rounded-xl border text-sm transition-all duration-150 min-h-[44px]',
                   !submitted && isSelected && 'border-primary bg-primary/10 font-medium ring-2 ring-primary/30 shadow-sm',
-                  !submitted && !isSelected && hasMatch && 'border-primary/40 bg-primary/5',
                   !submitted && !isSelected && !hasMatch && 'border-border hover:border-primary/50 hover:bg-primary/5',
                   submitted && isKorrekt && 'border-green-500 bg-green-50 text-green-900',
                   submitted && isFalsch && 'border-red-400 bg-red-50 text-red-900',
@@ -143,21 +156,24 @@ export function Zuordnung({ text, paare, hilfen, feedback, onAntwort }: Props) {
           {rechtsShuffled.map((r, i) => {
             // Wiederverwendbar: ein Bereich kann von mehreren linken Elementen belegt
             // werden. „Belegt" ist nur ein dezenter Hinweis, kein Sperren/Ausgrauen.
-            const isVergeben = vergeben.has(r)
             const isKorrekt = submitted && paare.some((p, k) => p.rechts === r && zuordnungen[k] === r)
             const isFalsch = submitted && !isKorrekt && Object.values(zuordnungen).includes(r)
             const isClickable = !submitted && selectedLinks !== null
+            // Gleiche Farbe wie der zugeordnete Begriff (erstes passendes linkes Element).
+            const matchLinksIdx = Object.entries(zuordnungen).find(([, v]) => v === r)?.[0]
+            const farbe = !submitted && matchLinksIdx !== undefined ? PAIR_COLORS[Number(matchLinksIdx) % PAIR_COLORS.length] : null
 
             return (
               <button
                 key={i}
                 onClick={() => clickRechts(r)}
                 disabled={submitted}
+                style={farbe ? { borderColor: farbe.border, background: farbe.bg, color: farbe.text } : undefined}
                 className={cn(
                   'text-left px-3 py-2.5 rounded-xl border text-sm transition-all duration-150 min-h-[44px]',
-                  !submitted && selectedLinks === null && 'border-border text-muted-foreground',
-                  !submitted && isVergeben && selectedLinks === null && 'bg-primary/5 border-primary/30',
-                  isClickable && 'border-dashed border-primary/60 bg-primary/5 hover:bg-primary/10 hover:border-primary cursor-pointer',
+                  !submitted && !farbe && selectedLinks === null && 'border-border text-muted-foreground',
+                  isClickable && !farbe && 'border-dashed border-primary/60 bg-primary/5 hover:bg-primary/10 hover:border-primary cursor-pointer',
+                  isClickable && farbe && 'cursor-pointer',
                   submitted && isKorrekt && 'border-green-500 bg-green-50 text-green-900',
                   submitted && isFalsch && 'border-red-400 bg-red-50 text-red-900',
                   submitted && !isKorrekt && !isFalsch && 'border-border opacity-50',

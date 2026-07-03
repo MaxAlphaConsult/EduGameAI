@@ -72,6 +72,8 @@ export default function ClassesPage() {
   const [codesLoading, setCodesLoading] = useState(false)
   const [generateAnzahl, setGenerateAnzahl] = useState(25)
   const [generatingCodes, setGeneratingCodes] = useState(false)
+  // Schüleranzahl schon beim Anlegen der Klasse (Codes werden direkt miterzeugt).
+  const [neueKlasseAnzahl, setNeueKlasseAnzahl] = useState(25)
 
   // Tab: Flows
   const [flows, setFlows] = useState<FlowItem[]>([])
@@ -153,6 +155,11 @@ export default function ClassesPage() {
       const { data, error } = await supabase.from('classes')
         .insert({ name, jahrgangsstufe, fach, schulform, lehrer_id: user.id }).select().single()
       if (error || !data) { setFormError('Klasse konnte nicht angelegt werden.'); return }
+      // Schüler-Codes direkt mit der gewählten Anzahl anlegen.
+      if (neueKlasseAnzahl > 0) {
+        const codes = generateStudentCodes(neueKlasseAnzahl)
+        await supabase.from('students').insert(codes.map((code) => ({ class_id: data.id, code })))
+      }
       setKlassen((prev) => [data, ...prev])
       setShowForm(false)
     })
@@ -287,6 +294,19 @@ export default function ClassesPage() {
                   <option value="" disabled>Bitte wählen</option>
                   {SCHULFORMEN.map((s) => <option key={s}>{s}</option>)}
                 </select>
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Anzahl Schüler</label>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center rounded-xl overflow-hidden" style={{ border: '1.5px solid #E9D5FF' }}>
+                  <button type="button" onClick={() => setNeueKlasseAnzahl((n) => Math.max(0, n - 1))}
+                    style={{ padding: '8px 14px', color: '#7C3AED', background: '#FAFAFA', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>−</button>
+                  <span style={{ padding: '8px 18px', fontWeight: 700, color: '#1F1235', fontSize: 14, minWidth: 44, textAlign: 'center' }}>{neueKlasseAnzahl}</span>
+                  <button type="button" onClick={() => setNeueKlasseAnzahl((n) => Math.min(40, n + 1))}
+                    style={{ padding: '8px 14px', color: '#7C3AED', background: '#FAFAFA', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>+</button>
+                </div>
+                <span className="text-xs" style={{ color: '#7A6A94' }}>Codes werden direkt angelegt (später im Codes-Tab anpassbar).</span>
               </div>
             </div>
             {formError && <p className="text-sm rounded-xl px-4 py-3" style={{ background: '#FEF2F2', color: '#DC2626' }}>{formError}</p>}
