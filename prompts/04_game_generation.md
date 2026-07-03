@@ -83,6 +83,12 @@ Erstelle exakt **4 Aufgaben**. Nicht mehr, nicht weniger.
 - `distraktoren`: 2–3 falsche Antworten
 - `hilfen`: 1–2 kurze Hinweise (optional)
 
+**Distraktoren-Qualität (gilt für single_choice, multiple_choice, boss_fight, sprint_quiz, escape_room, space_invaders):**
+- Distraktoren müssen **plausibel** sein und in **Form, Länge und Grammatik parallel** zur richtigen Antwort stehen — die richtige Antwort darf nicht schon durch Länge, Detailgrad oder Formulierung auffallen.
+- Passe die Plausibilität an den **Schwierigkeitsgrad** an: bei niedriger Komplexität klar unterscheidbare Distraktoren; bei höherer Komplexität nah verwandte, verführerische Fehlannahmen (typische Verwechslungen, halbrichtige Aussagen).
+- **Halte die Anzahl der Optionen konstant** (single_choice immer 4 Optionen = 1 Lösung + 3 Distraktoren), damit die Antwortzahl keinen Hinweis auf die Lösung gibt.
+- Keine offensichtlich absurden oder scherzhaften Distraktoren, keine Dopplungen, keine sich gegenseitig ausschließenden Paare, aus denen die Lösung ableitbar ist.
+
 **Für `lueckentext`:**
 - `text`: Aussage/Definition mit Lücken — jede Lücke als `___` (3+ Unterstriche) markieren. Die Anzahl `___` muss exakt der Länge von `loesungen` entsprechen. Z.B. `"Die Zellatmung findet in den ___ statt und liefert ___ für die Zelle."`
 - `loesungen`: Begriffe in der **Reihenfolge der Lücken** (mind. 2, max. 5 Lücken pro Aufgabe). Single-Token-Begriffe bevorzugt.
@@ -152,7 +158,7 @@ Erstelle exakt **4 Aufgaben**. Nicht mehr, nicht weniger.
 
 ### Qualitätsregeln:
 - **Quellenbindung (Pflicht):** Frage, Lösungen, Distraktoren UND Hilfen müssen sich aus `material_abschnitte` belegen lassen. Nutze dein Weltwissen NICHT, um Inhalte zu ergänzen, die das Material nicht hergibt. Im Zweifel: weglassen.
-- **Hilfen** dürfen nur auf das Material verweisen oder es paraphrasieren — niemals neue Fakten, Zahlen, Namen oder Zusammenhänge einführen, die nicht im Material stehen. (Ein nachgelagerter Prüf-Pass verwirft Aufgaben mit Material-fremden Hilfen.)
+- **Hilfen** müssen inhaltlich aus dem Material ableitbar, aber **selbsterklärend** sein: Sie paraphrasieren den relevanten Inhalt direkt und geben einen echten Denk-Anstoß. Sie dürfen **niemals** auf das Ursprungsmaterial verweisen (kein „siehe Abschnitt/Text/Material/Seite/Folie", „wie oben beschrieben") — **die Schüler:innen sehen den Upload nicht, nur das Spiel**. Keine neuen Fakten, Zahlen, Namen oder Zusammenhänge einführen, die nicht im Material stehen. (Ein nachgelagerter Prüf-Pass verwirft Aufgaben mit Material-fremden Hilfen.)
 - `abschnitt_ref` ist die ID genau des `material_abschnitte`-Eintrags, der die Aufgabe belegt.
 - Distraktoren müssen typische Fehlvorstellungen der Zielgruppe darstellen und zum Lerngegenstand passen — keine themenfremden oder absurden Falschantworten.
 - Jede Aufgabe muss eine eigene Teilkompetenz abdecken (keine Wiederholungen)
@@ -172,6 +178,7 @@ Gib für beide Felder leere Arrays zurück:
 
 - Antworte ausschließlich mit dem JSON-Objekt. Kein Text außerhalb des JSON.
 - Erfinde keine Inhalte, die nicht im Material stehen.
+- **Selbsterklärend, kein Verweis auf die Quelle:** Frage, Lösungen, Distraktoren und Hilfen dürfen NIE auf das Material verweisen („im Arbeitsblatt", „im Text", „laut Material", „auf dem Blatt", „siehe Abschnitt/Seite"). Die Schüler:innen sehen den Upload nicht — die Aufgabe muss aus sich heraus verständlich sein.
 - Alle `abschnitt_ref` müssen existierende IDs aus dem Input sein.
 - Wenn `erlaubte_formate` im Input angegeben ist: Verwende für `antwortformat` **ausschließlich** Werte aus dieser Liste. Ist das Feld null oder fehlt es, gelten alle Formate als erlaubt.
 

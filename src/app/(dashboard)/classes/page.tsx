@@ -5,8 +5,11 @@ import { createClient } from '@/lib/supabase/client'
 import { QrCode } from '@/components/qr-code'
 import { generateStudentCodes } from '@/lib/flow/student-code'
 
+// Schulformen — einmalig bei der Klasse erfasst (nicht mehr pro LernFlow).
+const SCHULFORMEN = ['Gymnasium', 'Realschule', 'Sekundarschule', 'Gesamtschule', 'Berufsschule', 'Grundschule']
+
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface Klasse { id: string; name: string; jahrgangsstufe: string; fach: string }
+interface Klasse { id: string; name: string; jahrgangsstufe: string; fach: string; schulform: string | null }
 interface Student { id: string; code: string }
 
 interface FlowModule { id: string; titel: string; status: string; reihenfolge: number | null; spieltyp_didaktisch: string; game_engine: string }
@@ -141,13 +144,14 @@ export default function ClassesPage() {
     const name = (form.elements.namedItem('name') as HTMLInputElement).value
     const jahrgangsstufe = (form.elements.namedItem('jahrgangsstufe') as HTMLInputElement).value
     const fach = (form.elements.namedItem('fach') as HTMLInputElement).value
+    const schulform = (form.elements.namedItem('schulform') as HTMLSelectElement).value
     startTransition(async () => {
       setFormError(null)
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setFormError('Nicht eingeloggt.'); return }
       const { data, error } = await supabase.from('classes')
-        .insert({ name, jahrgangsstufe, fach, lehrer_id: user.id }).select().single()
+        .insert({ name, jahrgangsstufe, fach, schulform, lehrer_id: user.id }).select().single()
       if (error || !data) { setFormError('Klasse konnte nicht angelegt werden.'); return }
       setKlassen((prev) => [data, ...prev])
       setShowForm(false)
@@ -162,10 +166,11 @@ export default function ClassesPage() {
     const name = (form.elements.namedItem('name') as HTMLInputElement).value
     const jahrgangsstufe = (form.elements.namedItem('jahrgangsstufe') as HTMLInputElement).value
     const fach = (form.elements.namedItem('fach') as HTMLInputElement).value
+    const schulform = (form.elements.namedItem('schulform') as HTMLSelectElement).value
     startTransition(async () => {
       setFormError(null)
       const { data, error } = await createClient().from('classes')
-        .update({ name, jahrgangsstufe, fach }).eq('id', selectedId).select().single()
+        .update({ name, jahrgangsstufe, fach, schulform }).eq('id', selectedId).select().single()
       if (error || !data) { setFormError('Bearbeitung fehlgeschlagen.'); return }
       setKlassen((prev) => prev.map((k) => k.id === selectedId ? data : k))
       setEditMode(false)
@@ -273,10 +278,16 @@ export default function ClassesPage() {
         <div style={cardStyle} className="p-6 mb-6">
           <h3 className="font-bold text-sm mb-4" style={{ color: '#1F1235' }}>Neue Klasse</h3>
           <form onSubmit={onCreateKlasse} className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label style={labelStyle}>Bezeichnung</label><input name="name" required placeholder="z.B. 9a" style={inputStyle} /></div>
               <div><label style={labelStyle}>Jahrgangsstufe</label><input name="jahrgangsstufe" required placeholder="z.B. 9" style={inputStyle} /></div>
               <div><label style={labelStyle}>Fach</label><input name="fach" required placeholder="z.B. Biologie" style={inputStyle} /></div>
+              <div><label style={labelStyle}>Schulform</label>
+                <select name="schulform" required defaultValue="" style={inputStyle}>
+                  <option value="" disabled>Bitte wählen</option>
+                  {SCHULFORMEN.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
             </div>
             {formError && <p className="text-sm rounded-xl px-4 py-3" style={{ background: '#FEF2F2', color: '#DC2626' }}>{formError}</p>}
             <div className="flex gap-3">
@@ -341,10 +352,16 @@ export default function ClassesPage() {
             {editMode ? (
               <div style={cardStyle} className="p-5 mb-4">
                 <form onSubmit={onEditKlasse} className="flex flex-col gap-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><label style={{ ...labelStyle, fontSize: 12 }}>Bezeichnung</label><input name="name" required defaultValue={selected.name} style={inputStyle} /></div>
                     <div><label style={{ ...labelStyle, fontSize: 12 }}>Stufe</label><input name="jahrgangsstufe" required defaultValue={selected.jahrgangsstufe} style={inputStyle} /></div>
                     <div><label style={{ ...labelStyle, fontSize: 12 }}>Fach</label><input name="fach" required defaultValue={selected.fach} style={inputStyle} /></div>
+                    <div><label style={{ ...labelStyle, fontSize: 12 }}>Schulform</label>
+                      <select name="schulform" required defaultValue={selected.schulform ?? ''} style={inputStyle}>
+                        <option value="" disabled>Bitte wählen</option>
+                        {SCHULFORMEN.map((s) => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
                   </div>
                   {formError && <p className="text-sm" style={{ color: '#DC2626' }}>{formError}</p>}
                   <div className="flex gap-3">

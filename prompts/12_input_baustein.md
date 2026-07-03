@@ -29,11 +29,28 @@ anknüpfend, mit konkreten Beispielen. Du erfindest nichts dazu.
     "didaktische_funktion": "..."
   },
   "kontext": { "fach": "...", "jahrgangsstufe": "...", "schulform": "..." },
+  "position": 3,
+  "sequenz_kontext": [
+    { "position": 1, "baustein_typ": "einstieg", "titel": "...", "thema": "..." },
+    { "position": 2, "baustein_typ": "input", "titel": "...", "thema": "..." }
+  ],
   "material_abschnitte": [ { "id": "A1", "text": "<Originaltext des Abschnitts>" } ]
 }
 ```
 
 `material_abschnitte` ist die **maßgebliche Quelle**. Ist das Feld `null`/leer, erde streng an `analyse`.
+
+## Progression (Pflicht — keine Wiederholung)
+`sequenz_kontext` zeigt **alle Bausteine des LernFlows** und `position` deinen Platz darin. Nutze das,
+damit die Bausteine **aufeinander aufbauen statt sich zu wiederholen**:
+- Behandle **genau dein `thema`** — nicht die Themen der anderen Bausteine.
+- **Setze frühere Bausteine als bekannt voraus.** Erkläre Grundlagen, die vorher schon dran waren, nicht
+  erneut von vorn — knüpfe kurz an und gehe eine Stufe **tiefer/weiter** (mehr Anwendung, neue Facette,
+  höhere Denkhandlung).
+- **Wiederhole keine Fragen/Checks** aus früheren Bausteinen. Jeder Check prüft einen **neuen** Aspekt
+  deines Themas. Variiere die Check-Typen gegenüber den Nachbarbausteinen (nicht 4× Lückentext in Folge).
+- Spätere Bausteine (`sicherung`, `transfer`, `post_check`) verknüpfen/übertragen — sie fragen nicht
+  einfach dasselbe noch einmal ab.
 
 ---
 
@@ -44,7 +61,8 @@ anknüpfend, mit konkreten Beispielen. Du erfindest nichts dazu.
 - **2–4 Checks** insgesamt (je nach Stofflänge). Jeder Check sitzt direkt hinter dem Text, den er prüft.
 - Schließe mit einem kurzen `text`-Segment (Sicherung) **oder** einem abschließenden Check.
 - Kleine Häppchen: kurze Absätze, klare Sprache, dem Jahrgang angemessen. Markdown erlaubt
-  (Überschriften, Fett, Listen). Keine Bilder/Links.
+  (Überschriften, Fett, Listen, **Tabellen** im GitHub-Format `| a | b |` mit Trennzeile `|---|---|`).
+  Keine Bilder/Links.
 
 Passe den Ton an den `baustein_typ` an (einstieg = Hook/Leitfrage; input/erarbeitung = erklärend mit
 Beispiel; sicherung = bündelnd; transfer = Übertragung; vorwissen_check/post_check = sehr kurzer Rahmen).
@@ -89,8 +107,16 @@ Detailregeln:
 ## Quellenbindung (Pflicht — höchste Priorität)
 - Jede inhaltliche Aussage (Texte UND Checks inkl. **Hilfen**) muss aus `material_abschnitte` (bzw.
   `analyse`) ableitbar sein. Nichts hinzuerfinden, nicht über das Material hinaus verallgemeinern.
-- `hilfen` dürfen nur auf das Material verweisen/es paraphrasieren — niemals Material-fremde Fakten,
-  Zahlen oder Namen einführen (ein nachgelagerter Prüf-Pass markiert/verwirft sonst).
+- **Alles ist selbsterklärend — KEIN Verweis auf die Quelle.** Weder Texte noch Fragen, Checks oder
+  Hilfen dürfen auf das Ursprungsmaterial verweisen. Verboten sind Formulierungen wie „im Arbeitsblatt",
+  „im Text", „laut Material", „auf dem Blatt", „in der Vorlage", „wie oben/zuvor gesehen", „im vorherigen
+  Baustein", „siehe Abschnitt/Seite/Folie". **Die Schüler:innen haben das hochgeladene Material NICHT** —
+  sie sehen nur den generierten Lern-Inhalt. Erkläre den nötigen Inhalt daher immer direkt im Text selbst.
+- `hilfen` müssen **inhaltlich aus dem Material ableitbar** sein — aber **selbsterklärend** formuliert:
+  Sie **paraphrasieren den relevanten Inhalt direkt** und geben einen echten Denk-Anstoß. Sie dürfen
+  **niemals** auf das Ursprungsmaterial verweisen (kein „Schau in den Abschnitt …", „siehe Text/Material/
+  Seite/Folie", „wie oben beschrieben") — **die Schüler:innen sehen den Upload nicht**, nur das Spiel.
+  Keine Material-fremden Fakten, Zahlen oder Namen einführen (ein nachgelagerter Prüf-Pass markiert/verwirft sonst).
 - `abschnitt_ref` jedes Checks ist die ID des belegenden `material_abschnitte`-Eintrags.
 
 ---
@@ -140,7 +166,7 @@ Detailregeln:
         "schaubild": null,
         "loesungen": ["Mitochondrien", "Energie"],
         "distraktoren": ["Chloroplasten", "Wasser"],
-        "hilfen": ["Schau in den Abschnitt zur Energiegewinnung."],
+        "hilfen": ["Denk an das Zellorganell, das mithilfe von Sauerstoff Energie bereitstellt."],
         "abschnitt_ref": "A2",
         "teilkompetenz": "Begriffe der Zellatmung",
         "komplexitaetsstufe": 2

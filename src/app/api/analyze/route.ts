@@ -48,7 +48,11 @@ export async function POST(request: NextRequest) {
     zeitrahmenMinuten = 15,
     erlaubteFormate,
     anzahlSpiele = 1,
+    // 'lernflow' = vollständig neu erarbeiten; 'sicherung' = Inhalt schon behandelt,
+    // Fokus auf Üben/Abfragen (mehr Spiele/Checks, kaum Input-Vermittlung).
+    modus = 'lernflow',
   } = body
+  const lernModus: 'lernflow' | 'sicherung' = modus === 'sicherung' ? 'sicherung' : 'lernflow'
   if (!materialId) return NextResponse.json({ error: 'materialId fehlt' }, { status: 400 })
 
   const { data: material, error: materialError } = await supabase
@@ -127,22 +131,40 @@ export async function POST(request: NextRequest) {
 
         send({ type: 'progress', label: 'Lernsequenz wird geplant …', percent: 34, schrittIndex: 11 })
         checkDeadline()
-        const sequenz = await planBausteinSequenz({ analyse, lernziel, lernpfad, kontext, gewuenschteSpiele: anzahlSpiele })
+        const sequenz = await planBausteinSequenz({ analyse, lernziel, lernpfad, kontext, gewuenschteSpiele: anzahlSpiele, modus: lernModus })
 
-        // ── A3: Spielanzahl ist eine HARTE Zielvorgabe ──────────────────
-        // Die KI plant die Lern-Einheit (Erklär-/Check-/Übungsbausteine); die
-        // Anzahl der Tier-2-Spiele bestimmen WIR deterministisch und hängen sie
-        // als motivierenden Abschluss NACH die Lern-Einheit. So stimmt die
-        // angezeigte Spielzahl immer mit den tatsächlich erzeugten Spielen überein —
-        // unabhängig davon, wo/ob die KI Spiele platziert hätte.
+        // ── C10: Von der KI platzierte Spiele bleiben an ihrer Position ──
+        // Die KI darf `spiel`-Bausteine gezielt ZWISCHEN textlastige Bausteine
+        // setzen (Auflockerung). Diese behalten wir in der geplanten Reihenfolge.
+        // Zusätzlich hängen wir — soweit der Richtwert das noch übersteigt —
+        // generische Abschluss-Spiele als motivierende Zugabe hinten an.
         const zielSpiele = Math.max(0, Math.floor(Number(anzahlSpiele) || 0))
         const geplant = [...sequenz.bausteine].sort((a, b) => a.position - b.position)
-        const lernEinheit = geplant.filter((b) => b.baustein_typ !== 'spiel')
-        const geplanteSpiele = geplant.filter((b) => b.baustein_typ === 'spiel')
-        const spielAbschluss = buildSpielAbschluss(geplanteSpiele, zielSpiele, lernziel)
+        const interspersedSpiele = geplant.filter((b) => b.baustein_typ === 'spiel')
+        const fehlendeSpiele = Math.max(0, zielSpiele - interspersedSpiele.length)
+        // Generische Abschluss-Spiele (leere Vorlagenliste → aus Lernziel abgeleitet),
+        // damit sie sich nicht mit den bereits platzierten Spielen doppeln.
+        const spielAbschluss = buildSpielAbschluss([], fehlendeSpiele, lernziel)
 
-        // Positionen lückenlos 1..M neu vergeben: Lern-Einheit zuerst, dann Spiele.
-        const bausteine = [...lernEinheit, ...spielAbschluss].map((b, i) => ({ ...b, position: i + 1 }))
+        // #5: Ein Spiel ZWISCHENDURCH erzwingen, wenn die Lern-Einheit lang/textlastig
+        // ist und die KI selbst keins mittendrin platziert hat — sonst käme jedes Spiel
+        // erst am Ende. Wir ziehen dann EIN Abschluss-Spiel in die Mitte der Sequenz.
+        const hatZwischenSpiel = geplant.some((b, i) => b.baustein_typ === 'spiel' && i < geplant.length - 1)
+        let bausteineRoh = [...geplant, ...spielAbschluss]
+        if (!hatZwischenSpiel && spielAbschluss.length > 0 && geplant.length >= 4) {
+          const [auflockerung, ...restSpiele] = spielAbschluss
+          const einfuegePos = Math.max(2, Math.floor(geplant.length / 2)) // nach ~Hälfte, nicht vor dem ersten Input
+          bausteineRoh = [
+            ...geplant.slice(0, einfuegePos),
+            auflockerung,
+            ...geplant.slice(einfuegePos),
+            ...restSpiele,
+          ]
+        }
+
+        // Positionen lückenlos 1..M neu vergeben.
+        const bausteine = bausteineRoh.map((b, i) => ({ ...b, position: i + 1 }))
+        const spieleGesamt = interspersedSpiele.length + spielAbschluss.length
         // Reconcilte Sequenz wird persistiert — /generate findet darüber je Position
         // denselben Deskriptor (sonst Drift zwischen games-Rows und Sequenz).
         const sequenzFinal: BausteinSequenzOutput = { ...sequenz, bausteine }
@@ -150,7 +172,7 @@ export async function POST(request: NextRequest) {
         // Spielmapping immer dann, wenn Spiele gewünscht sind (nicht abhängig davon,
         // ob die KI selbst Spiele geplant hat) — die Spiel-Lambdas brauchen es.
         let spielmappingGlobal: SpielmappingOutput | null = null
-        if (zielSpiele > 0) {
+        if (spieleGesamt > 0) {
           send({ type: 'progress', label: 'Spielkonzepte werden entwickelt …', percent: 42, schrittIndex: 12 })
           checkDeadline()
           spielmappingGlobal = await runSpielMapping({
@@ -202,7 +224,7 @@ export async function POST(request: NextRequest) {
         // das hatte „Spiele" und „Bausteine" vermischt (A3).
         await supabase
           .from('game_flows')
-          .update({ anzahl_spiele: zielSpiele, sortiert_am: new Date().toISOString() })
+          .update({ anzahl_spiele: spieleGesamt, sortiert_am: new Date().toISOString() })
           .eq('id', gameFlow.id)
 
         const modules = (insertedRows ?? [])

@@ -334,6 +334,9 @@ export async function planBausteinSequenz(input: {
   kontext: { fach: string; jahrgangsstufe: string; schulform: string; zeitrahmenMinuten: number }
   // Richtwert der Lehrkraft, wie viele Spiel-Bausteine angestrebt werden (soft).
   gewuenschteSpiele?: number
+  // 'lernflow' = vollständig neu erarbeiten; 'sicherung' = Inhalt schon behandelt →
+  // Fokus auf Üben/Abfragen (mehr Spiele/Checks, kaum Vermittlungs-Bausteine).
+  modus?: 'lernflow' | 'sicherung'
 }): Promise<BausteinSequenzOutput> {
   return callClaude(
     'Bausteinsequenz planen (LernFlow)',
@@ -348,6 +351,7 @@ export async function planBausteinSequenz(input: {
         schulform: input.kontext.schulform,
         zeitrahmen_minuten: input.kontext.zeitrahmenMinuten,
         gewuenschte_spielanzahl: input.gewuenschteSpiele ?? null,
+        modus: input.modus ?? 'lernflow',
       },
     }),
     BausteinSequenzOutputSchema
@@ -368,6 +372,9 @@ export async function generateInputBaustein(input: {
     didaktische_funktion: string
   }
   kontext: { fach: string; jahrgangsstufe: string; schulform: string }
+  // Position dieses Bausteins + Gesamtsequenz — für Progression ohne Wiederholung.
+  position?: number
+  sequenzKontext?: { position: number; baustein_typ: string; titel: string; thema: string }[]
   // C1-Grounding: die Quell-Abschnitte, an denen Texte + Checks zu erden sind.
   abschnitte?: { id: string; text: string }[]
 }): Promise<LernEinheitOutput> {
@@ -379,6 +386,8 @@ export async function generateInputBaustein(input: {
       lernziel: input.lernziel,
       baustein: input.baustein,
       kontext: input.kontext,
+      position: input.position ?? null,
+      sequenz_kontext: input.sequenzKontext ?? null,
       material_abschnitte: input.abschnitte ?? null,
     }),
     LernEinheitOutputSchema,

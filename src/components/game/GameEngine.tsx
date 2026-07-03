@@ -203,8 +203,11 @@ function GameEngineInner({
     [moduleSessionId, preview, theme.warning],
   )
 
+  // Merkt sich, ob die letzte Antwort richtig war — steuert die Auto-Weiter-Pause.
+  const letzteKorrektRef = useRef(true)
   const handleAntwort = useCallback(
     async (antworten: string[], korrekt: boolean) => {
+      letzteKorrektRef.current = korrekt
       await recordAntwort(aufgabe.aufgabe_id, antworten, korrekt)
       setBereit(true)
     },
@@ -266,6 +269,17 @@ function GameEngineInner({
     setCurrent(nextIdx)
   }
 
+  // Auto-Weiter: nach dem Beantworten automatisch zur nächsten Aufgabe — kein
+  // extra Klick nötig. Bei Falschantwort länger, damit die Lösung lesbar bleibt.
+  // Der „Weiter"-Knopf bleibt sichtbar, wer schneller ist, tippt einfach.
+  useEffect(() => {
+    if (!bereit) return
+    const delay = letzteKorrektRef.current ? 1200 : 2600
+    const t = setTimeout(() => weiter(), delay)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bereit])
+
   // Spezialfall: ganzes Modul aus study_bird-Aufgaben → ein einziges Endlos-Spiel
   const isStudyBirdModule =
     aufgaben.length > 0 && aufgaben.every((a) => a.antwortformat === 'study_bird')
@@ -276,6 +290,10 @@ function GameEngineInner({
 
   const isSwipeModule =
     aufgaben.length > 0 && aufgaben.every((a) => a.antwortformat === 'swipe')
+
+  // Boss-Fight-Modul: EIN Boss über alle Fragen (statt ein Boss pro Frage).
+  const isBossFightModule =
+    aufgaben.length > 0 && aufgaben.every((a) => a.antwortformat === 'boss_fight')
 
   const isCodeCrackerModule =
     aufgaben.length > 0 && aufgaben.every((a) => a.antwortformat === 'code_cracker')
@@ -409,6 +427,26 @@ function GameEngineInner({
     )
   }
 
+  // Boss-Fight-Modul: EIN Boss über alle Fragen — verliert HP über den Verlauf und
+  // fällt nach der letzten Frage. Leben nur bei abgelaufenem Boss-Charge-Timer.
+  if (isBossFightModule) {
+    return (
+      <div className="min-h-screen pt-4 pb-12 px-4">
+        <div className="max-w-xl mx-auto flex flex-col gap-4">
+          <GameHUD aktuell={geloest} gesamt={aufgaben.length} xp={xp} streak={streak} leben={leben} maxLeben={0} badgeLabel={gameSkin} />
+          <div className="rounded-3xl p-6 border" style={{ background: theme.surface, borderColor: theme.border }}>
+            <BossFight
+              aufgaben={stableAufgabenMitOptionen}
+              onAufgabeAntwort={(aufgabeId, antworten, korrekt) => recordAntwort(aufgabeId, antworten, korrekt)}
+              onSpielVorbei={() => finishModul()}
+            />
+          </div>
+        </div>
+        <CelebrationOverlay show={celebration !== null} emoji="⚔️" titel={celebration?.titel ?? ''} untertitel={celebration?.untertitel} />
+      </div>
+    )
+  }
+
   // Swipe-Modul: alle Karten in einem Stack
   if (isSwipeModule) {
     return (
@@ -534,6 +572,10 @@ function GameEngineInner({
   const hilfen = aufgabe.hilfen ?? []
   const feedback = { bei_korrekt: 'Richtig!', bei_falsch: 'Leider falsch.' }
   const format = aufgabe.antwortformat
+  // Stabile, EINMAL gemischte Auswahl-Optionen (inkl. Distraktoren) für die
+  // aktuelle Aufgabe — verhindert das Neu-Würfeln bei jedem Re-Render (u.a. durch
+  // Auto-Weiter-Timer) und hält die gleiche Antwort mit gleicher Auswahl konsistent.
+  const stableOptionen = stableAufgabenMitOptionen[current]?.optionen ?? buildOptionen(aufgabe)
 
   return (
     <div className="min-h-screen pt-4 pb-12 px-4">
@@ -597,22 +639,16 @@ function GameEngineInner({
                 feedback={feedback}
                 onAntwort={handleAntwort}
               />
-            ) : format === 'boss_fight' ? (
-              <BossFight
-                text={aufgabe.text}
-                optionen={buildOptionen(aufgabe)}
-                onAntwort={handleAntwort}
-              />
             ) : format === 'sprint_quiz' ? (
               <SprintQuiz
                 text={aufgabe.text}
-                optionen={buildOptionen(aufgabe)}
+                optionen={stableOptionen}
                 onAntwort={handleAntwort}
               />
             ) : format === 'escape_room' ? (
               <EscapeRoom
                 text={aufgabe.text}
-                optionen={buildOptionen(aufgabe)}
+                optionen={stableOptionen}
                 schlossNummer={current + 1}
                 gesamtSchloesser={aufgaben.length}
                 onAntwort={handleAntwort}
@@ -637,7 +673,7 @@ function GameEngineInner({
             ) : format === 'study_bird' || format === 'flappy' ? (
               <StudyBird
                 text={aufgabe.text}
-                optionen={buildOptionen(aufgabe)}
+                optionen={stableOptionen}
                 hilfen={hilfen}
                 feedback={feedback}
                 onAntwort={handleAntwort}
@@ -665,7 +701,7 @@ function GameEngineInner({
                   <MultipleChoice
                     aufgabeId={aufgabe.aufgabe_id}
                     text={aufgabe.text}
-                    optionen={buildOptionen(aufgabe)}
+                    optionen={stableOptionen}
                     mehrfach={false}
                     hilfen={hilfen}
                     feedback={feedback}
@@ -688,7 +724,7 @@ function GameEngineInner({
                   <MultipleChoice
                     aufgabeId={aufgabe.aufgabe_id}
                     text={aufgabe.text}
-                    optionen={buildOptionen(aufgabe)}
+                    optionen={stableOptionen}
                     mehrfach={false}
                     hilfen={hilfen}
                     feedback={feedback}
@@ -711,7 +747,7 @@ function GameEngineInner({
                   <MultipleChoice
                     aufgabeId={aufgabe.aufgabe_id}
                     text={aufgabe.text}
-                    optionen={buildOptionen(aufgabe)}
+                    optionen={stableOptionen}
                     mehrfach={false}
                     hilfen={hilfen}
                     feedback={feedback}
@@ -723,7 +759,7 @@ function GameEngineInner({
               <MultipleChoice
                 aufgabeId={aufgabe.aufgabe_id}
                 text={aufgabe.text}
-                optionen={buildOptionen(aufgabe)}
+                optionen={stableOptionen}
                 mehrfach={format === 'multiple_choice'}
                 hilfen={hilfen}
                 feedback={feedback}

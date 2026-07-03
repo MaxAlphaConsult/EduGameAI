@@ -402,6 +402,8 @@ export interface Klasse {
   name: string
   jahrgangsstufe: string
   fach: string
+  // Seit Migration 021 an der Klasse (vorher pro LernFlow) — bei Altklassen null.
+  schulform: string | null
   erstellt_am: string
 }
 
