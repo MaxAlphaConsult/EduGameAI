@@ -220,30 +220,52 @@ async function callClaude<T>(
     return validiere(schritt, extractJson(text, schritt), schema)
   }
 
-  let response
-  try {
-    response = await getClient().messages.create({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system,
-      messages,
-    })
-  } catch (err) {
-    throw new PipelineApiError(schritt, err)
-  }
-
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  let raw: unknown
-  try {
-    raw = extractJson(text, schritt)
-  } catch (err) {
-    // Kein JSON gefunden UND am Token-Limit gestoppt → Abschneiden ist die Ursache.
-    if (err instanceof PipelineJsonError && response.stop_reason === 'max_tokens') {
-      throw new PipelineTruncationError(schritt, maxTokens)
+  // Bis zu 2 Versuche: intermittierende Modell-Ausrutscher (ungültige Enum-Werte,
+  // kaputtes JSON) sollen NICHT die ganze Erstellung abbrechen. Beim zweiten Versuch
+  // bekommt das Modell einen gezielten Korrektur-Hinweis.
+  const MAX_VERSUCHE = 2
+  let aktuelleMessages: Array<{ role: 'user' | 'assistant'; content: string }> = messages
+  let letzterFehler: unknown
+  for (let versuch = 0; versuch < MAX_VERSUCHE; versuch++) {
+    let response
+    try {
+      response = await getClient().messages.create({
+        model: MODEL,
+        max_tokens: maxTokens,
+        system,
+        messages: aktuelleMessages,
+      })
+    } catch (err) {
+      throw new PipelineApiError(schritt, err)
     }
-    throw err
+
+    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    try {
+      const raw = extractJson(text, schritt)
+      return validiere(schritt, raw, schema)
+    } catch (err) {
+      // Abschneiden am Token-Limit ist nicht durch Wiederholung heilbar.
+      if (err instanceof PipelineJsonError && response.stop_reason === 'max_tokens') {
+        throw new PipelineTruncationError(schritt, maxTokens)
+      }
+      const heilbar = err instanceof PipelineValidationError || err instanceof PipelineJsonError
+      if (!heilbar || versuch === MAX_VERSUCHE - 1) throw err
+      letzterFehler = err
+      // Korrektur-Runde: Modellausgabe + präzisen Hinweis anhängen und erneut anfordern.
+      aktuelleMessages = [
+        ...messages,
+        { role: 'assistant' as const, content: text.slice(0, 6000) },
+        {
+          role: 'user' as const,
+          content:
+            'Deine letzte Antwort war kein gültiges JSON gemäß Schema. Gib das VOLLSTÄNDIGE JSON-Objekt erneut aus. ' +
+            'Verwende für alle Enum-/Auswahlfelder EXAKT einen der erlaubten Werte (kleingeschrieben, snake_case, wie im Prompt vorgegeben) — ' +
+            'keine eigenen Bezeichnungen, keine Großschreibung, keine zusätzlichen Felder, kein Text außerhalb des JSON.',
+        },
+      ]
+    }
   }
-  return validiere(schritt, raw, schema)
+  throw letzterFehler
 }
 
 // --- Schritt 1–6: Materialanalyse ---------------------------
@@ -260,7 +282,11 @@ export async function analyzeMaterial(input: {
       material_abschnitte: input.abschnitte,
       kontext: input.kontext,
     }),
-    AnalyseOutputSchema
+    AnalyseOutputSchema,
+    // Structured Outputs: erzwingt die Enums (z.B. wissensform) API-seitig — ein
+    // ungültiger Wert wie zuvor bei schritt_3_wissensformen ist damit unmöglich.
+    8192,
+    true
   )
 }
 
