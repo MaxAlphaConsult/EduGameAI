@@ -176,8 +176,19 @@ Begründe bei JEDEM `spiel`-Baustein die Passung in `begruendung`. Wenn kein Bau
       "thema": "<konkreter Inhalt dieses Bausteins>",
       "didaktische_funktion": "<Rolle im Lernbogen>",
       "bearbeitungszeit_minuten": 4,
+      "niveau": "reproduktion | anwendung | transfer",
       "begruendung": "<Warum dieser Baustein hier; bei 'spiel': Passungsbegründung>"
     }
   ]
 }
 ```
+
+**`niveau` — Pflicht bei jedem Baustein, MUSS über die Sequenz ansteigen:**
+- `reproduktion`: erkennen, benennen, wiedergeben (leicht, konkret) — für die frühen Bausteine.
+- `anwendung`: anwenden, erklären, zuordnen, übertragen auf bekannte Fälle (mittel) — für die Mitte.
+- `transfer`: analysieren, bewerten, auf NEUE Situationen übertragen, begründen (anspruchsvoll) — für späte Bausteine.
+
+Vergib die Niveaus **monoton steigend** entlang der `position` (nicht 3× dasselbe Niveau hintereinander,
+außer der Stoff gibt es didaktisch nicht her). Ein `post_check` darf das höchste erreichte Niveau prüfen.
+Das Niveau steuert später die Schwierigkeit der Aufgaben in genau diesem Baustein — so entsteht echte
+Progression statt ähnlicher Wiederholung.

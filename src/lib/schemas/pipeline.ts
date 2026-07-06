@@ -307,6 +307,9 @@ export const BausteinSequenzOutputSchema = z.object({
     thema: z.string().min(1),
     didaktische_funktion: z.string().min(1),
     bearbeitungszeit_minuten: z.number().positive(),
+    // Progressions-Niveau des Bausteins — steigt über die Sequenz an (leicht→komplex).
+    // Optional: fehlt es, leitet die Generierung es aus der Position ab.
+    niveau: z.enum(['reproduktion', 'anwendung', 'transfer']).optional(),
     // Bei 'spiel': kurze Begründung der Passung; sonst Rolle im Lernbogen.
     begruendung: z.string().min(1),
   })).min(1),
