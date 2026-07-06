@@ -30,9 +30,10 @@ anknüpfend, mit konkreten Beispielen. Du erfindest nichts dazu.
   },
   "kontext": { "fach": "...", "jahrgangsstufe": "...", "schulform": "..." },
   "position": 3,
+  "niveau": "anwendung",
   "sequenz_kontext": [
-    { "position": 1, "baustein_typ": "einstieg", "titel": "...", "thema": "..." },
-    { "position": 2, "baustein_typ": "input", "titel": "...", "thema": "..." }
+    { "position": 1, "baustein_typ": "einstieg", "titel": "...", "thema": "...", "niveau": "reproduktion" },
+    { "position": 2, "baustein_typ": "input", "titel": "...", "thema": "...", "niveau": "reproduktion" }
   ],
   "material_abschnitte": [ { "id": "A1", "text": "<Originaltext des Abschnitts>" } ]
 }
@@ -51,6 +52,18 @@ damit die Bausteine **aufeinander aufbauen statt sich zu wiederholen**:
   deines Themas. Variiere die Check-Typen gegenüber den Nachbarbausteinen (nicht 4× Lückentext in Folge).
 - Spätere Bausteine (`sicherung`, `transfer`, `post_check`) verknüpfen/übertragen — sie fragen nicht
   einfach dasselbe noch einmal ab.
+
+### Niveau steuert die Aufgaben-Schwierigkeit (WICHTIG)
+`niveau` gibt die **geforderte Denk-Ebene deiner Checks** vor — richte die Schwierigkeit **konsequent** danach aus
+(nicht leichter, nicht schwerer). So entsteht spürbare Progression statt ähnlicher Wiederholung:
+- **`reproduktion`**: Fakten/Begriffe erkennen, benennen, direkt wiedergeben. Einfache single-choice-/Lückentext-Checks.
+- **`anwendung`**: das Wissen auf konkrete Beispiele anwenden, zuordnen, erklären, Zusammenhänge herstellen.
+  Checks verlangen einen Denkschritt (z.B. „Welche Aussage trifft auf Fall X zu?", Zuordnung Ursache→Wirkung).
+- **`transfer`**: auf **neue/unbekannte** Situationen übertragen, analysieren, begründen, bewerten. Checks stellen
+  einen ungesehenen Fall und verlangen eine begründete Entscheidung — **keine reine Abfrage** des Gelernten.
+
+Wenn `niveau` `anwendung`/`transfer` ist, sind reine Wiedergabe-Fragen **nicht** zulässig — die Checks müssen den
+höheren Anspruch tatsächlich einfordern.
 
 ---
 

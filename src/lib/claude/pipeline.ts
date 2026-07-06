@@ -400,7 +400,9 @@ export async function generateInputBaustein(input: {
   kontext: { fach: string; jahrgangsstufe: string; schulform: string }
   // Position dieses Bausteins + Gesamtsequenz — für Progression ohne Wiederholung.
   position?: number
-  sequenzKontext?: { position: number; baustein_typ: string; titel: string; thema: string }[]
+  // Progressions-Niveau dieses Bausteins (steuert die Aufgaben-Schwierigkeit).
+  niveau?: 'reproduktion' | 'anwendung' | 'transfer'
+  sequenzKontext?: { position: number; baustein_typ: string; titel: string; thema: string; niveau?: string }[]
   // C1-Grounding: die Quell-Abschnitte, an denen Texte + Checks zu erden sind.
   abschnitte?: { id: string; text: string }[]
 }): Promise<LernEinheitOutput> {
@@ -413,6 +415,7 @@ export async function generateInputBaustein(input: {
       baustein: input.baustein,
       kontext: input.kontext,
       position: input.position ?? null,
+      niveau: input.niveau ?? null,
       sequenz_kontext: input.sequenzKontext ?? null,
       material_abschnitte: input.abschnitte ?? null,
     }),

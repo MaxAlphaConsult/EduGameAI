@@ -138,10 +138,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     if (game.baustein_typ !== 'spiel') {
       // Gesamtsequenz als Kontext → jeder Baustein baut auf die anderen auf,
-      // statt Inhalte/Fragen zu wiederholen (Progression).
-      const sequenzKontext = [...raw.sequenz.bausteine]
-        .sort((a, b) => a.position - b.position)
-        .map((b) => ({ position: b.position, baustein_typ: b.baustein_typ, titel: b.titel, thema: b.thema }))
+      // statt Inhalte/Fragen zu wiederholen (Progression). Inkl. Niveau je Baustein.
+      const geordnet = [...raw.sequenz.bausteine].sort((a, b) => a.position - b.position)
+      // Niveau ableiten, falls die Planung keins gesetzt hat (Position im Verlauf).
+      const niveauAusPosition = (pos: number): 'reproduktion' | 'anwendung' | 'transfer' => {
+        const frac = geordnet.length > 1 ? (pos - 1) / (geordnet.length - 1) : 0
+        return frac <= 0.4 ? 'reproduktion' : frac <= 0.75 ? 'anwendung' : 'transfer'
+      }
+      const sequenzKontext = geordnet.map((b) => ({
+        position: b.position, baustein_typ: b.baustein_typ, titel: b.titel, thema: b.thema,
+        niveau: b.niveau ?? niveauAusPosition(b.position),
+      }))
+      const niveau = descriptor.niveau ?? niveauAusPosition(reihenfolge)
       const inhalt = await generateInputBaustein({
         analyse: raw.analyse,
         lernziel: raw.lernziel,
@@ -153,6 +161,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
         kontext: { fach: kontext.fach, jahrgangsstufe: kontext.jahrgangsstufe, schulform: kontext.schulform },
         position: reihenfolge,
+        niveau,
         sequenzKontext,
         abschnitte,
       })
@@ -206,13 +215,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         lernpfad: raw.lernpfad,
         spielmapping,
         kontext: { jahrgangsstufe: kontext.jahrgangsstufe, fach: kontext.fach, zeitrahmenMinuten: kontext.zeitrahmenMinuten },
-        erlaubteFormate: raw.erlaubteFormate ?? undefined,
+        // Spiel-Bausteine als Single-Choice generieren → werden unten in ein echtes
+        // Arcade-Spiel (Space Invaders / Boss Fight / Sprint-Quiz) verwandelt. Damit ist
+        // in JEDEM LernFlow Arcade garantiert. Die Vielfalt der Aufgabenformate lebt in
+        // den Lern-Einheiten (Quiz/Lücken/Zuordnen/Unterstreichen), nicht in den Spielen.
+        erlaubteFormate: ['single_choice'],
         abschnitte,
       })
       // C2: Aufgaben gegen die Quelle prüfen — nicht gegründete verwerfen
       // (mind. 1 Aufgabe bleibt, sonst nur markieren).
       const { aufgaben: gegruendeteAufgaben, grounding } = await groundeAufgaben(spiel.schritt_14_aufgaben, 1)
-      const spielFinal: SpielOutput = { ...spiel, schritt_14_aufgaben: gegruendeteAufgaben }
+
+      // ── Arcade-Garantie (Schüler-Motivation Nr. 1) ──────────────────
+      // Spiel-Bausteine mit Single-Choice-Datenform werden als ECHTES Arcade-Spiel
+      // gerendert (gleiche Daten, nur eine motivierende Mechanik). So ist in jedem
+      // LernFlow tatsächlich Arcade vorhanden — unabhängig davon, was das Spielmapping
+      // vorgeschlagen hätte. Zuordnung/Lückentext/Reihenfolge bleiben unangetastet
+      // (deren Datenform passt nicht auf ein Arcade-Spiel).
+      const ARCADE_ROTATION = ['space_invaders', 'boss_fight', 'sprint_quiz'] as const
+      const istSingleChoiceForm =
+        gegruendeteAufgaben.length > 0 &&
+        gegruendeteAufgaben.every((a) => a.loesungen.length === 1 && a.distraktoren.length >= 1)
+      const schonArcade = gegruendeteAufgaben.every((a) =>
+        (['space_invaders', 'boss_fight', 'sprint_quiz', 'escape_room', 'study_bird', 'hangman'] as string[]).includes(a.antwortformat),
+      )
+      const finaleAufgaben = istSingleChoiceForm && !schonArcade
+        ? gegruendeteAufgaben.map((a) => ({ ...a, antwortformat: ARCADE_ROTATION[spielIndex % ARCADE_ROTATION.length] }))
+        : gegruendeteAufgaben
+      const spielFinal: SpielOutput = { ...spiel, schritt_14_aufgaben: finaleAufgaben }
       const row = buildSpielRow(game.analyse_id as string, user.id, spielFinal, spielmapping, descriptor.titel)
       const { error: upErr } = await supabase
         .from('games')
