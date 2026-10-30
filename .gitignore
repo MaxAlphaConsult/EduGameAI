@@ -23,7 +23,8 @@
 # misc
 .DS_Store
 *.pem
-.claude/
+.claude/*
+!.claude/skills/
 
 # debug
 npm-debug.log*
