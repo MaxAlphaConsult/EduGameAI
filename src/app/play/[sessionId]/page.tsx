@@ -162,6 +162,21 @@ export default function FlowPlayerPage({ params }: { params: Promise<{ sessionId
           currentModuleSessionId: modulInhalt.moduleSessionId,
         }),
       })
+      // 409: Dieses Modul ist schon abgeschlossen, etwa weil die erste Anfrage
+      // ankam, ihre Antwort aber nicht. Dann den Stand vom Server übernehmen,
+      // statt mit einem Fehler stehen zu bleiben.
+      if (res.status === 409) {
+        const stand = await fetch(`/api/student/session/${flowState.studentSessionId}`, { cache: 'no-store' })
+        if (!stand.ok) throw new Error('Übergang fehlgeschlagen')
+        const s = await stand.json()
+        if (s.abgeschlossen || !s.aktuelles_modul) {
+          setPhase('fertig')
+          return
+        }
+        setAktuell(s.aktuelles_modul)
+        setFlowState((f) => f ? { ...f, position: s.aktuelles_modul_index } : f)
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? 'Übergang fehlgeschlagen')
