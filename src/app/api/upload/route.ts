@@ -11,9 +11,10 @@ const MAX_DATEIGROESSE_BYTES = 20 * 1024 * 1024 // 20 MB
 const MIN_DATEIGROESSE_BYTES = 16
 const BUCKET = 'materials'
 
-// Der Browser lädt die Datei direkt in den Storage-Bucket (am Vercel-Body-Limit von
-// ~4,5 MB vorbei) und schickt hier nur noch den Pfad als JSON. Wir laden die Datei
-// serverseitig, extrahieren den Text und löschen die Datei danach wieder.
+// Der Browser lädt die Datei direkt in den Storage-Bucket und schickt hier nur noch
+// den Pfad als JSON. Wir laden die Datei serverseitig, extrahieren den Text und
+// löschen die Datei danach wieder. Eingeführt wegen des Body-Limits von Vercel
+// (~4,5 MB); bleibt so, weil große Dateien dann nicht durch den App-Server laufen.
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Datei aus dem Storage laden (Server↔Supabase, kein Vercel-Body-Limit).
+    // Datei aus dem Storage laden (Server↔Supabase).
     const { data: blob, error: downloadError } = await supabase.storage.from(BUCKET).download(path)
     if (downloadError || !blob) {
       return NextResponse.json({ error: 'Hochgeladene Datei nicht gefunden' }, { status: 404 })

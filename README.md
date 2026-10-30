@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EduGame AI
 
-## Getting Started
+Lernplattform für Lehrkräfte: Aus hochgeladenem Unterrichtsmaterial erzeugt
+Claude einen LernFlow aus Lern-Einheiten und Spielen. Die Lehrkraft prüft und
+gibt ihn für eine Klasse frei. Schülerinnen und Schüler melden sich ohne Konto
+mit einem 8-stelligen Spielcode und ihrem persönlichen Tier-Code an.
 
-First, run the development server:
+## Aufbau
+
+| Teil | Technik |
+|---|---|
+| Anwendung | Next.js 16 (App Router), React 19, Tailwind 4 |
+| Datenbank, Anmeldung, Dateiablage | Supabase (EU), Projekt `yttcljtkydirlkibqpgy` |
+| KI | Anthropic SDK, Prompts in `prompts/` |
+| Betrieb | Railway, Docker-Image aus `Dockerfile`, Auto-Deploy von `main` |
+| Rate-Limit | Upstash Redis, ohne Variablen im Speicher (`src/lib/rate-limit*.ts`) |
+
+Die Zugriffskontrolle liegt in der Datenbank (RLS). Die App nutzt keinen
+Service-Key. Schüler laufen als Rolle `anon` und greifen nur über die
+`schueler_*`-Funktionen (Migration 022) auf ihre Sitzung zu.
+
+## Lokal starten
 
 ```bash
+npm ci
+cp .env.example .env.local   # Werte eintragen, nie committen
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Prüfen
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx tsc --noEmit
+npm run lint
+npm test                     # Vitest
+npm run verify:rls           # alle Migrationen in PGlite, RLS als anon/Lehrkraft
+npm run check:migrations     # Nummernkollisionen
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`npm run verify:rls -- --bis 021` spielt die Migrationen nur bis zur genannten
+Nummer ab. So lässt sich zeigen, dass eine Prüfung ohne die neue Migration rot ist.
 
-## Learn More
+## Datenbank
 
-To learn more about Next.js, take a look at the following resources:
+Migrationen liegen nummeriert in `supabase/migrations/`. Angewendet werden sie
+im SQL-Editor des Supabase-Projekts, additive Änderungen **vor** dem Merge.
+Weitere Hinweise: `supabase/README.md`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Weitere Dokumente
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `ROADMAP.md`, `PHASES.md`: Produkt- und Phasenplan
+- `docs/RAILWAY_MIGRATION.md`: Umzug von Vercel auf Railway (abgeschlossen)
+- `.claude/skills/edugame-design/`: Gestaltungsregeln für die Oberfläche

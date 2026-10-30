@@ -1,14 +1,19 @@
 # Railway-Migration — Runbook
 
+**Stand 30.10.2026: abgeschlossen.** Railway ist die einzige Plattform
+(`edugame-ai-production.up.railway.app`, Auto-Deploy von `main` über das
+Dockerfile). Vercel wird nicht mehr genutzt; die `VERCEL`-Weiche in
+`next.config.ts` ist entfernt. Der Text unten beschreibt den Umzug, wie er
+vorbereitet wurde, und bleibt als Nachweis stehen.
+
 Umzug von Vercel auf Railway (Container). Ziel: Weg vom 300s-Function-Limit,
-alles auf einer Plattform. Die Vorbereitung ist **additiv** — Vercel läuft
-unverändert weiter, bis der Cutover bewusst erfolgt.
+alles auf einer Plattform.
 
 ## Was vorbereitet wurde
 
 | Datei | Zweck |
 |---|---|
-| `next.config.ts` | `output: "standalone"` **nur** wenn nicht auf Vercel (`process.env.VERCEL`). Vercel-Build unverändert. |
+| `next.config.ts` | `output: "standalone"` (bis 30.10.2026 nur, wenn nicht auf Vercel). |
 | `Dockerfile` | 3-stufiger Build (deps → build → runtime) auf Standalone-Basis, non-root, Node 22. Kopiert `prompts/` explizit als Sicherheitsnetz (Pipeline liest sie dynamisch). |
 | `.dockerignore` | Hält Secrets & Ballast aus dem Build-Kontext. |
 | `railway.json` | Builder = Dockerfile, Healthcheck `/api/health`, Restart-Policy. |
@@ -78,8 +83,8 @@ Railway messen, dann entscheiden.
 
 ## Rollback
 
-DNS zurück auf Vercel (deshalb Vercel-Projekt behalten und TTL niedrig).
-Kein Code-Rollback nötig — die Änderungen sind Vercel-neutral.
+Seit 30.10.2026 gibt es keinen Rückweg zu Vercel mehr. Rollback heißt: einen
+älteren Commit auf Railway erneut ausrollen.
 
 ## Lokaler Container-Test
 

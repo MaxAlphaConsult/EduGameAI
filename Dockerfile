@@ -2,7 +2,6 @@
 
 # ------------------------------------------------------------------------------
 # EduGame AI — Container-Image für Railway (und jede andere Node-Plattform).
-# Vercel nutzt dieses Dockerfile NICHT — dort läuft der Build unverändert weiter.
 #
 # Mehrstufiger Build auf Basis des Next.js-"standalone"-Outputs (next.config.ts).
 # Ergebnis: schlankes Runtime-Image ohne dev-Dependencies und ohne vollständige
