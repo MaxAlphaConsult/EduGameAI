@@ -63,9 +63,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (weiterErr) {
-      // 40001: Die übergebene Modul-Sitzung ist nicht mehr die aktuelle,
-      // etwa nach einem zweiten Klick auf „Weiter".
-      if (weiterErr.code === '40001') {
+      // PT409: Die übergebene Modul-Sitzung ist nicht mehr die aktuelle,
+      // etwa nach einem zweiten Klick auf „Weiter". Bis Migration 024 kam
+      // dafür 40001, das PostgREST bis zum Timeout wiederholt.
+      if (weiterErr.code === 'PT409' || weiterErr.code === '40001') {
         return NextResponse.json({ error: 'Modul wurde schon abgeschlossen' }, { status: 409 })
       }
       if (weiterErr.code === '55000') {
