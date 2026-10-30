@@ -1,0 +1,235 @@
+name: CI
+
+# Übernommen aus GateSign (.github/workflows/ci.yml), zugeschnitten auf EduGame.
+# Herkunft und Abweichungen: HERKUNFT.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    # `labeled`/`unlabeled` gehören dazu, damit das DDL-Gate unten sofort neu
+    # läuft, wenn die Freigabe-Marke gesetzt wird. (`opened`, `synchronize`,
+    # `reopened` sind GitHubs Standard und müssen bei einer eigenen Liste mit
+    # aufgezählt werden.)
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  # Von Hand startbar: Fällt Actions bei einem Merge aus, lässt sich das Urteil
+  # über main nachholen (in GateSign am 09.09.2026 so gebraucht).
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Fremde Actions sind auf einen Commit-SHA gepinnt, der Kommentar dahinter nennt
+# die Version. Ein Tag wie `v7` kann umgehängt werden, ein SHA nicht.
+# Beim Heben SHA UND Kommentar ändern; Dependabot macht beides
+# (Ökosystem `github-actions` in dependabot.yml).
+
+jobs:
+  typecheck:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22' # wie im Dockerfile
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Fehler blockieren, Warnungen nicht. Die React-Compiler-Regeln gelten für
+    # zwölf Bestandsdateien nur als Warnung (Liste in eslint.config.mjs).
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+
+  unit-tests:
+    name: Unit-Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Vitest
+        run: npm test
+        env:
+          CI: true
+
+  datenbank:
+    name: Datenbank (Migrationen + RLS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Nicht in GateSign. Spielt alle Migrationen in PGlite ab und prüft die
+    # Zugriffsregeln als anon und als Lehrkraft (scripts/verify-rls.mjs). Ohne
+    # Prod-Zugang und ohne Docker. Hätte die Lücke vom 30.10.2026 gezeigt.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Nummern-Präfixe
+        run: npm run check:migrations
+      - name: RLS über alle Migrationen
+        run: npm run verify:rls
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Nicht in GateSign. Railway baut nach dem Merge selbst; ein Fehler fiele
+    # dort erst nach dem Merge auf. Die NEXT_PUBLIC-Werte sind Platzhalter: Der
+    # Build braucht nur ihre Form, keine echte Verbindung (am 30.10.2026 lokal
+    # ohne .env.local gemessen: Build grün).
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: next build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://platzhalter.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: platzhalter
+          NEXT_TELEMETRY_DISABLED: 1
+
+  ddl-freigabe:
+    name: DDL-Freigabe
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Blockiert den Merge, solange ein PR eine neue Migration mitbringt und
+    # niemand bestätigt hat, dass sie auf Prod angewendet wurde.
+    #
+    # Warum: Der Code, der eine neue Funktion oder Spalte nutzt, geht mit dem
+    # Merge live. Steht die Migration dann noch nicht auf Prod, läuft er ins
+    # Leere (GateSign, 10.08.2026: Zwei-Faktor-Anmeldung ohne ihre Tabellen).
+    # In EduGame wurden 022 und 024 deshalb vor dem Merge angewendet.
+    #
+    # Die Marke `ddl-auf-prod` ist eine Zusage eines Menschen, keine Messung:
+    # CI hat bewusst keinen Zugang zur Prod-Datenbank. Migrationen, die erst
+    # NACH dem Deploy laufen dürfen (z. B. 023: Policies entfernen), bekommen
+    # die Marke trotzdem und stehen mit der Reihenfolge im PR-Text.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Basis-Commit mitholen, sonst gibt es keinen Vergleichspunkt.
+          fetch-depth: 0
+      # Werte aus dem github-Kontext gehen über `env` in die Shell, nie per
+      # ${{ }} direkt in den Skripttext: Ein PR könnte eine Migrationsdatei mit
+      # Shell-Metazeichen im Namen anlegen und damit Befehle einschleusen.
+      - name: Neue Migrationen im PR finden
+        id: migrationen
+        env:
+          BASIS: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -z "$BASIS" ]; then
+            echo "geaendert=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ANZAHL=$(git diff --name-only --diff-filter=A "$BASIS" HEAD -- 'supabase/migrations/*.sql' | wc -l | tr -d ' ')
+          echo "geaendert=$ANZAHL" >> "$GITHUB_OUTPUT"
+          if [ "$ANZAHL" != "0" ]; then
+            echo "Neue Migration(en) in diesem PR:"
+            git diff --name-only --diff-filter=A "$BASIS" HEAD -- 'supabase/migrations/*.sql' | sed 's/^/    /'
+          else
+            echo "Keine neue Migration in diesem PR."
+          fi
+      # Prüft die NEUEN Dateien gegen die Nummern auf dem Zielbranch. Die alten
+      # Doppelungen 010/011 stören dabei nicht: Sie liegen schon auf main und
+      # sind keine neuen Dateien (check-migrations.mjs führt sie als bekannt).
+      - name: Nummernkollision prüfen
+        if: steps.migrationen.outputs.geaendert != '0' && steps.migrationen.outputs.geaendert != ''
+        env:
+          BASIS: ${{ github.event.pull_request.base.sha }}
+        run: |
+          NEUE=$(git diff --name-only --diff-filter=A "$BASIS" HEAD -- 'supabase/migrations/*.sql')
+          VERGEBEN=$(git ls-tree --name-only "$BASIS" supabase/migrations/ \
+            | sed -n 's#.*/\([0-9][0-9]*\)_.*\.sql$#\1#p' | sort -u)
+          HOECHSTE=0
+          for N in $VERGEBEN; do
+            [ "$((10#$N))" -gt "$HOECHSTE" ] && HOECHSTE=$((10#$N))
+          done
+          KOLLISION=0
+          GESEHEN=""
+          while IFS= read -r DATEI; do
+            [ -z "$DATEI" ] && continue
+            NAME=${DATEI##*/}
+            NR=${NAME%%_*}
+            case "$NR" in
+              ''|*[!0-9]*)
+                echo "✗ $DATEI beginnt nicht mit einer Nummer."
+                echo "  Erwartet wird 'NNN_beschreibung.sql', sonst ist die Reihenfolge offen."
+                KOLLISION=1
+                continue
+                ;;
+            esac
+
+            ALT=$(git ls-tree --name-only "$BASIS" supabase/migrations/ | grep "/${NR}_" || true)
+            if [ -n "$ALT" ]; then
+              echo "✗ $DATEI"
+              echo "  Nummer $NR ist auf dem Zielbranch schon vergeben:"
+              printf '%s\n' "$ALT" | sed 's/^/      /'
+              KOLLISION=1
+            fi
+
+            if printf '%s\n' "$GESEHEN" | grep -qx "$NR"; then
+              echo "✗ Nummer $NR kommt in diesem PR zweimal vor."
+              KOLLISION=1
+            fi
+            GESEHEN=$(printf '%s\n%s' "$GESEHEN" "$NR")
+            [ "$((10#$NR))" -gt "$HOECHSTE" ] && HOECHSTE=$((10#$NR))
+          # Prozess-Substitution statt Pipe: eine Pipe würde die Schleife in eine
+          # Subshell legen, KOLLISION wäre danach wieder leer und der Check
+          # meldete immer grün.
+          done < <(printf '%s\n' "$NEUE")
+
+          if [ "$KOLLISION" != "0" ]; then
+            echo ""
+            echo "Nächste freie Nummer: $(printf '%03d' "$((HOECHSTE + 1))")"
+            echo "Umbenennen mit 'git mv' und den Dateinamen im Kommentarkopf mitziehen."
+            exit 1
+          fi
+          echo "✓ Keine Nummernkollision."
+      - name: Freigabe prüfen
+        if: steps.migrationen.outputs.geaendert != '0' && steps.migrationen.outputs.geaendert != ''
+        env:
+          MARKEN: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BASIS: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if printf ',%s,' "$MARKEN" | grep -q ',ddl-auf-prod,'; then
+            echo "✓ Marke 'ddl-auf-prod' gesetzt — Migration gilt als angewendet."
+            exit 0
+          fi
+          echo "✗ Dieser PR bringt eine neue Migration mit:"
+          git diff --name-only --diff-filter=A "$BASIS" HEAD -- 'supabase/migrations/*.sql' | sed 's/^/    /'
+          echo ""
+          echo "Additive DDL muss VOR dem Merge auf Prod angewendet sein"
+          echo "(SQL-Editor von yttcljtkydirlkibqpgy, kein 'db push')."
+          echo ""
+          echo "Danach die Marke 'ddl-auf-prod' an den PR hängen — dieser Check"
+          echo "läuft dann von selbst erneut. Nicht 'Re-run job' klicken: ein Re-run"
+          echo "wiederholt den Lauf mit dem alten Stand, in dem die Marke noch fehlt."
+          exit 1

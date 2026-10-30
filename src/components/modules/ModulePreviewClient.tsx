@@ -42,7 +42,7 @@ export function ModulePreviewClient({ modulId, titel, gameSkin, aufgaben, bauste
           <span className="text-lg">👁️</span>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold" style={{ color: '#92400E' }}>
-              Vorschau: „{titel}"
+              Vorschau: „{titel}“
             </p>
             <p className="text-xs" style={{ color: '#B45309' }}>
               Du spielst hier wie ein Schüler. Antworten fließen NICHT in die Diagnostik.

@@ -405,7 +405,7 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
                 ))}
               </ul>
               <p className="text-xs mt-2" style={{ color: '#7A6A94' }}>
-                Der Check schaut nur diesen Baustein an. Wissen, das ein anderer Baustein des LernFlows aufbaut, kann hier trotzdem als „fehlend" markiert sein — das ist nicht zwingend ein Problem.
+                Der Check schaut nur diesen Baustein an. Wissen, das ein anderer Baustein des LernFlows aufbaut, kann hier trotzdem als „fehlend“ markiert sein — das ist nicht zwingend ein Problem.
               </p>
             </section>
           )}
@@ -474,7 +474,7 @@ export function LehrkraftCheckPanel({ spielId, initialStatus }: Props) {
               {improveResult.gesamtbegruendung}
             </p>
             <div className="rounded-lg px-3 py-2 mt-3 text-xs" style={{ background: '#FFFFFF', border: '1px solid #C4B5FD', color: '#5B21B6' }}>
-              <strong>So funktioniert&apos;s:</strong> Jeder Vorschlag hat eine Checkbox. Hak die an, die übernommen werden sollen. Beim Klick auf <strong>„Übernehmen"</strong> ganz unten werden deine alten Aufgaben durch die neuen ersetzt — du siehst sie direkt danach in der Aufgaben-Liste oben.
+              <strong>So funktioniert&apos;s:</strong> Jeder Vorschlag hat eine Checkbox. Hak die an, die übernommen werden sollen. Beim Klick auf <strong>„Übernehmen“</strong> ganz unten werden deine alten Aufgaben durch die neuen ersetzt — du siehst sie direkt danach in der Aufgaben-Liste oben.
             </div>
           </div>
 

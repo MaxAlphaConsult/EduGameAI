@@ -1,0 +1,141 @@
+name: Security
+
+# Übernommen aus GateSign (.github/workflows/security.yml), zugeschnitten auf
+# EduGame. Herkunft und Abweichungen: HERKUNFT.md.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Wöchentlicher Voll-Scan (Mo 06:00 UTC): fängt neue Advisories auch ohne
+    # Code-Änderung, weil die Advisory-DB unabhängig aktualisiert wird.
+    - cron: '0 6 * * 1'
+  workflow_dispatch: {}
+
+# ZWEI MODI:
+#
+# SCHARF: `secret-scan` (gitleaks). Ein Fund färbt den Check rot und blockiert den
+# Merge. Ausgangslage am 30.10.2026: gesamte Historie (149 Commits inkl. aller
+# PR-Refs) ohne Fund, deshalb ohne Ausnahmeliste.
+#
+# OBSERVE: `dependency-audit`. Auf PRs zählen nur NEU eingeführte High/Critical;
+# auf main nur melden; wöchentlich voll und laut. Ein Audit-Ergebnis hängt an der
+# Advisory-DB, nicht am Commit, und taugt darum nicht als Tor.
+#
+# Zum Mechanismus: `continue-on-error` macht einen Check-Run NICHT grün, es hält
+# nur den Workflow grün. Wer „soll nicht blockieren" meint, muss den Exitcode
+# neutralisieren (siehe die Audit-Schritte).
+#
+# Kein Job braucht Secrets oder greift auf Produktion zu.
+#
+# Noch nicht übernommen: Semgrep (SAST) mit Bericht-Issue. Braucht in GateSign
+# scripts/sicherheitsbericht.mjs und eine Baseline-Triage; eigener Schritt.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Volle Historie: Auf PRs werden die Commits des PRs einzeln geprüft.
+          fetch-depth: 0
+      - name: gitleaks laden
+        # Binary direkt statt Action (keine Lizenz für Orgs nötig). Wiederhol-
+        # versuche nur für den Download: Ein Netz-Aussetzer bei GitHub-Releases
+        # hat in GateSign am 12.08.2026 diesen Job rot gefärbt.
+        #
+        # Abweichung von GateSign: Die Prüfsumme wird geprüft. Sie stammt aus
+        # gitleaks_8.21.2_checksums.txt des offiziellen Releases (30.10.2026).
+        run: |
+          VERSION=8.21.2
+          SHA256=5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors --max-time 120 \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            -o /tmp/gitleaks.tar.gz
+          echo "${SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+      - name: Dateibestand scannen
+        # Der Scan wird bewusst NICHT wiederholt: gitleaks endet bei einem Fund
+        # mit 1, ein zweiter Versuch würde einen Treffer verschleiern.
+        run: /tmp/gitleaks detect --no-git --source . --config .gitleaks.toml --redact --verbose
+      - name: Commits des PRs scannen
+        # Abweichung von GateSign: Das Repo ist öffentlich. Ein Schlüssel, der in
+        # einem Commit dazukommt und im nächsten wieder entfernt wird, steht im
+        # Dateibestand nicht mehr, aber für immer in der öffentlichen Historie.
+        if: github.event_name == 'pull_request'
+        env:
+          BASIS: ${{ github.event.pull_request.base.sha }}
+          KOPF: ${{ github.event.pull_request.head.sha }}
+        run: /tmp/gitleaks detect --source . --log-opts="${BASIS}..${KOPF}" --config .gitleaks.toml --redact --verbose
+
+  dependency-audit:
+    name: Dependency Audit (npm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      # main-Push: melden, nicht fehlschlagen. Ein roter Check auf main sagt
+      # nichts über den Commit, nur über die Advisory-DB von heute.
+      - name: npm audit — Voll-Scan (main, nur melden)
+        if: github.event_name == 'push'
+        run: |
+          npm audit --audit-level=high \
+            || echo "::warning title=npm audit::High/Critical im Abhängigkeitsbaum — Details im Log. Wird im wöchentlichen Voll-Scan laut."
+      # Zeitplan/manuell: laut. Daran hängt kein Deploy.
+      - name: npm audit — Voll-Scan (wöchentlich, laut)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: npm audit --audit-level=high
+      # PRs: nur High/Critical, die DIESER PR neu einführt (Vergleich gegen die
+      # Ziel-Branch). Vorbestehende Lücken auf main röten den PR nicht.
+      - name: npm audit — nur neu eingeführte High/Critical (PRs)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          hc_ids() { # High/Critical-Advisory-IDs aus einem npm-audit-JSON, sortiert+uniq
+            jq -r '[.vulnerabilities[]?.via[]? | select(type=="object")
+                    | select(.severity=="high" or .severity=="critical")
+                    | (.url // (.source|tostring))] | unique | .[]' "$1" 2>/dev/null | sort -u || true
+          }
+          mkdir -p /tmp/pr /tmp/base
+          cp package.json package-lock.json /tmp/pr/
+          ( cd /tmp/pr && npm audit --json > audit.json 2>/dev/null || true )
+          git fetch --no-tags --depth=1 origin "$BASE_REF" || true
+          git show "origin/$BASE_REF:package.json"      > /tmp/base/package.json      2>/dev/null || true
+          git show "origin/$BASE_REF:package-lock.json" > /tmp/base/package-lock.json 2>/dev/null || true
+          ( cd /tmp/base && npm audit --json > audit.json 2>/dev/null || true )
+          # Baseline nicht auswertbar (Fetch-/Audit-Panne) -> nicht fälschlich röten.
+          if ! jq -e '.vulnerabilities' /tmp/base/audit.json >/dev/null 2>&1; then
+            echo "::warning::Baseline ($BASE_REF) nicht auswertbar — Delta-Check übersprungen."
+            exit 0
+          fi
+          hc_ids /tmp/pr/audit.json   > /tmp/pr-ids.txt
+          hc_ids /tmp/base/audit.json > /tmp/base-ids.txt
+          echo "::group::High/Critical im PR";                 cat /tmp/pr-ids.txt   || true; echo "::endgroup::"
+          echo "::group::High/Critical bereits in $BASE_REF";  cat /tmp/base-ids.txt || true; echo "::endgroup::"
+          NEW="$(comm -23 /tmp/pr-ids.txt /tmp/base-ids.txt || true)"
+          if [ -n "$NEW" ]; then
+            echo "::error::Dieser PR führt NEUE High/Critical-Advisories ein:"
+            printf '  %s\n' "$NEW"
+            echo "Bitte beheben (npm audit fix bzw. overrides). Vorbestehende Lücken auf main zählen hier nicht."
+            exit 1
+          fi
+          echo "✓ Keine neu eingeführten High/Critical-Advisories."

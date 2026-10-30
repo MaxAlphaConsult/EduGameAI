@@ -1,0 +1,12 @@
+# Konfiguration für gitleaks — Job "Secret Scan" in .github/workflows/security.yml.
+#
+# Übernommen aus GateSign (.gitleaks.toml), aber OHNE dessen Ausnahme: Die galt
+# Produkt-Slugs im GateSign-Zubehörkatalog, die es hier nicht gibt.
+#
+# Ausgangslage am 30.10.2026: gesamte Historie (149 Commits inkl. aller PR-Refs)
+# mit den Standardregeln ohne Fund. Eine Ausnahme kommt nur dazu, wenn ein
+# Fehlalarm belegt ist, und dann als enges Muster, nie als Pfad: Eine
+# Pfad-Ausnahme macht die ganze Datei blind.
+
+[extend]
+useDefault = true
