@@ -6,9 +6,10 @@ import { rateLimit as memRateLimit } from './rate-limit'
 // auf Node- UND Edge-Runtime).
 //
 // Warum durable: Die Next-Proxy-Doku warnt ausdrücklich davor, sich in der
-// Proxy/Middleware auf geteilten Modul-/Global-State zu verlassen — auf Vercel
-// ist In-Memory pro Lambda-Instanz und flüchtig. Ein Enumeration-/Brute-Force-
-// Guard braucht aber einen Zähler, den sich alle Instanzen teilen.
+// Proxy/Middleware auf geteilten Modul-/Global-State zu verlassen — In-Memory
+// gilt nur je Prozess und ist nach einem Neustart oder bei mehreren Instanzen
+// weg. Ein Enumeration-/Brute-Force-Guard braucht aber einen Zähler, den sich
+// alle Instanzen teilen.
 //
 // Fehlen die Upstash-Env-Variablen (lokal, Preview, oder noch nicht
 // provisioniert), fällt der Limiter transparent auf den In-Memory-Limiter

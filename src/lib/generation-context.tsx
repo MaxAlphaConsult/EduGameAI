@@ -97,7 +97,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         throw new Error(`Datei zu groß (${mb} MB). Maximal 20 MB erlaubt.`)
       }
 
-      // Direkt in Supabase Storage laden — am Vercel-Body-Limit (~4,5 MB) vorbei.
+      // Direkt in Supabase Storage laden, nicht durch den App-Server (siehe /api/upload).
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Nicht angemeldet')

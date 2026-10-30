@@ -252,10 +252,10 @@ _Stand: 2026-05-03 | Basis: Original-Roadmap + didaktische Produktlogik-Prüfung
 
 | Bereich | Technologie |
 |---|---|
-| Frontend | Next.js 14 |
+| Frontend | Next.js 16 |
 | Backend / DB | Supabase (EU, DSGVO-konform) |
 | KI | Claude API (Sonnet 4.6 für Analyse, Haiku für Aufgabengenerierung) |
-| Hosting | Vercel |
+| Hosting | Railway (Docker, Auto-Deploy von `main`) |
 | Spiele | Canvas / WebGL, Drag & Drop API |
 | Zahlung | Stripe |
 | PDF-Parsing | pdf-parse oder Apache Tika |

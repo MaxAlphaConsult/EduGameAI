@@ -44,7 +44,7 @@ _Stand: 2026-05-05 | Basis: vollständige didaktische und technische Bestandsauf
 - ✅ GitHub Repo `EduGameAI` angelegt
 - ✅ Remote verbunden (`https://github.com/maxcraftbase/EduGameAI.git`)
 - ⬜ Ersten Push auf `main` durchführen
-- ⬜ Vercel mit GitHub Repo verbinden (Auto-Deploy bei jedem Push auf `main`)
+- ✅ Railway mit GitHub verbunden (Auto-Deploy von `main` über das Dockerfile; Vercel seit 30.10.2026 abgeschaltet)
 - ⬜ Branch-Strategie festlegen: Features immer in eigenen Branches, nie direkt auf `main`
 
 ---

@@ -3,7 +3,7 @@
 //
 // Warum: Mehrere schwere Claude-Calls gleichzeitig (Spiel-/Baustein-Generierung)
 // überlaufen sonst das API-Rate-Limit → 429 → SDK-Backoff → die ganze Pipeline
-// kriecht und läuft in den Vercel-Function-Timeout. Gedrosselt greift zudem das
+// kriecht (früher bis in den 300-s-Timeout von Vercel). Gedrosselt greift zudem das
 // Prompt-Caching: Der erste Call wärmt den System-Prompt-Cache, die folgenden
 // lesen ihn (~0,1× Input-Tokens).
 //

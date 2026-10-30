@@ -1,7 +1,7 @@
 // Leichter In-Memory-Rate-Limiter (sliding fixed window).
 //
-// Bewusst KEINE externe Infrastruktur (Redis/Upstash): Auf serverless (Vercel)
-// ist der Speicher pro Instanz und flüchtig — das hier ist Defense-in-Depth
+// Bewusst KEINE externe Infrastruktur (Redis/Upstash): Der Speicher gilt je
+// Prozess und ist nach einem Neustart leer — das hier ist Defense-in-Depth
 // gegen Code-Enumeration, keine harte Garantie. Der Primärschutz ist der
 // 8-stellige Zufallscode (10^8 Raum) plus das kurze Aktiv-Fenster eines
 // Releases. Der Limiter erhöht die Kosten eines Enumerations-Versuchs
@@ -41,9 +41,11 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
   return { ok: true, retryAfterSec: 0 }
 }
 
-// Ermittelt die Client-IP aus den Proxy-Headern. `x-real-ip` wird vom Hosting-
-// Proxy (Vercel) gesetzt und ist schwerer zu fälschen als der frei wählbare erste
-// `x-forwarded-for`-Eintrag — daher bevorzugt. XFF nur als Fallback (lokal/Tests).
+// Ermittelt die Client-IP aus den Proxy-Headern. `x-real-ip` setzt ein Hosting-
+// Proxy, sofern vorhanden; er ist schwerer zu fälschen als der frei wählbare erste
+// `x-forwarded-for`-Eintrag — daher bevorzugt. XFF als Fallback.
+// Offen (Stand 30.10.2026): Ob Railway `x-real-ip` setzt, ist nicht gemessen.
+// Gesetzt hatte ihn Vercel, für das dieser Code geschrieben wurde.
 // Hinweis: IP-basiertes Limiting ist nicht spoofing-sicher; die per-Release-Grenze
 // in start-session ergänzt es um eine nicht client-kontrollierbare Dimension.
 export function clientIp(request: Request): string {
