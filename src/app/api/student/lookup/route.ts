@@ -21,50 +21,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Flow-Code nicht gefunden oder nicht mehr aktiv.' }, { status: 404 })
     }
 
-    const { data: release } = await supabase
-      .from('flow_releases')
-      .select(`
-        id, status, access_code,
-        game_flows(id, titel),
-        classes(id, name, jahrgangsstufe, fach)
-      `)
-      .eq('access_code', code)
-      .eq('status', 'aktiv')
-      .maybeSingle()
+    // Über die Funktion aus Migration 022: flow_releases ist für anon nicht
+    // lesbar, die Funktion liefert nur den einen Treffer zum Code.
+    const { data: rows, error } = await supabase.rpc('schueler_flow_suchen', { p_access_code: code })
+    if (error) {
+      console.error('[student/lookup] schueler_flow_suchen', error)
+      return NextResponse.json({ error: 'Serverfehler' }, { status: 500 })
+    }
+    const treffer = Array.isArray(rows) && rows.length > 0
+      ? (rows[0] as {
+          flow_release_id: string
+          flow_id: string
+          flow_titel: string
+          klasse_id: string
+          klasse_name: string
+          jahrgangsstufe: string | null
+          fach: string | null
+          modul_anzahl: number
+          spiel_anzahl: number
+        })
+      : null
 
-    if (!release) {
+    if (!treffer) {
       return NextResponse.json({ error: 'Flow-Code nicht gefunden oder nicht mehr aktiv.' }, { status: 404 })
     }
 
-    const flow = Array.isArray(release.game_flows) ? release.game_flows[0] : release.game_flows
-    const klasse = Array.isArray(release.classes) ? release.classes[0] : release.classes
-
-    if (!flow || !klasse) {
-      return NextResponse.json({ error: 'Flow-Daten unvollständig' }, { status: 500 })
-    }
-
-    // Anzahl Schritte (alle Bausteine) + davon Spiele — getrennt, damit die UI
-    // nicht mehr alle Bausteine als „Spiele" labelt (A3).
-    const [{ count: schritte }, { count: spiele }] = await Promise.all([
-      supabase
-        .from('games')
-        .select('id', { count: 'exact', head: true })
-        .eq('game_flow_id', flow.id)
-        .eq('status', 'freigegeben'),
-      supabase
-        .from('games')
-        .select('id', { count: 'exact', head: true })
-        .eq('game_flow_id', flow.id)
-        .eq('status', 'freigegeben')
-        .eq('baustein_typ', 'spiel'),
-    ])
-
     return NextResponse.json({
-      flowReleaseId: release.id,
-      flow: { id: flow.id, titel: flow.titel },
-      klasse,
-      modul_anzahl: schritte ?? 0,
-      spiel_anzahl: spiele ?? 0,
+      flowReleaseId: treffer.flow_release_id,
+      flow: { id: treffer.flow_id, titel: treffer.flow_titel },
+      klasse: {
+        id: treffer.klasse_id,
+        name: treffer.klasse_name,
+        jahrgangsstufe: treffer.jahrgangsstufe,
+        fach: treffer.fach,
+      },
+      modul_anzahl: treffer.modul_anzahl ?? 0,
+      spiel_anzahl: treffer.spiel_anzahl ?? 0,
     })
   } catch (err) {
     console.error('[student/lookup]', err)

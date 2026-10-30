@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { istUuid } from '@/lib/flow/ids'
+import { sitzungLesen } from '@/lib/flow/schueler-db'
 
 // GET /api/student/bonus/:studentSessionId
 // Liefert die Spiel-Bausteine des Flows zum freiwilligen Weiterspielen NACH
@@ -10,26 +12,21 @@ export async function GET(
   { params }: { params: Promise<{ studentSessionId: string }> }
 ) {
   const { studentSessionId } = await params
+  if (!istUuid(studentSessionId)) return NextResponse.json({ error: 'Session nicht gefunden' }, { status: 404 })
+
   const supabase = await createClient()
 
-  const { data: session } = await supabase
-    .from('student_sessions')
-    .select('id, flow_release_id')
-    .eq('id', studentSessionId)
-    .maybeSingle()
+  const { zeile: session, fehler } = await sitzungLesen(supabase, studentSessionId)
+  if (fehler) {
+    console.error('[student/bonus] schueler_sitzung_lesen', fehler)
+    return NextResponse.json({ error: 'Serverfehler' }, { status: 500 })
+  }
   if (!session) return NextResponse.json({ error: 'Session nicht gefunden' }, { status: 404 })
-
-  const { data: release } = await supabase
-    .from('flow_releases')
-    .select('game_flow_id')
-    .eq('id', session.flow_release_id)
-    .maybeSingle()
-  if (!release) return NextResponse.json({ spiele: [] })
 
   const { data: games } = await supabase
     .from('games')
     .select('id, titel, game_skin, aufgaben, reihenfolge, baustein_typ, status')
-    .eq('game_flow_id', release.game_flow_id)
+    .eq('game_flow_id', session.game_flow_id)
     .eq('baustein_typ', 'spiel')
     .eq('status', 'freigegeben')
 

@@ -1,80 +1,79 @@
--- pgTAP-Test für Migration 017: anonymer Schüler-Lesezugriff.
+-- pgTAP-Test: anonymer Schüler-Zugriff nach Migration 022/023.
 --
 -- Ausführen mit:  supabase test db
 --
--- Prüft die sicherheitskritischen Eigenschaften der anon-RLS-Policies auf
--- game_flows & classes:
---   1. RLS ist auf beiden Tabellen aktiv.
---   2. Es gibt je eine SELECT-Policy für die Rolle `anon`.
---   3. Diese Policies sind strikt auf Zeilen mit einem AKTIVEN flow_release
---      begrenzt (Definition referenziert flow_releases + 'aktiv').
---   4. Die bestehenden Lehrer-Policies sind weiterhin vorhanden — die anon-
---      Policies sind ADDITIV und weichen RLS nicht pauschal auf.
+-- Bis 023 sicherte dieser Test die anon-Lesepolicies aus 017 auf game_flows und
+-- classes ab. Die gibt es nicht mehr: Der Schüler-Login läuft über
+-- SECURITY-DEFINER-Funktionen (022), und anon liest keine Tabelle mit
+-- Schülerdaten mehr direkt (023). Der Test prüft jetzt genau das:
+--   1. RLS ist auf allen Tabellen mit Schülerdaten aktiv.
+--   2. Keine Policy auf diesen Tabellen gilt für anon oder für alle Rollen
+--      (roles = {public}) mit einer Bedingung, die immer wahr ist.
+--   3. Die Schüler-Funktionen existieren und sind SECURITY DEFINER.
+--   4. Die Lehrer-Policies sind weiterhin vorhanden.
 --
--- Bewusst introspektiv (über pg_policies/pg_class) statt seed-basiert: läuft
--- ohne aufwändiges Anlegen von auth.users/materials/… deterministisch durch und
--- guardet genau das, was Migration 017 garantieren muss. Ein behavioraler
--- Seed-Test kann später ergänzt werden.
+-- Bewusst introspektiv. Das Verhalten (wer welche Zeile sieht) prüft
+-- `npm run verify:rls` mit Testdaten über alle Migrationen.
 
 begin;
-select plan(8);
+select plan(14);
 
 -- 1. RLS aktiv
-select ok(
-  (select relrowsecurity from pg_class where oid = 'public.game_flows'::regclass),
-  'RLS ist auf game_flows aktiv'
+select ok((select relrowsecurity from pg_class where oid = 'public.students'::regclass), 'RLS auf students aktiv');
+select ok((select relrowsecurity from pg_class where oid = 'public.student_sessions'::regclass), 'RLS auf student_sessions aktiv');
+select ok((select relrowsecurity from pg_class where oid = 'public.module_sessions'::regclass), 'RLS auf module_sessions aktiv');
+select ok((select relrowsecurity from pg_class where oid = 'public.answers'::regclass), 'RLS auf answers aktiv');
+select ok((select relrowsecurity from pg_class where oid = 'public.flow_releases'::regclass), 'RLS auf flow_releases aktiv');
+
+-- 2. Keine offene Policy auf Tabellen mit Schülerdaten oder Zugangscodes
+select is(
+  (select count(*)::int from pg_policies
+    where schemaname = 'public'
+      and tablename in ('students', 'student_sessions', 'module_sessions', 'answers', 'flow_releases', 'classes', 'game_flows')
+      and ('anon' = any(roles) or 'public' = any(roles))
+      and (coalesce(qual, '') = 'true' or coalesce(with_check, '') = 'true')),
+  0,
+  'keine Policy mit USING/WITH CHECK (true) für anon oder alle Rollen'
 );
-select ok(
-  (select relrowsecurity from pg_class where oid = 'public.classes'::regclass),
-  'RLS ist auf classes aktiv'
+select is(
+  (select count(*)::int from pg_policies
+    where schemaname = 'public'
+      and tablename in ('students', 'student_sessions', 'module_sessions', 'answers', 'flow_releases', 'classes', 'game_flows')
+      and 'anon' = any(roles)),
+  0,
+  'keine Policy für die Rolle anon auf diesen Tabellen'
 );
 
--- 2./3. anon-SELECT-Policy auf game_flows, begrenzt auf aktive Releases
+-- 3. Schüler-Funktionen
 select ok(
-  exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'game_flows'
-      and policyname = 'game_flows_anon_read_released'
-      and cmd = 'SELECT' and 'anon' = any(roles)
-  ),
-  'anon-SELECT-Policy auf game_flows existiert (Rolle anon)'
+  (select prosecdef from pg_proc where proname = 'schueler_flow_suchen'),
+  'schueler_flow_suchen ist SECURITY DEFINER'
 );
 select ok(
-  exists (
-    select 1 from pg_policies
-    where tablename = 'game_flows' and policyname = 'game_flows_anon_read_released'
-      and qual ilike '%flow_releases%' and qual ilike '%aktiv%'
-  ),
-  'game_flows-Policy ist auf aktive Releases begrenzt'
-);
-
--- 2./3. dasselbe für classes
-select ok(
-  exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'classes'
-      and policyname = 'classes_anon_read_released'
-      and cmd = 'SELECT' and 'anon' = any(roles)
-  ),
-  'anon-SELECT-Policy auf classes existiert (Rolle anon)'
+  (select prosecdef from pg_proc where proname = 'schueler_sitzung_oeffnen'),
+  'schueler_sitzung_oeffnen ist SECURITY DEFINER'
 );
 select ok(
-  exists (
-    select 1 from pg_policies
-    where tablename = 'classes' and policyname = 'classes_anon_read_released'
-      and qual ilike '%flow_releases%' and qual ilike '%aktiv%'
-  ),
-  'classes-Policy ist auf aktive Releases begrenzt'
+  (select prosecdef from pg_proc where proname = 'schueler_modul_weiter'),
+  'schueler_modul_weiter ist SECURITY DEFINER'
+);
+select ok(
+  (select prosecdef from pg_proc where proname = 'schueler_antwort_speichern'),
+  'schueler_antwort_speichern ist SECURITY DEFINER'
+);
+select ok(
+  (select prosecdef from pg_proc where proname = 'validate_student_code'),
+  'validate_student_code ist SECURITY DEFINER'
 );
 
--- 4. Bestehende Lehrer-Policies bleiben erhalten (additiv, nicht aufgeweicht)
+-- 4. Lehrer-Policies bleiben
+select ok(
+  exists (select 1 from pg_policies where tablename = 'student_sessions' and policyname = 'student_sessions_lehrer_read'),
+  'Lehrer-Policy auf student_sessions existiert'
+);
 select ok(
   exists (select 1 from pg_policies where tablename = 'classes' and policyname = 'lehrer_own_classes'),
-  'Lehrer-Policy auf classes existiert weiterhin'
-);
-select ok(
-  exists (select 1 from pg_policies where tablename = 'game_flows' and policyname = 'Lehrer sieht eigene Einheiten'),
-  'Lehrer-SELECT-Policy auf game_flows existiert weiterhin'
+  'Lehrer-Policy auf classes existiert'
 );
 
 select * from finish();

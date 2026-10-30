@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { istUuid } from '@/lib/flow/ids'
+import { modulSitzungLesen } from '@/lib/flow/schueler-db'
 
 // POST /api/answers  body { moduleSessionId, aufgabeId, antwortWert, ... }
 // Schülerantwort speichern + regelbasiert auswerten.
 // Antworten hängen seit Migration 010 an module_session_id (statt session_id).
+// Lesen und Speichern laufen über die Funktionen aus Migration 022; anon darf
+// module_sessions und answers nicht direkt anfassen (023).
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -22,16 +26,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'moduleSessionId, aufgabeId und antwortWert erforderlich' }, { status: 400 })
     }
 
-    // Modul-Session + Spiel laden um Lösungen zu prüfen
-    const { data: ms } = await supabase
-      .from('module_sessions')
-      .select('id, game_id, niveau, games(aufgaben, status)')
-      .eq('id', moduleSessionId)
-      .maybeSingle()
+    if (!istUuid(moduleSessionId)) {
+      return NextResponse.json({ error: 'Modul-Session nicht gefunden' }, { status: 404 })
+    }
 
+    // Modul-Session + Spiel laden um Lösungen zu prüfen
+    const { zeile: ms, fehler } = await modulSitzungLesen(supabase, moduleSessionId)
+    if (fehler) throw fehler
     if (!ms) return NextResponse.json({ error: 'Modul-Session nicht gefunden' }, { status: 404 })
 
-    const spiel = Array.isArray(ms.games) ? ms.games[0] : ms.games
+    const { data: spiel } = await supabase
+      .from('games')
+      .select('aufgaben, status')
+      .eq('id', ms.game_id)
+      .maybeSingle()
     if (!spiel || spiel.status !== 'freigegeben') {
       return NextResponse.json({ error: 'Spiel nicht verfügbar' }, { status: 403 })
     }
@@ -88,25 +96,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: antwort, error } = await supabase
-      .from('answers')
-      .insert({
-        module_session_id: moduleSessionId,
-        aufgabe_id: aufgabeId,
-        antwort_wert: JSON.stringify(antwortWert),
-        status,
-        versuche,
-        hilfen_genutzt: helfenGenutzt,
-        bearbeitungszeit_sekunden: bearbeitungszeitSekunden,
-        ausgeloestes_feedback,
-        abgebrochen,
-      })
-      .select()
-      .single()
+    const { data: antwortId, error } = await supabase.rpc('schueler_antwort_speichern', {
+      p_modul_sitzung_id: moduleSessionId,
+      p_aufgabe_id: String(aufgabeId),
+      p_antwort_wert: JSON.stringify(antwortWert),
+      p_status: status,
+      p_versuche: versuche,
+      p_hilfen_genutzt: helfenGenutzt,
+      p_bearbeitungszeit_sekunden: bearbeitungszeitSekunden,
+      p_ausgeloestes_feedback: ausgeloestes_feedback,
+      p_abgebrochen: abgebrochen,
+    })
 
     if (error) throw error
 
-    return NextResponse.json({ antwort, status, feedback: ausgeloestes_feedback })
+    // Bis Migration 022 kam hier die ganze Zeile zurück; die Clients lesen nur
+    // status und feedback.
+    return NextResponse.json({ antwort: { id: antwortId }, status, feedback: ausgeloestes_feedback })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Antwort konnte nicht gespeichert werden' }, { status: 500 })

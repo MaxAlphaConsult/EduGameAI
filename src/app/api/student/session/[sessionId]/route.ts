@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { istUuid } from '@/lib/flow/ids'
+import { sitzungLesen } from '@/lib/flow/schueler-db'
 
 // GET /api/student/session/:sessionId
 // Vom Flow-Player aufgerufen, um nach Reload/Refresh zu wissen, welches
@@ -11,28 +13,24 @@ export async function GET(
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params
+  if (!istUuid(sessionId)) return NextResponse.json({ error: 'Session nicht gefunden' }, { status: 404 })
+
   const supabase = await createClient()
 
-  const { data: session } = await supabase
-    .from('student_sessions')
-    .select(`
-      id, aktuelles_modul_index, modul_anzahl, lernpfad_abgeschlossen,
-      flow_release_id, code,
-      flow_releases(status, game_flow_id)
-    `)
-    .eq('id', sessionId)
-    .maybeSingle()
-
+  const { zeile: session, fehler } = await sitzungLesen(supabase, sessionId)
+  if (fehler) {
+    console.error('[student/session] schueler_sitzung_lesen', fehler)
+    return NextResponse.json({ error: 'Serverfehler' }, { status: 500 })
+  }
   if (!session) return NextResponse.json({ error: 'Session nicht gefunden' }, { status: 404 })
 
-  const release = Array.isArray(session.flow_releases) ? session.flow_releases[0] : session.flow_releases
-  if (!release || release.status !== 'aktiv') {
+  if (session.release_status !== 'aktiv') {
     return NextResponse.json({ error: 'Flow ist nicht mehr aktiv' }, { status: 410 })
   }
 
   if (session.lernpfad_abgeschlossen) {
     return NextResponse.json({
-      studentSessionId: session.id,
+      studentSessionId: session.student_session_id,
       aktuelles_modul_index: session.modul_anzahl,
       modul_anzahl: session.modul_anzahl,
       abgeschlossen: true,
@@ -44,7 +42,7 @@ export async function GET(
   const { data: game } = await supabase
     .from('games')
     .select('id, titel, game_skin, reihenfolge')
-    .eq('game_flow_id', release.game_flow_id)
+    .eq('game_flow_id', session.game_flow_id)
     .eq('status', 'freigegeben')
     .order('reihenfolge', { ascending: true })
     .range(session.aktuelles_modul_index, session.aktuelles_modul_index)
@@ -52,30 +50,23 @@ export async function GET(
 
   if (!game) return NextResponse.json({ error: 'Aktuelles Modul nicht gefunden' }, { status: 500 })
 
-  // Module-Session zu diesem Position-Slot finden (sollte existieren)
-  const { data: ms } = await supabase
-    .from('module_sessions')
-    .select('id, niveau')
-    .eq('student_session_id', session.id)
-    .eq('position', session.aktuelles_modul_index)
-    .maybeSingle()
-
-  if (!ms) {
+  // Die Modul-Sitzung zur aktuellen Position liefert schueler_sitzung_lesen mit.
+  if (!session.modul_sitzung_id || !session.modul_niveau) {
     return NextResponse.json({ error: 'Modul-Session inkonsistent' }, { status: 500 })
   }
 
   return NextResponse.json({
-    studentSessionId: session.id,
+    studentSessionId: session.student_session_id,
     aktuelles_modul_index: session.aktuelles_modul_index,
     modul_anzahl: session.modul_anzahl,
     abgeschlossen: false,
     aktuelles_modul: {
-      moduleSessionId: ms.id,
+      moduleSessionId: session.modul_sitzung_id,
       gameId: game.id,
       gameSkin: game.game_skin,
       titel: game.titel,
       position: session.aktuelles_modul_index,
-      niveau: ms.niveau,
+      niveau: session.modul_niveau,
     },
   })
 }
