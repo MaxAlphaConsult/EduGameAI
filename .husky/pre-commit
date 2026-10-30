@@ -1,0 +1,16 @@
+# .husky/pre-commit — übernommen aus GateSign, siehe HERKUNFT.md.
+# Läuft vor "git commit". Bei Fehler wird der Commit abgebrochen.
+# Notausgang: git commit --no-verify
+
+# Nur Tests, die mit geänderten .ts/.tsx-Dateien zusammenhängen. Sind keine
+# TS-Dateien geändert (z. B. nur .md), wird vitest gar nicht aufgerufen.
+CHANGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' | tr '\n' ' ')
+
+if [ -n "$CHANGED" ]; then
+  echo "▶ Tests zu den geänderten Dateien ..."
+  # shellcheck disable=SC2086
+  npx vitest related --run --reporter=dot $CHANGED || {
+    echo "✗ Tests rot. Beheben und erneut committen (oder --no-verify)."
+    exit 1
+  }
+fi

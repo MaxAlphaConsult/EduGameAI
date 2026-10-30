@@ -1,0 +1,32 @@
+# .husky/pre-push — übernommen aus GateSign, siehe HERKUNFT.md.
+# Läuft vor "git push". Letzter Check, bevor Code an GitHub geht.
+
+# Reine Branch-Löschungen (`git push --delete`) überspringen die Checks: Es
+# geht kein Code an GitHub. Git reicht je Ref eine Zeile
+# "<local ref> <local sha> <remote ref> <remote sha>" herein; bei einer
+# Löschung besteht die lokale SHA nur aus Nullen.
+only_deletions=1
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  case "$local_sha" in
+    *[!0]*) only_deletions=0 ;;
+  esac
+done
+if [ "$only_deletions" = 1 ]; then
+  echo "▶ Nur Branch-Löschungen, Checks übersprungen."
+  exit 0
+fi
+
+echo "▶ Pre-push-Checks ..."
+
+echo "  → TypeScript"
+npm run typecheck || { echo "✗ TypeScript-Fehler. Push abgebrochen."; exit 1; }
+
+echo "  → Unit-Tests"
+npm test || { echo "✗ Tests rot. Push abgebrochen."; exit 1; }
+
+# Abweichung von GateSign: Die RLS-Prüfung läuft lokal mit, weil sie ohne
+# Docker und Prod-Zugang in wenigen Sekunden durch ist.
+echo "  → RLS über alle Migrationen"
+npm run verify:rls > /dev/null || { echo "✗ RLS-Prüfung rot (npm run verify:rls zeigt Details). Push abgebrochen."; exit 1; }
+
+echo "✓ Checks grün."

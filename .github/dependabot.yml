@@ -1,0 +1,60 @@
+# Übernommen aus GateSign (.github/dependabot.yml), zugeschnitten auf EduGame.
+# Herkunft und Abweichungen: HERKUNFT.md.
+#
+# Kleine Updates gebündelt, große Sprünge nur von Hand: Ein Major-Update von
+# Next, ESLint oder Vitest ändert Verhalten und braucht einen eigenen PR mit
+# Nachweis, kein automatisches Bündel.
+
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    # Frisch veröffentlichte Versionen eine Woche liegen lassen: Kompromittierte
+    # Pakete fallen meist in den ersten Tagen auf und werden zurückgezogen.
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@electric-sql/pglite"
+        # verify-rls hängt an PGlite; ein Major kann das Verhalten der
+        # Testdatenbank ändern.
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "chore"
+      include: scope
+    labels:
+      - dependencies
+
+  # Hebt die SHA-gepinnten Actions in .github/workflows (SHA und Kommentar).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    labels:
+      - ci
+      - dependencies

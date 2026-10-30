@@ -37,7 +37,7 @@ export default async function FlowPreviewPage({ params }: { params: Promise<{ fl
   const sortiert = (games ?? []) as GameRow[]
   sortiert.sort((a, b) => (a.reihenfolge ?? 999) - (b.reihenfolge ?? 999))
 
-  const module: PreviewModul[] = sortiert
+  const bausteine: PreviewModul[] = sortiert
     .map((g) => ({
       id: g.id,
       titel: g.titel ?? 'Baustein',
@@ -48,7 +48,7 @@ export default async function FlowPreviewPage({ params }: { params: Promise<{ fl
     }))
     .filter((m) => m.aufgaben.length > 0)
 
-  if (module.length === 0) {
+  if (bausteine.length === 0) {
     return (
       <div className="p-8 max-w-2xl mx-auto">
         <div className="rounded-2xl p-6" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
@@ -68,7 +68,7 @@ export default async function FlowPreviewPage({ params }: { params: Promise<{ fl
     <FlowPreviewClient
       flowId={flowId}
       flowTitel={flow.titel ?? 'LernFlow'}
-      module={module}
+      module={bausteine}
     />
   )
 }

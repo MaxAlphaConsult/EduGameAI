@@ -117,7 +117,7 @@ export function FlowImprovePanel({ flowId, flowCheckFertig }: Props) {
           if (acceptedChanges.length === 0) return null
 
           const startAufgaben = aktuellByModul[mv.modul_id] ?? []
-          let neueAufgaben = [...startAufgaben]
+          const neueAufgaben = [...startAufgaben]
 
           for (const a of acceptedChanges) {
             if (a.art === 'aufgabe_ersetzen' && a.ziel_aufgabe_id) {

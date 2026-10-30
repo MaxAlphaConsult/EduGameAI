@@ -81,7 +81,7 @@ export function ModulIntro({ titel, untertitel, anzahlAufgaben, spielzeitMin, on
         className="mt-2 px-8 py-4 rounded-2xl text-white font-bold text-base"
         style={{ background: theme.accentGradient, boxShadow: theme.glowAccent }}
       >
-        Los geht's →
+        Los geht’s →
       </motion.button>
     </motion.div>
   )

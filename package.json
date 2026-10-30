@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:migrations": "node scripts/check-migrations.mjs",
-    "verify:rls": "node scripts/verify-rls.mjs"
+    "verify:rls": "node scripts/verify-rls.mjs",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.93.0",
@@ -52,6 +54,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "husky": "^9.1.7",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.9"

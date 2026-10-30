@@ -77,7 +77,7 @@ export function FlowPreviewClient({ flowId, flowTitel, module }: Props) {
           <span className="text-lg">👁️</span>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold" style={{ color: '#92400E' }}>
-              Vorschau: „{flowTitel}" — kompletter Durchlauf
+              Vorschau: „{flowTitel}“ — kompletter Durchlauf
             </p>
             <p className="text-xs" style={{ color: '#B45309' }}>
               Du spielst alle {module.length} Bausteine wie ein Schüler. Antworten fließen NICHT in die Diagnostik.
@@ -242,7 +242,7 @@ function FertigScreen({
       <div>
         <h1 className="text-3xl font-black mb-1" style={{ color: '#1F1235' }}>Geschafft!</h1>
         <p className="text-base" style={{ color: '#7A6A94' }}>
-          Du hast alle {anzahlModule} Spiele von „{flowTitel}" abgeschlossen.
+          Du hast alle {anzahlModule} Spiele von „{flowTitel}“ abgeschlossen.
         </p>
       </div>
       <div className="rounded-2xl px-6 py-4" style={{ background: '#F6F1FF', border: '1px solid #C4B5FD' }}>
