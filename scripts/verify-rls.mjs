@@ -213,7 +213,7 @@ const ms1 = Array.isArray(weiter) ? weiter[0]?.id : null
 check('Weiter: nächstes Modul wird angelegt', !!ms1)
 const doppelt = await rpc(`SELECT schueler_modul_weiter($1, $2, $3, 'schwer') AS id`,
   [sitzungA?.student_session_id ?? null, ms0, A.games[1].id])
-check('Weiter: zweiter Klick mit alter Modul-ID wird abgewiesen (40001)', doppelt?.fehler === '40001')
+check('Weiter: zweiter Klick mit alter Modul-ID wird abgewiesen (PT409)', doppelt?.fehler === 'PT409')
 const fertig = await rpc(`SELECT schueler_modul_weiter($1, $2, NULL, NULL) AS id`, [sitzungA?.student_session_id ?? null, ms1])
 const nachher = await rpc(`SELECT * FROM schueler_sitzung_lesen($1)`, [sitzungA?.student_session_id ?? null])
 check('Weiter: letztes Modul schließt den Lernpfad ab',
@@ -244,6 +244,17 @@ check('019: validate_student_code prüft weiterhin (case-insensitiv)', Array.isA
 await db.exec(`RESET ROLE`)
 check('018: games.grounding existiert', await anzahl(
   `SELECT 1 FROM information_schema.columns WHERE table_name = 'games' AND column_name = 'grounding'`) === 1)
+
+// PostgREST wiederholt Transaktionen, die mit 40001 (serialization_failure)
+// oder 40P01 (deadlock_detected) enden, bis die Anfrage abläuft. Eine Funktion,
+// die einen dieser Codes selbst auslöst, hängt deshalb auf Prod ~2 Minuten
+// (gemessen am 30.10.2026 mit 022). PGlite zeigt das nicht, also hier über den
+// Quelltext. Eigene Fehler nehmen PTxyz (HTTP-Status xyz).
+const wiederholt = (await db.query(
+  `SELECT proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND (p.prosrc LIKE '%''40001''%' OR p.prosrc LIKE '%''40P01''%')`)).rows
+check(`keine Funktion löst 40001/40P01 aus${wiederholt.length ? ` (${wiederholt.map((r) => r.proname).join(', ')})` : ''}`,
+  wiederholt.length === 0)
 
 console.log(fehler === 0
   ? `\n✓ Alle ${geprueft} Prüfungen bestanden.`
